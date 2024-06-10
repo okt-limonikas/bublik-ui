@@ -25,6 +25,7 @@ ENV URL_PREFIX=${URL_PREFIX}
 ARG NGINX_PORT="80"
 ENV NGINX_PORT=${NGINX_PORT}
 ENV DOLLAR="$"
+ENV NGINX_ENVSUBST_OUTPUT_DIR="/etc/nginx/conf.d"
 
 COPY --from=builder /dist/bublik-docker /etc/nginx/html
 COPY ./templates/prod /etc/nginx/templates
