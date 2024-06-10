@@ -5,17 +5,16 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
       NGINX_PORT: ${NGINX_PORT:-80}
-      DOLLAR: $
       URL_PREFIX: ${URL_PREFIX}
     ports:
       - '4200:${NGINX_PORT:-80}'
     expose:
       - '4200'
     volumes:
-      - ./templates/prod:/etc/nginx/templates:ro
       - static_data:/app/bublik/bublik/representation/static
+    networks:
+      - bublik_net
 
 volumes:
   static_data:
