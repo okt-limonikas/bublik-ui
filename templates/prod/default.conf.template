@@ -1,9 +1,9 @@
 upstream django {
-    server django:8000;
+    server ${API_URL};
 }
 
 upstream flower {
-    server flower:5555;
+    server ${FLOWER_URL};
 }
 
 server {
