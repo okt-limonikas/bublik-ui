@@ -1,0 +1,26 @@
+services:
+  nginx:
+    container_name: nginx
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx/conf.d
+      NGINX_PORT: ${NGINX_PORT:-80}
+      DOLLAR: $
+      URL_PREFIX: ${URL_PREFIX}
+    ports:
+      - '80:${NGINX_PORT:-80}'
+    expose:
+      - '80'
+    volumes:
+      - ./templates/prod:/etc/nginx/templates:ro
+      - static_data:/app/bublik/bublik/representation/static
+
+volumes:
+  static_data:
+    external: true
+
+networks:
+  bublik_net:
+    external: true
