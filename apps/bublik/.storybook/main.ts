@@ -15,13 +15,26 @@ const config: StorybookConfig = {
 	],
 	framework: {
 		name: '@storybook/react-vite',
-		options: { builder: { viteConfigPath: './vite.config.ts' } }
+		options: {
+			builder: {
+				viteConfigPath: 'vite.config.ts'
+			}
+		}
 	},
-	staticDirs: ['./public'],
-	docs: { autodocs: 'tag' }
+	viteFinal: (config) => {
+		config.plugins = config.plugins?.filter((plugin) => {
+			if (typeof plugin === 'object' && plugin !== null && 'name' in plugin) {
+				return plugin.name !== '@mdx-js/rollup';
+			}
+			return true;
+		});
+
+		return config;
+	}
 };
+
 export default config;
 
 // To customize your Vite configuration you can use the viteFinal field.
 // Check https://storybook.js.org/docs/react/builders/vite#configuration
-// and https://nx.dev/packages/storybook/documents/custom-builder-configs
+// and https://nx.dev/recipes/storybook/custom-builder-configs
