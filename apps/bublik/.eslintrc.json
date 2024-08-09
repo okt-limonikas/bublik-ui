@@ -4,7 +4,7 @@
 		"plugin:@nx/react",
 		"../../.eslintrc.json"
 	],
-	"ignorePatterns": ["!**/*"],
+	"ignorePatterns": ["!**/*", "storybook-static"],
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],

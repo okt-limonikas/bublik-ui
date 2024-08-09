@@ -19,8 +19,9 @@ const createRequestLogger =
 		});
 	};
 
+// @ts-expect-error some types are not exported
 export default defineConfig(async ({ mode }) => {
-	const mdx = await import('@mdx-js/rollup');
+	const mdx = await import('@mdx-js/rollup').then((m) => m.default);
 
 	let env: Record<string, string> = {};
 	if (mode === 'development') {
@@ -94,7 +95,7 @@ export default defineConfig(async ({ mode }) => {
 			react(),
 			nxViteTsPaths(),
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			mdx.default({ remarkPlugins: [] }) as any,
+			mdx({ remarkPlugins: [] }),
 			svgr({ svgrOptions: { ref: true } })
 		],
 
