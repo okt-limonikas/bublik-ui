@@ -194,6 +194,7 @@ function useConfigById(configId: number) {
 			error: 'Failed to activate config',
 			loading: 'Activating config...'
 		});
+		console.log('FIX');
 	}
 
 	return {
