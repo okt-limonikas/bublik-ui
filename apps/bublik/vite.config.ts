@@ -19,7 +19,8 @@ const createRequestLogger =
 		});
 	};
 
-// @ts-expect-error some types are not exported
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 export default defineConfig(async ({ mode }) => {
 	const mdx = await import('@mdx-js/rollup').then((m) => m.default);
 
