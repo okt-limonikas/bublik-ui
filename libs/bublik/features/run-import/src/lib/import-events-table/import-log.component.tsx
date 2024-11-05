@@ -4,16 +4,22 @@ import { ComponentProps, ElementRef, useEffect, useRef } from 'react';
 
 import { useGetImportLogQuery } from '@/services/bublik-api';
 import {
-	Dialog,
 	DialogClose,
-	DialogTrigger,
+	DrawerContent,
+	DrawerRoot,
+	DrawerTrigger,
 	Icon,
-	ModalContent,
 	Skeleton,
 	toast
 } from '@/shared/tailwind-ui';
 import { ImportJsonLog } from '@/shared/types';
 import { useCopyToClipboard } from '@/shared/hooks';
+import {
+	createColumnHelper,
+	flexRender,
+	getCoreRowModel,
+	useReactTable
+} from '@tanstack/react-table';
 
 export interface JsonLogContainerProps {
 	taskId: string;
@@ -25,20 +31,20 @@ export const JsonLogContainer = ({
 	enablePolling
 }: JsonLogContainerProps) => {
 	return (
-		<Dialog>
-			<DialogTrigger asChild>
+		<DrawerRoot>
+			<DrawerTrigger asChild>
 				<button className="relative inline-flex items-center justify-start px-2 w-fit transition-all appearance-none select-none whitespace-nowrap text-primary bg-primary-wash rounded-md gap-1 h-[1.625rem] border-2 border-transparent hover:border-[#94b0ff]">
 					<Icon name="BoxArrowRight" />
 					<span>Logs</span>
 				</button>
-			</DialogTrigger>
-			<ModalContent className="bg-[#24292f] rounded-lg w-[90vw] flex flex-col">
+			</DrawerTrigger>
+			<DrawerContent className="bg-[#24292f] w-[75vw] flex flex-col h-full">
 				<ImportLogTableContainer
 					taskId={taskId}
 					enablePolling={enablePolling}
 				/>
-			</ModalContent>
-		</Dialog>
+			</DrawerContent>
+		</DrawerRoot>
 	);
 };
 
@@ -72,7 +78,7 @@ export const ImportLogTableContainer = (
 		);
 	}, [props.enablePolling, isFetching]);
 
-	if (error) return <div>Error..</div>;
+	if (error) return <div className="text-text-menu">Error..</div>;
 
 	if (isLoading) return <Skeleton className="w-full h-[90vh] rounded-md" />;
 
@@ -111,30 +117,74 @@ export const ImportLogTableContainer = (
 	);
 };
 
+const helper = createColumnHelper<ImportJsonLog>();
+
+const columns = [
+	helper.display({
+		id: 'line_number',
+		cell: ({ cell }) => (
+			<span className="text-[#8c959f] hover:text-primary hover:underline">
+				{cell.row.index + 1}
+			</span>
+		)
+	}),
+	helper.accessor('asctime', {
+		header: 'Timestamp'
+	}),
+	helper.accessor('levelname', {
+		header: 'Level'
+	}),
+	helper.accessor('module', {
+		header: 'Module'
+	}),
+	helper.accessor('message', {
+		header: 'Message'
+	})
+];
+
 export interface ImportLogTableProps {
 	logs: ImportJsonLog[];
 }
 
 export const ImportLogTable = (props: ImportLogTableProps) => {
-	return (
-		<ul className="font-mono text-xs leading-5">
-			{props.logs.map((lg, idx) => {
-				const lineNumber = idx + 1;
+	const table = useReactTable<ImportJsonLog>({
+		data: props.logs,
+		columns,
+		getCoreRowModel: getCoreRowModel()
+	});
 
-				return (
-					<li
-						key={lineNumber}
-						className="flex hover:bg-gray-600/20 text-gray-200 hover:text-gray-50"
-					>
-						<span className="shrink-0 w-12 overflow-hidden text-right overflow-ellipsis whitespace-nowrap select-none text-[#8c959f] hover:text-primary hover:underline">
-							{lineNumber}
-						</span>
-						<span className="ml-3 overflow-x-auto whitespace-pre-wrap">
-							{lg.message}
-						</span>
-					</li>
-				);
-			})}
-		</ul>
+	return (
+		<div className="font-mono text-xs leading-5">
+			<table className="w-full">
+				<thead>
+					{table.getHeaderGroups().map((group) => (
+						<tr key={group.id} className="text-gray-200 text-left">
+							{group.headers.map((header) => (
+								<th key={header.id}>
+									{flexRender(
+										header.column.columnDef.header,
+										header.getContext()
+									)}
+								</th>
+							))}
+						</tr>
+					))}
+				</thead>
+				<tbody>
+					{table.getRowModel().rows.map((row) => (
+						<tr
+							key={row.id}
+							className="hover:bg-gray-600/20 text-gray-200 hover:text-gray-50"
+						>
+							{row.getAllCells().map((cell) => (
+								<td key={cell.id} className="px-1">
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+								</td>
+							))}
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
 	);
 };
