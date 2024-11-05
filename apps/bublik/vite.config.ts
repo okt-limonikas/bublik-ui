@@ -5,6 +5,8 @@ import { defineConfig, HttpProxy, loadEnv, ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import svgr from 'vite-plugin-svgr';
+import { copyFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 
 const createRequestLogger =
 	(domain: string) => (proxy: HttpProxy.Server, _options: ProxyOptions) => {
@@ -87,15 +89,35 @@ export default defineConfig(async ({ mode }) => {
 						return externalUrl.replace(LOGS_TARGET, '');
 					}
 				}
-			}
+			},
+			fs: { strict: false }
 		},
-		optimizeDeps: { include: ['react/jsx-runtime'] },
+		optimizeDeps: { include: ['react/jsx-runtime'], exclude: ['pyodide'] },
 		plugins: [
 			react(),
 			nxViteTsPaths(),
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			mdx.default({ remarkPlugins: [] }) as any,
-			svgr({ svgrOptions: { ref: true } })
+			svgr({ svgrOptions: { ref: true } }),
+			{
+				name: 'vite-plugin-pyodide',
+				generateBundle: async () => {
+					const assetsDir = 'dist/assets';
+					await mkdir(assetsDir, { recursive: true });
+					const files = [
+						'pyodide-lock.json',
+						'pyodide.asm.js',
+						'pyodide.asm.wasm',
+						'python_stdlib.zip'
+					];
+					for (const file of files) {
+						await copyFile(
+							join('node_modules/pyodide', file),
+							join(assetsDir, file)
+						);
+					}
+				}
+			}
 		],
 
 		build: {

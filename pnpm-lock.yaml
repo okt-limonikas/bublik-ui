@@ -155,6 +155,9 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
+      pyodide:
+        specifier: ^0.26.3
+        version: 0.26.3
       re-resizable:
         specifier: ^6.9.11
         version: 6.9.11(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -10574,6 +10577,10 @@ packages:
 
   pure-rand@6.0.3:
     resolution: {integrity: sha512-KddyFewCsO0j3+np81IQ+SweXLDnDQTs5s67BOnrYmYe/yNmUhttQyGsYzy8yUnoljGAQ9sl38YB4vH8ur7Y+w==}
+
+  pyodide@0.26.3:
+    resolution: {integrity: sha512-cRe9CswiTNTIypOr/RtTb+aR8SxA6KG8aEf3i0OK0nzINLzF4jfVpV5DK2BwP3808ipxoL+ZrnUIjwN5wC8tCw==}
+    engines: {node: '>=18.0.0'}
 
   q@1.5.1:
     resolution: {integrity: sha512-kV/CThkXo6xyFEZUugw/+pIOywXcDbFYgSct5cT3gqlbkBE1SJdwy6UQoZvodiWF/ckQLZyDE/Bu1M6gVu5lVw==}
@@ -24895,7 +24902,7 @@ snapshots:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.14.1
+      ws: 8.17.1
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -26909,6 +26916,13 @@ snapshots:
   pure-color@1.3.0: {}
 
   pure-rand@6.0.3: {}
+
+  pyodide@0.26.3:
+    dependencies:
+      ws: 8.17.1
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   q@1.5.1: {}
 
@@ -29168,7 +29182,7 @@ snapshots:
       sockjs: 0.3.24
       spdy: 4.0.2
       webpack-dev-middleware: 5.3.3(webpack@5.88.2(@swc/core@1.5.7(@swc/helpers@0.5.2))(esbuild@0.18.20))
-      ws: 8.14.1
+      ws: 8.17.1
     optionalDependencies:
       webpack: 5.88.2(@swc/core@1.5.7(@swc/helpers@0.5.2))(esbuild@0.18.20)
     transitivePeerDependencies:
