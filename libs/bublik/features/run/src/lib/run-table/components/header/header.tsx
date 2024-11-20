@@ -29,7 +29,7 @@ export const RunHeader = ({ instance }: RunHeaderProps) => {
 							className={cn(
 								'px-2 border-b bg-white',
 								arr.length - 1 !== idx && 'border-r border-border-primary',
-								header.depth === 1 && 'bg-purple-50'
+								header.column.columnDef.meta?.className
 							)}
 							style={{
 								position: 'sticky',

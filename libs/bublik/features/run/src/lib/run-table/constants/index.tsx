@@ -62,6 +62,7 @@ type ColumnGroup = {
 	id: string;
 	label: ReactNode;
 	columns: ColumnId[];
+	className?: string;
 };
 
 export const COLUMN_GROUPS: ColumnGroup[] = [
@@ -85,7 +86,8 @@ export const COLUMN_GROUPS: ColumnGroup[] = [
 				/>
 			</div>
 		),
-		columns: [ColumnId.PassedExpected, ColumnId.FailedExpected]
+		columns: [ColumnId.PassedExpected, ColumnId.FailedExpected],
+		className: 'bg-badge-3'
 	},
 	{
 		id: 'Unexpected Results (Passed/Failed)',
@@ -99,7 +101,8 @@ export const COLUMN_GROUPS: ColumnGroup[] = [
 				/>
 			</div>
 		),
-		columns: [ColumnId.PassedUnexpected, ColumnId.FailedUnexpected]
+		columns: [ColumnId.PassedUnexpected, ColumnId.FailedUnexpected],
+		className: 'bg-bg-fillError'
 	},
 	{
 		id: 'Skipped Results (Expected/Unexpected)',
@@ -108,7 +111,8 @@ export const COLUMN_GROUPS: ColumnGroup[] = [
 				<span>SKIPPED</span>
 			</div>
 		),
-		columns: [ColumnId.SkippedExpected, ColumnId.SkippedUnexpected]
+		columns: [ColumnId.SkippedExpected, ColumnId.SkippedUnexpected],
+		className: 'bg-gray-50'
 	},
 	{ id: 'Abnormal', label: '', columns: [ColumnId.Abnormal] }
 ];

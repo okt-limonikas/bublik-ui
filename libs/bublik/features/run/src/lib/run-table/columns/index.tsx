@@ -107,7 +107,8 @@ function getColumns() {
 		return helper.group({
 			id: id,
 			header: group?.label as any,
-			columns: columns as ColumnDef<RunData | MergedRun>[]
+			columns: columns as ColumnDef<RunData | MergedRun>[],
+			meta: { className: group?.className }
 		});
 	});
 }
