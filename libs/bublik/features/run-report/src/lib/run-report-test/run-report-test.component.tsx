@@ -9,6 +9,7 @@ import {
 } from '@radix-ui/react-hover-card';
 
 import { ArgsValBlock, RecordBlock } from '@/shared/types';
+import { usePlatformSpecificCtrl } from '@/shared/hooks';
 import {
 	CardHeader,
 	Icon,
@@ -181,6 +182,9 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 				?.removeEventListener('scroll', handleScroll);
 	}, [offset]);
 
+	const tableScrollRef = useRef<HTMLDivElement>(null);
+	const isPressed = usePlatformSpecificCtrl();
+
 	return (
 		<div className="flex flex-col pl-1">
 			<div className="flex flex-col max-h-[412px]" id={encodeURIComponent(id)}>
@@ -229,7 +233,13 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 								enableChartView && chart && 'border-l border-border-primary'
 							)}
 						>
-							<div className="flex-1 overflow-auto">
+							<div
+								className={cn(
+									'flex-1',
+									isPressed ? 'overflow-y-auto' : 'overflow-y-hidden'
+								)}
+								ref={tableScrollRef}
+							>
 								<RunReportTable table={table} />
 							</div>
 						</div>
