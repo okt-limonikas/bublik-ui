@@ -185,6 +185,38 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 	const tableScrollRef = useRef<HTMLDivElement>(null);
 	const isPressed = usePlatformSpecificCtrl();
 
+	useEffect(() => {
+		function handleTableScroll(event: WheelEvent) {
+			const tableElement = tableScrollRef.current;
+			const pageContainer = document.getElementById('page-container');
+
+			if (!tableElement || !pageContainer) return;
+
+			// Determine whether to scroll the table or propagate to the page container
+			if (isPressed) {
+				// Allow table to scroll when modifier is pressed
+				return;
+			} else {
+				// Scroll page container instead
+				pageContainer.scrollBy({
+					top: event.deltaY,
+					left: event.deltaX,
+					behavior: 'auto'
+				});
+				event.preventDefault(); // Prevent the table from handling the scroll
+			}
+		}
+
+		const tableElement = tableScrollRef.current;
+		tableElement?.addEventListener('wheel', handleTableScroll, {
+			passive: false
+		});
+
+		return () => {
+			tableElement?.removeEventListener('wheel', handleTableScroll);
+		};
+	}, [isPressed]);
+
 	return (
 		<div className="flex flex-col pl-1">
 			<div className="flex flex-col h-[412px]" id={encodeURIComponent(id)}>
@@ -234,10 +266,7 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 							)}
 						>
 							<div
-								className={cn(
-									'flex-1',
-									isPressed ? 'overflow-y-auto' : 'overflow-y-hidden'
-								)}
+								className={cn('flex-1', 'overflow-y-auto')}
 								ref={tableScrollRef}
 							>
 								<RunReportTable table={table} />
