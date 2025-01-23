@@ -33,7 +33,7 @@ const getNavSections = () => {
 		subitems: [
 			{
 				label: 'Configs',
-				icon: <Icon name="SettingsSliders" size={20} />,
+				icon: <Icon name="SettingsSliders" size={24} />,
 				to: '/admin/config',
 				pattern: { path: '/admin/config' }
 			},
@@ -93,6 +93,8 @@ const getNavSections = () => {
 
 	return [devSection, ...bottomNav];
 };
+
+const links = getNavSections();
 
 export const BottomNavigation = () => {
 	const links = useMemo(() => getNavSections(), []);
