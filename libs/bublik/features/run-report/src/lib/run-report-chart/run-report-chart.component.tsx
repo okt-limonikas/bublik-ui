@@ -11,6 +11,8 @@ import { ReportChart } from '@/shared/types';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
 import { usePlatformSpecificCtrl } from '@/shared/hooks';
 
+const DataIndexSchema = z.object({ dataIndex: z.number() }).nonstrict();
+
 interface RunReportChartProps {
 	chart: ReportChart;
 }
@@ -30,7 +32,33 @@ function RunReportChart(props: RunReportChartProps) {
 					? chart.axis_y.label
 					: d.series,
 			type: 'line',
-			data: d.points.map((d) => d?.[chart.axis_y.key])
+			data: d.points.map((d) => d?.[chart.axis_y.key]),
+			itemStyle: {
+				color: (params: unknown) => {
+					const parsedParams = DataIndexSchema.parse(params);
+					const point = d.points[parsedParams.dataIndex];
+					const status = point?.metadata?.result_type?.toLowerCase();
+
+					if (status === 'failed') return '#f95c78';
+					return '#65cd84';
+				}
+			},
+			symbol: (_, params: unknown) => {
+				const parsedParams = DataIndexSchema.parse(params);
+				const point = d.points[parsedParams.dataIndex];
+				const status = point?.metadata?.result_type?.toLowerCase();
+
+				if (status === 'failed') return 'diamond';
+				return 'circle';
+			},
+			symbolSize: (_, params: unknown) => {
+				const parsedParams = DataIndexSchema.parse(params);
+				const point = d.points[parsedParams.dataIndex];
+				const status = point?.metadata?.result_type?.toLowerCase();
+
+				if (status === 'failed') return 16;
+				return 8;
+			}
 		}));
 	}, [chart.axis_y.key, chart.axis_y.label, chart.data, chart.series_label]);
 
