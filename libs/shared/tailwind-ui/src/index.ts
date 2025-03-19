@@ -68,3 +68,4 @@ export * from './lib/conclusion-hover-card';
 export * from './lib/conclusion-badge';
 export * from './lib/tabs';
 export * from './lib/instruction-dialog';
+export * from './lib/data-table-faceted-filter';
