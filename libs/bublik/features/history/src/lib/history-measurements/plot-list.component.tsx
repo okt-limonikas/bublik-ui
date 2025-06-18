@@ -33,10 +33,17 @@ interface PlotListItemProps {
 		color: string;
 	}) => void;
 	combinedState: 'disabled' | 'active' | 'default' | 'waiting';
+	enableResultErrorHighlight?: boolean;
 }
 
 const PlotListItem = (props: PlotListItemProps) => {
-	const { idx, plot, combinedState, onAddChartClick } = props;
+	const {
+		idx,
+		plot,
+		combinedState,
+		onAddChartClick,
+		enableResultErrorHighlight
+	} = props;
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [point, setPoint] = useState<Point | null>(null);
 
@@ -70,6 +77,7 @@ const PlotListItem = (props: PlotListItemProps) => {
 					chart={plot}
 					color={getColorByIdx(idx)}
 					onChartPointClick={handleChartPointClick}
+					enableResultErrorHighlight={enableResultErrorHighlight}
 					additionalToolBarItems={
 						<ToolbarButton
 							aria-label="Add to combined chart"
@@ -109,10 +117,11 @@ export interface PlotListProps {
 	label: string;
 	plots: SingleMeasurementChart[];
 	isFetching?: boolean;
+	enableResultErrorHighlight?: boolean;
 }
 
 export function PlotList(props: PlotListProps) {
-	const { plots, isFetching, label } = props;
+	const { plots, isFetching, label, enableResultErrorHighlight } = props;
 	const { isSidebarOpen } = useSidebar();
 	const { handleAddChartClick, selectedCharts } = useCombinedView();
 
@@ -153,6 +162,7 @@ export function PlotList(props: PlotListProps) {
 							plot={plot}
 							onAddChartClick={handleAddChartClick}
 							combinedState={state}
+							enableResultErrorHighlight={enableResultErrorHighlight}
 						/>
 					);
 				})}
