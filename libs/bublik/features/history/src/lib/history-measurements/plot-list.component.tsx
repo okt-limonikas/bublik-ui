@@ -31,9 +31,12 @@ interface PlotListItemProps {
 	onAddChartClick: (args: {
 		plot: SingleMeasurementChart;
 		color: string;
+		group: 'trend' | 'measurement';
 	}) => void;
 	combinedState: 'disabled' | 'active' | 'default' | 'waiting';
 	enableResultErrorHighlight?: boolean;
+	group: 'trend' | 'measurement';
+	selectedGroup: 'trend' | 'measurement' | null;
 }
 
 const PlotListItem = (props: PlotListItemProps) => {
@@ -42,7 +45,9 @@ const PlotListItem = (props: PlotListItemProps) => {
 		plot,
 		combinedState,
 		onAddChartClick,
-		enableResultErrorHighlight
+		enableResultErrorHighlight,
+		group,
+		selectedGroup
 	} = props;
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [point, setPoint] = useState<Point | null>(null);
@@ -58,8 +63,12 @@ const PlotListItem = (props: PlotListItemProps) => {
 	};
 
 	const handleChartAddClick = (plot: SingleMeasurementChart) => {
-		onAddChartClick({ plot, color: getColorByIdx(idx) });
+		onAddChartClick({ plot, color: getColorByIdx(idx), group });
 	};
+
+	const isDisabled =
+		combinedState === 'disabled' ||
+		(selectedGroup !== null && selectedGroup !== group);
 
 	return (
 		<>
@@ -81,8 +90,14 @@ const PlotListItem = (props: PlotListItemProps) => {
 					additionalToolBarItems={
 						<ToolbarButton
 							aria-label="Add to combined chart"
-							state={combinedState === 'active' ? 'active' : 'default'}
-							disabled={combinedState === 'disabled'}
+							state={
+								isDisabled
+									? 'disabled'
+									: combinedState === 'active'
+									? 'active'
+									: 'default'
+							}
+							disabled={isDisabled}
 							onClick={() => handleChartAddClick(plot)}
 						>
 							<Icon name="AddSymbol" className="size-5" />
@@ -118,12 +133,14 @@ export interface PlotListProps {
 	plots: SingleMeasurementChart[];
 	isFetching?: boolean;
 	enableResultErrorHighlight?: boolean;
+	group: 'trend' | 'measurement';
 }
 
 export function PlotList(props: PlotListProps) {
-	const { plots, isFetching, label, enableResultErrorHighlight } = props;
+	const { plots, isFetching, label, enableResultErrorHighlight, group } = props;
 	const { isSidebarOpen } = useSidebar();
-	const { handleAddChartClick, selectedCharts } = useCombinedView();
+	const { handleAddChartClick, selectedCharts, selectedGroup } =
+		useCombinedView();
 
 	return (
 		<div
@@ -163,6 +180,8 @@ export function PlotList(props: PlotListProps) {
 							onAddChartClick={handleAddChartClick}
 							combinedState={state}
 							enableResultErrorHighlight={enableResultErrorHighlight}
+							group={group}
+							selectedGroup={selectedGroup}
 						/>
 					);
 				})}
