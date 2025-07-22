@@ -3,6 +3,9 @@
 import { ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { BooleanParam, useQueryParam, withDefault } from 'use-query-params';
+import { useLocation } from 'react-router';
+
 import { useMount } from '@/shared/hooks';
 import {
 	Badge,
@@ -16,24 +19,23 @@ import {
 	Spinner,
 	toast
 } from '@/shared/tailwind-ui';
-
 import {
 	NotProcessedPoint,
 	ReportRoot,
 	RunDetailsAPIResponse,
 	TestBlock
 } from '@/shared/types';
+import { getErrorMessage } from '@/services/bublik-api';
+
 import { List, RunReportHeader } from './run-report-header';
 import { RunReportTestBlock, WarningsHoverCard } from './run-report-test';
-import { useLocation } from 'react-router';
-import { getErrorMessage } from '@/services/bublik-api';
+import { LinkWithProject } from '@/bublik/features/projects';
 import {
 	createColumnHelper,
 	flexRender,
 	getCoreRowModel,
 	useReactTable
 } from '@tanstack/react-table';
-import { LinkWithProject } from '@/bublik/features/projects';
 
 interface TableOfContentsItem {
 	type: string;
@@ -94,7 +96,10 @@ interface TableOfContentsItemProps {
 function TableOfContentsItem({ item, depth = 0 }: TableOfContentsItemProps) {
 	const isOpenByDefault =
 		item.type === 'arg-val-block' || item.type === 'test-block';
-	const [open, setOpen] = useState(isOpenByDefault);
+	const [open, setOpen] = useQueryParam(
+		item.id,
+		withDefault(BooleanParam, isOpenByDefault)
+	);
 	const [params] = useSearchParams();
 	const configid = params.get('config');
 
