@@ -69,3 +69,4 @@ export * from './lib/tabs';
 export * from './lib/instruction-dialog';
 export * from './lib/data-table-faceted-filter';
 export * from './lib/run-running';
+export * from './lib/split-button';
