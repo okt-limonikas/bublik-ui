@@ -8,11 +8,10 @@ import {
 	VERDICT_TYPE
 } from '@/shared/types';
 import { routes, stringifySearch, useSearchState } from '@/router';
-import { ButtonTw, Icon } from '@/shared/tailwind-ui';
+import { ButtonTw, Icon, SplitButton, Tooltip } from '@/shared/tailwind-ui';
 import { DEFAULT_RESULT_TYPES } from '@/bublik/config';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
 import { LinkWithProject } from '@/bublik/features/projects';
-import { ContextLinks } from '@/bublik/features/context-links';
 
 export interface LinksProps {
 	row: HistoryDataLinear;
@@ -42,44 +41,62 @@ export const Links = ({ row }: LinksProps) => {
 					Run
 				</LinkWithProject>
 			</ButtonTw>
-			<ContextLinks
-				sections={[
-					{
-						label: 'Shortcuts',
-						items: [
-							{
-								label: 'All unexpected',
-								to: {
-									pathname: '/history',
-									search: shortcuts.allUnexpected
-								}
-							},
-							{
-								label: 'Similar unexpected',
-								to: {
-									pathname: '/history',
-									search: shortcuts.similarUnexpected
-								}
-							}
-						]
-					}
-				]}
-			>
-				<ButtonTw
-					asChild
-					size="xss"
-					variant="secondary"
-					className="justify-start w-fit"
-				>
+			<SplitButton.Root variant="secondary" size="xss">
+				<SplitButton.Button asChild>
 					<LinkWithProject
-						className="justify-start w-fit"
 						to={{ pathname: '/history', search: shortcuts.historyQuery }}
 					>
-						<Icon name="BoxArrowRight" className="mr-1.5" />
-						History
+						<Icon
+							name="BoxArrowRight"
+							size={20}
+							className="grid place-items-center mr-1"
+						/>
+						<span>History</span>
 					</LinkWithProject>
-				</ButtonTw>
-			</ContextLinks>
+				</SplitButton.Button>
+				<SplitButton.Separator orientation="vertical" className="h-5" />
+				<SplitButton.Trigger>
+					<Icon name="ChevronDown" size={14} />
+				</SplitButton.Trigger>
+				<SplitButton.Content align="start">
+					<SplitButton.Label>Shortcuts</SplitButton.Label>
+					<SplitButton.Separator className="my-1" />
+					<Tooltip
+						side="right"
+						sideOffset={12}
+						content="All unexpected with (meta, tags, parameters)"
+					>
+						<SplitButton.Item asChild>
+							<LinkWithProject
+								to={{ pathname: '/history', search: shortcuts.allUnexpected }}
+								target="_blank"
+							>
+								<Icon name="ExternalLink" size={16} className="text-primary" />
+								<span>All Unexpected</span>
+							</LinkWithProject>
+						</SplitButton.Item>
+					</Tooltip>
+
+					<Tooltip
+						side="right"
+						sideOffset={12}
+						content="All unexpected with (meta, tags, parameters, verdicts)"
+					>
+						<SplitButton.Item asChild>
+							<LinkWithProject
+								to={{
+									pathname: '/history',
+									search: shortcuts.similarUnexpected
+								}}
+								target="_blank"
+							>
+								<Icon name="ExternalLink" size={16} className="text-primary" />
+								<span>Similar Unexpected</span>
+							</LinkWithProject>
+						</SplitButton.Item>
+					</Tooltip>
+				</SplitButton.Content>
+			</SplitButton.Root>
 			{row.has_measurements && (
 				<ButtonTw asChild size="xss" variant="secondary">
 					<LinkWithProject
