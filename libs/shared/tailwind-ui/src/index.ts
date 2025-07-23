@@ -67,3 +67,4 @@ export * from './lib/conclusion-badge';
 export * from './lib/instruction-dialog';
 export * from './lib/data-table-faceted-filter';
 export * from './lib/run-running';
+export * from './lib/split-button';
