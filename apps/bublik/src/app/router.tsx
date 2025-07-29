@@ -35,7 +35,7 @@ import {
 	RunReportPage,
 	ConfigsPage,
 	RunMultiplePage,
-	PcapAnalyzePage
+	NetPacketAnalyzerPage
 } from '../pages';
 import { Layout } from './layout';
 import { RedirectToLogPage } from './redirects';
@@ -177,7 +177,10 @@ const router = createBrowserRouter(
 					children: [
 						{ path: '/', element: <Navigate to="/dashboard" /> },
 						{ path: '/dashboard', element: <DashboardPageV2 /> },
-						{ path: '/pcap', element: <PcapAnalyzePage /> },
+						{
+							path: '/tools/packet-viewer',
+							element: <NetPacketAnalyzerPage />
+						},
 						{ path: '/history', element: <HistoryPageV2 /> },
 						{ path: '/history/v2', element: <HistoryPageV2 /> },
 						{ path: '/log/:runId/:old', element: <RedirectToLogPage /> },
