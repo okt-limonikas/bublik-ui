@@ -12,6 +12,7 @@ import { groupBy } from 'remeda';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { To } from 'react-router-dom';
+import { cva } from 'cva';
 
 import {
 	CreateTestCommentParams,
@@ -55,6 +56,21 @@ import { badgeColumns } from './badge-columns';
 import { ColumnId } from '../types';
 import { COLUMN_GROUPS } from '../constants';
 
+const columnIconButton = cva({
+	base: [
+		'inline-flex items-center justify-center transition-all appearance-none select-none text-[0.6875rem] font-semibold leading-[0.875rem] max-h-[26px] rounded-md hover:shadow-[inset_0_0_0_2px_#94b0ff]',
+		'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
+		'disabled:shadow-[inset_0_0_0_1px_hsl(var(--colors-border-primary))] disabled:bg-white disabled:hover:bg-white disabled:text-border-primary',
+		'p-[3px] size-6'
+	],
+	variants: {
+		open: {
+			true: 'bg-primary text-white',
+			false: 'hover:bg-primary-wash text-primary'
+		}
+	}
+});
+
 function getHistoryViewLink(
 	name: string,
 	runIds: number[],
@@ -79,20 +95,8 @@ function HistoryRunLinksDropdownMenu(props: HistoryRunLinksDropdownMenuProps) {
 
 	return (
 		<DropdownMenu onOpenChange={setOpen}>
-			<DropdownMenuTrigger asChild>
-				<button
-					className={cn(
-						'inline-flex items-center justify-center transition-all appearance-none select-none text-[0.6875rem] font-semibold leading-[0.875rem] max-h-[26px] rounded-md hover:shadow-[inset_0_0_0_2px_#94b0ff]',
-						'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
-						'disabled:shadow-[inset_0_0_0_1px_hsl(var(--colors-border-primary))] disabled:bg-white disabled:hover:bg-white disabled:text-border-primary',
-						'p-[3px]',
-						open
-							? 'bg-primary text-white'
-							: 'hover:bg-primary-wash text-primary'
-					)}
-				>
-					<Icon name="ArrowShortTop" size={18} className={cn('rotate-180')} />
-				</button>
+			<DropdownMenuTrigger className={columnIconButton({ open })}>
+				<Icon name="ArrowShortTop" size={18} className="rotate-180" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start">
 				<DropdownMenuLabel>Open Direct Search</DropdownMenuLabel>
@@ -368,6 +372,9 @@ function TestComments(props: TestCommentsProps) {
 	const { comments, testId, projectId } = props;
 	const { createTestComment, editTestComment } = useTestComment();
 	const { confirm, confirmation, decline, isVisible } = useConfirm();
+	const [isAddNewCommentOpen, setIsAddNewCommentOpen] = useState(false);
+	const [isEditOpen, setIsEditOpen] = useState(false);
+	const [isShowAllNotesOpen, setIsShowAllNotesOpen] = useState(false);
 
 	async function handleCreateTestCommentClick(comment: string) {
 		await createTestComment({ testId, comment, projectId });
@@ -393,13 +400,13 @@ function TestComments(props: TestCommentsProps) {
 	if (!comments || !comments?.length) {
 		return (
 			<div className="flex items-center gap-1 justify-end pr-2">
-				<Popover>
+				<Popover onOpenChange={setIsAddNewCommentOpen}>
 					<Tooltip content="Add Node">
-						<PopoverTrigger asChild>
-							<ButtonTw variant="secondary" size="xss" className="size-6">
-								<Icon name="FilePlus" className="size-5 shrink-0" />
-								<span className="sr-only">Add Note</span>
-							</ButtonTw>
+						<PopoverTrigger
+							className={columnIconButton({ open: isAddNewCommentOpen })}
+						>
+							<Icon name="FilePlus" className="size-5 shrink-0" />
+							<span className="sr-only">Add Note</span>
 						</PopoverTrigger>
 					</Tooltip>
 					<PopoverPortal container={document.body}>
@@ -407,7 +414,7 @@ function TestComments(props: TestCommentsProps) {
 							className={cn(
 								'relative p-4 bg-white rounded-md w-96 shadow-popover'
 							)}
-							align="end"
+							align="start"
 							sideOffset={8}
 						>
 							<CommentEditor
@@ -430,60 +437,31 @@ function TestComments(props: TestCommentsProps) {
 			key={c.comment_id}
 			className="flex items-center gap-2 justify-end max-w-[15vw] px-2"
 		>
+			<pre className="truncate font-body block max-w-[80ch]">{c.comment}</pre>
+
+			{/* Show All Notes Popover */}
 			<Popover
 				onOpenChange={(open) => {
-					if (open) return;
-					setInput('');
-					setEditId(null);
+					setIsShowAllNotesOpen(open);
+					if (!open) {
+						setInput('');
+						setEditId(null);
+					}
 				}}
 				modal
 			>
-				<pre className="truncate font-body block max-w-[80ch]">{c.comment}</pre>
 				<Tooltip content="Show All Notes">
-					<PopoverTrigger asChild>
-						<ButtonTw variant="secondary" size="xss" className="size-6">
-							<Icon name="ArrowLeanUp" className="size-5 rotate-180 shrink-0" />
-						</ButtonTw>
+					<PopoverTrigger
+						className={columnIconButton({ open: isShowAllNotesOpen })}
+					>
+						<Icon name="ArrowLeanUp" className="size-5 rotate-180 shrink-0" />
 					</PopoverTrigger>
 				</Tooltip>
-				<Popover>
-					<Tooltip content="Edit Note">
-						<PopoverTrigger asChild>
-							<ButtonTw
-								variant="secondary"
-								size="xss"
-								aria-label="Edit Note"
-								className="size-6"
-							>
-								<Icon name="Edit" className="size-5 shrink-0" />
-							</ButtonTw>
-						</PopoverTrigger>
-					</Tooltip>
-
-					<PopoverPortal>
-						<PopoverContent
-							className={cn(
-								'relative p-4 bg-white rounded-md w-96 shadow-popover'
-							)}
-							sideOffset={8}
-							align="end"
-						>
-							<CommentEditor
-								label="Edit Note"
-								onSubmit={(f) =>
-									handleEditTestCommentClick(Number(c.comment_id), f.comment)
-								}
-								defaultValues={{ comment: c.comment }}
-								submitLabel="Edit"
-							/>
-						</PopoverContent>
-					</PopoverPortal>
-				</Popover>
 				<PopoverPortal>
 					<PopoverContent
 						className="relative p-4 bg-white rounded-md w-96 shadow-popover"
 						sideOffset={8}
-						align="end"
+						align="start"
 					>
 						<ConfirmDialog
 							open={isVisible}
@@ -597,6 +575,33 @@ function TestComments(props: TestCommentsProps) {
 								) : null}
 							</div>
 						</div>
+					</PopoverContent>
+				</PopoverPortal>
+			</Popover>
+
+			{/* Edit Note Popover */}
+			<Popover onOpenChange={setIsEditOpen}>
+				<Tooltip content="Edit Note">
+					<PopoverTrigger className={columnIconButton({ open: isEditOpen })}>
+						<Icon name="Edit" className="size-5 shrink-0" />
+					</PopoverTrigger>
+				</Tooltip>
+				<PopoverPortal>
+					<PopoverContent
+						className={cn(
+							'relative p-4 bg-white rounded-md w-96 shadow-popover'
+						)}
+						sideOffset={8}
+						align="start"
+					>
+						<CommentEditor
+							label="Edit Note"
+							onSubmit={(f) =>
+								handleEditTestCommentClick(Number(c.comment_id), f.comment)
+							}
+							defaultValues={{ comment: c.comment }}
+							submitLabel="Edit"
+						/>
 					</PopoverContent>
 				</PopoverPortal>
 			</Popover>
