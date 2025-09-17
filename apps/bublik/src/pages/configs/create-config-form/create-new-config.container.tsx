@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useForm, Controller } from 'react-hook-form';
+import JSON5 from 'json5';
 
 import { useConfirm } from '@/shared/hooks';
 import { bublikAPI, ConfigExistsError } from '@/services/bublik-api';
@@ -29,7 +30,7 @@ import {
 import { useConfigPageSearchParams, useSavedState } from '../hooks';
 import {
 	getEditorValue,
-	isValidJson,
+	isValidJson5,
 	ValidationErrorSchema,
 	ValidJsonStringSchema
 } from '../utils';
@@ -70,7 +71,7 @@ function CreateNewConfigScreen() {
 	function handleCreateConfigClick() {
 		const value = getEditorValue(editorRef.current);
 
-		if (!isValidJson(value)) return toast.error('Failed to parse JSON');
+		if (!isValidJson5(value)) return toast.error('Failed to parse JSON');
 		if (!newConfigParams) return toast.error('No config type provided');
 
 		setIsCreateDialogOpen(true);
@@ -87,7 +88,7 @@ function CreateNewConfigScreen() {
 		const promise = createConfigMutation({
 			type: newConfigParams.type,
 			...data,
-			content: JSON.parse(data.content)
+			content: data.content
 		}).unwrap();
 
 		toast.promise(promise, {
@@ -138,7 +139,7 @@ function CreateNewConfigScreen() {
 
 		if (savedForm) {
 			try {
-				return JSON.parse(savedForm);
+				return JSON5.parse(savedForm);
 			} catch {
 				return defaultValues;
 			}

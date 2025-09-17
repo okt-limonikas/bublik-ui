@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
+import { ComponentProps, useRef, useState } from 'react';
+import { UseFormReturn } from 'react-hook-form';
+
 import {
 	ConfigExistsError,
 	ConfigWithSameNameErrorResponseSchema,
@@ -11,8 +14,6 @@ import { ButtonTw, ConfirmDialog, Icon, Skeleton } from '@/shared/tailwind-ui';
 import { useConfigPageSearchParams, useConfigById } from '../hooks';
 import { ConfigEditorForm } from './update-config-form.component';
 import { formatJson } from '../components/editor.component';
-import { ComponentProps, useRef, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
 
 interface ConfigsEditorContainerProps {
 	configId: number;
@@ -99,7 +100,7 @@ function ConfigsEditorContainer({ configId }: ConfigsEditorContainerProps) {
 
 	const defaultValues = {
 		name: config.name,
-		content: formatJson(JSON.stringify(config.content, null, 2)),
+		content: formatJson(config.content),
 		description: config.description,
 		is_active: config.is_active
 	};

@@ -10,8 +10,8 @@ import {
 	useState
 } from 'react';
 import MonacoEditor, { Monaco, OnMount } from '@monaco-editor/react';
-import { format } from 'prettier';
-import parserJson from 'prettier/parser-babel';
+import prettier from 'prettier/standalone';
+import parserBabel from 'prettier/parser-babel';
 
 import * as monaco from 'monaco-editor';
 import { loader } from '@monaco-editor/react';
@@ -51,7 +51,13 @@ self.MonacoEnvironment = {
 loader.config({ monaco });
 
 function formatJson(value: string) {
-	return format(value, { parser: 'json', plugins: [parserJson] });
+	return prettier.format(value, {
+		parser: 'json5',
+		plugins: [parserBabel],
+		quoteProps: 'preserve', // Keep existing quote style for keys
+		singleQuote: false,
+		trailingComma: 'none'
+	});
 }
 
 // MARK: Editor
@@ -72,6 +78,8 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 		function handleEditorWillMount(monaco: Monaco) {
 			monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
 				validate: true,
+				allowComments: true,
+				trailingCommas: true,
 				schemas: [{ fileMatch: ['*'], schema: schema, uri: '' }]
 			});
 			monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);

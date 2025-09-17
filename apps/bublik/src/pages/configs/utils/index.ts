@@ -3,6 +3,8 @@
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { Monaco } from '@monaco-editor/react';
+import JSON5 from 'json5';
+
 import { DEFAULT_URI } from '../config.constants';
 
 const ValidationErrorSchema = z.object({
@@ -13,17 +15,9 @@ const ValidationErrorSchema = z.object({
 	})
 });
 
-const ValidJsonStringSchema = z.string().refine(
-	(val) => {
-		try {
-			JSON.parse(val);
-			return true;
-		} catch {
-			return false;
-		}
-	},
-	{ message: 'Invalid JSON' }
-);
+const ValidJsonStringSchema = z
+	.string()
+	.refine((val) => isValidJson5(val), { message: 'Invalid JSON' });
 
 function formatTimeV(date: string): string {
 	return `${format(new Date(date), 'MMM dd, yyyy')} at ${format(
@@ -32,11 +26,11 @@ function formatTimeV(date: string): string {
 	)}`;
 }
 
-function isValidJson(jsonStr: string): boolean {
+function isValidJson5(jsonStr: string): boolean {
 	try {
-		JSON.parse(jsonStr);
+		JSON5.parse(jsonStr);
 		return true;
-	} catch (error) {
+	} catch {
 		return false;
 	}
 }
@@ -58,7 +52,7 @@ function getEditorValue(monaco?: Monaco, uri = DEFAULT_URI): string {
 export {
 	ValidationErrorSchema,
 	formatTimeV,
-	isValidJson,
+	isValidJson5,
 	getEditorValue,
 	ValidJsonStringSchema
 };

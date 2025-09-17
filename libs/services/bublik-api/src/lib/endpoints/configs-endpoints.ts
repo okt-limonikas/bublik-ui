@@ -18,7 +18,7 @@ const CreateConfigBodySchema = z.object({
 	name: z.string().min(1),
 	description: z.string().optional(),
 	is_active: z.boolean(),
-	content: z.any(),
+	content: z.string(),
 	project: z.number().optional().nullable()
 });
 
@@ -73,7 +73,7 @@ const ConfigSchema = z.object({
 	description: z.string(),
 	user: z.number(),
 	project: z.number().optional(),
-	content: z.record(z.unknown())
+	content: z.string()
 });
 
 type Config = z.infer<typeof ConfigSchema>;
