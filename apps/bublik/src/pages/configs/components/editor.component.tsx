@@ -30,7 +30,14 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuItem,
-	Input
+	Input,
+	DrawerRoot,
+	DrawerTrigger,
+	DrawerContent,
+	CodeBlock,
+	CodeBlockBody,
+	CodeBlockContent,
+	CodeBlockItem
 } from '@/shared/tailwind-ui';
 
 import { DEFAULT_URI } from '../config.constants';
@@ -98,6 +105,60 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 		};
 
 		function handleFormatClick() {
+			function formatJsonWithComments(value: string, schema?: any): string {
+				let parsed: any;
+				try {
+					parsed = JSON.parse(value);
+				} catch (e) {
+					// fallback: just format with prettier
+					return formatJson(value);
+				}
+
+				function walk(obj: any, schemaNode: any, indent = 0): string {
+					const spaces = '  '.repeat(indent);
+					let result = '{\n';
+
+					const entries = Object.entries(obj);
+					for (const [key, val] of entries) {
+						// figure out schema for this property
+						let propSchema =
+							schemaNode?.properties?.[key] ??
+							schemaNode?.additionalProperties ??
+							schemaNode;
+
+						// add description comment if available
+						if (propSchema?.description) {
+							result += `${spaces}  // ${propSchema.description}\n`;
+						}
+
+						if (Array.isArray(val)) {
+							result += `${spaces}  "${key}": [\n`;
+							for (const item of val) {
+								if (typeof item === 'object' && item !== null) {
+									result += walk(item, propSchema?.items, indent + 2);
+								} else {
+									result += `${spaces}    ${JSON.stringify(item)},\n`;
+								}
+							}
+							result += `${spaces}  ],\n`;
+						} else if (typeof val === 'object' && val !== null) {
+							result += `${spaces}  "${key}": ${walk(
+								val,
+								propSchema,
+								indent + 1
+							)}`;
+						} else {
+							result += `${spaces}  "${key}": ${JSON.stringify(val)},\n`;
+						}
+					}
+
+					result += spaces + '},\n';
+					return result;
+				}
+
+				return walk(parsed, schema, 0).replace(/,\n}/g, '\n}');
+			}
+
 			const URI = monaco?.Uri.parse(DEFAULT_URI);
 			if (!URI) {
 				toast.error('Failed to create URI');
@@ -113,7 +174,8 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 
 			const value = model.getValue();
 			try {
-				const formatted = formatJson(value);
+				const formatted = formatJsonWithComments(value, schema);
+				console.log(formatted, schema);
 				model.setValue(formatted);
 			} catch (error) {
 				toast.error('Failed to format JSON');
@@ -125,6 +187,52 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 			<div className="flex flex-col h-full">
 				<CardHeader label={label ?? 'Editor'}>
 					<div className="flex items-center gap-4">
+						<DrawerRoot>
+							<Tooltip content="View Schema">
+								<DrawerTrigger asChild>
+									<ButtonTw variant="secondary" size="xss">
+										<Icon name="Edit" className="size-5 mr-1.5" />
+										<span>Schema</span>
+									</ButtonTw>
+								</DrawerTrigger>
+							</Tooltip>
+							<DrawerContent
+								className={cn(
+									'bg-white shadow-popover overflow-hidden w-[80vw] max-w-[80vw]',
+									'flex flex-col overflow-hidden max-w-7xl'
+								)}
+							>
+								<CardHeader label="Schema" />
+								<div className="h-full overflow-auto">
+									<CodeBlock
+										data={[
+											{
+												code: JSON.stringify(schema, null, 2),
+												filename: 'test.json',
+												language: 'json'
+											}
+										]}
+										defaultValue="json"
+										className="rounded-none"
+									>
+										<CodeBlockBody>
+											{(item) => (
+												<CodeBlockItem
+													key={item.language}
+													value={item.language}
+												>
+													<CodeBlockContent
+														language={item.language as BundledLanguage}
+													>
+														{item.code}
+													</CodeBlockContent>
+												</CodeBlockItem>
+											)}
+										</CodeBlockBody>
+									</CodeBlock>
+								</div>
+							</DrawerContent>
+						</DrawerRoot>
 						<Tooltip content="Format JSON">
 							<ButtonTw
 								variant="secondary"
@@ -171,12 +279,25 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 					</div>
 				</CardHeader>
 				<div className={cn('flex-1', className)}>
+					<style>{`
+  .myCommentGlyph {
+    background: url("data:image/svg+xml;utf8,<svg fill='red' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6'/></svg>") no-repeat center center;
+    width: 16px;
+    height: 16px;
+  }
+
+  .beforeComment::before {
+    content: "💡 Hint: check this field";
+    color: #6a9955;
+    margin-right: 8px;
+  }
+`}</style>
 					<MonacoEditor
 						language="json"
 						path={DEFAULT_URI}
 						beforeMount={handleEditorWillMount}
 						onMount={handleEditorDidMount}
-						options={{ fontSize }}
+						options={{ fontSize, glyphMargin: true }}
 						loading={null}
 						{...props}
 					/>
