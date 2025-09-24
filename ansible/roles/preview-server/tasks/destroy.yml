@@ -1,0 +1,21 @@
+- name: Remove Compose Containers
+  community.docker.docker_compose_v2:
+    project_src: /opt/previews/bublik-pr{{ pr_id }}/repo
+    state: absent
+    remove_volumes: true
+  become_user: '{{ bublik_user }}'
+
+- name: Delete Preview Directory
+  file:
+    path: '/opt/previews/{{ project_name }}-pr{{ pr_id }}'
+    state: absent
+  become_user: '{{ bublik_user }}'
+
+- name: Remove Proxy Domain
+  file:
+    path: '/opt/traefik/dynamic/pr-{{ pr_id }}-preview.yml'
+    state: absent
+  become_user: '{{ bublik_user }}'
+
+- name: Run Docker cleanup
+  shell: docker system prune
