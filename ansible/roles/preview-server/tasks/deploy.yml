@@ -1,0 +1,252 @@
+---
+- name: Create environments directory
+  file:
+    path: '/opt/environments'
+    state: directory
+    mode: '0755'
+    owner: '{{ bublik_user }}'
+    group: '{{ bublik_user }}'
+  become: true
+
+- name: Create environment directory
+  file:
+    path: '/opt/environments/{{ environment_name }}'
+    state: directory
+    mode: '0755'
+    owner: '{{ bublik_user }}'
+    group: '{{ bublik_user }}'
+  become: true
+
+- name: Clone main bublik-docker repository
+  git:
+    repo: '{{ docker_repo }}'
+    dest: '/opt/environments/{{ environment_name }}/bublik-docker'
+    version: '{{ docker_branch }}'
+    force: yes
+    update: yes
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Initialize and update submodules
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: |
+    git submodule init
+    git submodule update --recursive
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Checkout frontend submodule to PR branch
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker/bublik-ui
+  shell: |
+    git remote set-url origin {{ frontend_repo }}
+    git fetch origin
+    git checkout {{ frontend_branch }}
+    git reset --hard origin/{{ frontend_branch }}
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Checkout backend submodule to PR branch
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker/bublik
+  shell: |
+    git remote set-url origin {{ backend_repo }}
+    git fetch origin
+    git checkout {{ backend_branch }}
+    git reset --hard origin/{{ backend_branch }}
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Setup .env file and django settings files
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: task setup
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Generate random SECRET_KEY
+  set_fact:
+    secret_key: "{{ lookup('ansible.builtin.pipe', 'openssl rand -base64 50 | tr -d \"/+=\\n\"') }}"
+  no_log: true
+
+- name: Preprocess .env file - adjust variables for PR preview
+  lineinfile:
+    path: '/opt/environments/{{ environment_name }}/bublik-docker/.env'
+    regexp: '^{{ item.key }}='
+    line: '{{ item.key }}={{ item.value }}'
+  loop:
+    - { key: 'COMPOSE_PROJECT_NAME', value: '{{ environment_name }}' }
+    - { key: 'IMAGE_TAG', value: '{{ environment_name }}' }
+    - { key: 'SECRET_KEY', value: '{{ secret_key }}' }
+    - { key: 'BUBLIK_FQDN', value: 'https://{{ environment_domain }}' }
+    - { key: 'SECURE_HTTP', value: 'True' }
+    - { key: 'DJANGO_SUPERUSER_EMAIL', value: '{{ django_superuser_email }}' }
+    - {
+        key: 'DJANGO_SUPERUSER_PASSWORD',
+        value: '{{ django_superuser_password }}'
+      }
+  become: true
+  become_user: '{{ bublik_user }}'
+  no_log: true
+
+- name: Set port ranges based on environment type
+  set_fact:
+    port_ranges:
+      staging:
+        base_port: 41000
+        step: 100
+        max_instances: 5
+      pr_preview:
+        base_port: 42000
+        step: 10
+        max_instances: 100
+      production:
+        base_port: 40000
+        step: 0
+        max_instances: 1
+
+- name: Determine environment type
+  set_fact:
+    env_type: "{{ 'pr_preview' if pr_id is defined and pr_id != '' else ('staging' if environment_name != 'production' else 'production') }}"
+
+- name: Calculate instance ID
+  set_fact:
+    instance_id: '{{ pr_id | default(staging_id | default(0)) | int % port_ranges[env_type].max_instances }}'
+
+- name: Log calculated instance ID and port offset
+  debug:
+    msg: "Environment type: {{ env_type }}, PR ID: {{ pr_id | default('N/A') }}, Instance ID: {{ instance_id }}"
+
+- name: Calculate port offset
+  set_fact:
+    port_offset: '{{ instance_id * port_ranges[env_type].step }}'
+    base_port: '{{ port_ranges[env_type].base_port }}'
+
+- name: Adjust ports based on environment type and ID
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: |
+    ENV_TYPE="{{ env_type }}"
+    INSTANCE_ID={{ instance_id }}
+    BASE_PORT={{ base_port }}
+    PORT_OFFSET={{ port_offset }}
+    ENV_FILE=".env"
+
+    echo "Configuring ports for ${ENV_TYPE} environment (ID: ${INSTANCE_ID})"
+    echo "Base port: ${BASE_PORT}, Offset: ${PORT_OFFSET}"
+
+    cp "${ENV_FILE}" "${ENV_FILE}.backup.$(date +%s)"
+
+    update_port() {
+        local var_name="$1"
+        local service_offset="$2"
+        local new_port=$((BASE_PORT + PORT_OFFSET + service_offset))
+        echo "Setting ${var_name}=${new_port}"
+        sed -i "s/^${var_name}=.*/${var_name}=${new_port}/" "${ENV_FILE}"
+    }
+
+    update_port "BUBLIK_DOCKER_PROXY_PORT"           0
+    update_port "BUBLIK_DOCKER_DJANGO_PORT"        100
+    update_port "BUBLIK_DOCKER_TE_LOG_SERVER_PORT" 200
+    update_port "BUBLIK_DOCKER_DOCS_PORT"          300
+    update_port "DB_PORT"                          400
+    update_port "REDIS_PORT"                       500
+    update_port "RABBITMQ_PORT"                    600
+    update_port "FLOWER_PORT"                      700
+    update_port "BUBLIK_DOCKER_BUBLIK_UI_PORT"     800
+    update_port "EMAIL_PORT"                       900
+
+    echo "Port configuration completed for ${ENV_TYPE}!"
+    echo "Port summary:"
+    grep -E "^(BUBLIK_DOCKER_PROXY_PORT|BUBLIK_DOCKER_DJANGO_PORT|BUBLIK_DOCKER_TE_LOG_SERVER_PORT|BUBLIK_DOCKER_DOCS_PORT|DB_PORT|REDIS_PORT|RABBITMQ_PORT|FLOWER_PORT|BUBLIK_DOCKER_BUBLIK_UI_PORT|EMAIL_PORT)=" "${ENV_FILE}" | sort
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Get nginx port from .env
+  shell: grep '^BUBLIK_DOCKER_PROXY_PORT=' /opt/environments/{{ environment_name }}/bublik-docker/.env | cut -d= -f2
+  register: nginx_port_raw
+  changed_when: false
+
+- name: Set nginx_port fact
+  set_fact:
+    nginx_port: '{{ nginx_port_raw.stdout }}'
+
+- name: Build Images
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: task build
+  become_user: '{{ bublik_user }}'
+  environment:
+    NODE_OPTIONS: '--max-old-space-size=8192'
+
+- name: Stop Bublik
+  community.docker.docker_compose_v2:
+    project_src: /opt/environments/{{ environment_name }}/bublik-docker
+    state: absent
+    remove_volumes: true
+    files:
+      - docker-compose.yml
+      - docker-compose.db.yml
+  become: true
+  become_user: '{{ bublik_user }}'
+  when: run_bootstrap is defined and run_bootstrap == "true"
+
+- name: Start Bublik
+  community.docker.docker_compose_v2:
+    project_src: /opt/environments/{{ environment_name }}/bublik-docker
+    state: present
+    build: 'always'
+    recreate: 'always'
+    files:
+      - docker-compose.yml
+      - docker-compose.db.yml
+  become: true
+  become_user: '{{ bublik_user }}'
+
+- name: Wait for services to be healthy
+  uri:
+    url: 'http://127.0.0.1:{{ nginx_port }}/v2'
+    method: GET
+    status_code: 200
+  register: health_check
+  until: health_check.status == 200
+  retries: 30
+  delay: 10
+  ignore_errors: true
+
+- name: Bootstrap From DB Dump And Run Meta Categorization
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: |
+    task backup:restore -- -y /opt/bootstrap/bublik-bootstrap-db.sql.gz
+    task meta-categorization
+  become: true
+  become_user: '{{ bublik_user }}'
+  when: run_bootstrap is defined and run_bootstrap == "true"
+
+- name: Copy Bootstarp Log Files For Local Logs
+  copy:
+    src: /opt/bootstrap/logs
+    dest: /opt/environments/{{ environment_name }}/bublik-docker/data/logs/incoming
+    remote_src: true
+  become: true
+  when: run_bootstrap is defined and run_bootstrap == "true"
+
+- name: Publish Logs And Start Import
+  args:
+    chdir: /opt/environments/{{ environment_name }}/bublik-docker
+  shell: task logs:publish-incoming-logs
+  become: true
+  become_user: '{{ bublik_user }}'
+  when: run_bootstrap is defined and run_bootstrap == "true"
+
+- name: Expose Sub-Domain Proxy
+  template:
+    src: environment.yml.j2
+    dest: /opt/traefik/dynamic/{{ environment_name }}.yml
+  become: true
+
+- name: Display preview URL
+  debug:
+    msg: '{{ environment_name }} is available at: https://{{ environment_domain }}'
