@@ -13,24 +13,26 @@
     update_cache: yes
   become: true
 
+- name: Ensure Task is installed
+  stat:
+    path: /usr/local/bin/task
+  register: task_bin
+
 - name: Install Task
   shell: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+  when: not task_bin.stat.exists
 
-- name: Install yq
-  shell: |
-    VERSION=v4.47.2
-    ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then
-      BINARY=yq_linux_amd64
-    elif [ "$ARCH" = "aarch64" ]; then
-      BINARY=yq_linux_arm64
-    else
-      echo "Unsupported architecture: $ARCH"
-      exit 1
-    fi
+- name: Ensure yq is installed
+  stat:
+    path: /usr/local/bin/yq
+  register: yq_bin
 
-    wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY} -O /usr/local/bin/yq
-    chmod +x /usr/local/bin/yq
+- name: Download yq
+  get_url:
+    url: "https://github.com/mikefarah/yq/releases/download/v4.47.2/{{ 'yq_linux_amd64' if ansible_architecture == 'x86_64' else 'yq_linux_arm64' }}"
+    dest: /usr/local/bin/yq
+    mode: '0755'
+  when: not yq_bin.stat.exists
 
 - name: Install Docker using geerlingguy.docker role
   include_role:
