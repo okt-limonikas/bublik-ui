@@ -78,6 +78,11 @@
         key: 'BUBLIK_FQDN',
         value: 'https://pr-{{ pr_id }}.{{ traefik_domain }}'
       }
+    - { key: 'DJANGO_SUPERUSER_EMAIL', value: '{{ django_superuser_email }}' }
+    - {
+        key: 'DJANGO_SUPERUSER_PASSWORD',
+        value: '{{ django_superuser_password }}'
+      }
   become_user: '{{ bublik_user }}'
   no_log: true
 

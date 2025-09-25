@@ -113,6 +113,8 @@ jobs:
             --extra-vars "frontend_branch=${{ env.FRONTEND_BRANCH }}" \
             --extra-vars "backend_repo=${{ vars.BACKEND_REPO || 'https://github.com/ts-factory/bublik.git' }}" \
             --extra-vars "backend_branch=${{ env.BACKEND_BRANCH }}" \
+            --extra-vars "django_superuser_email=${{ secrets.DJANGO_SUPERUSER_EMAIL }}" \
+            --extra-vars "django_superuser_password=${{ secrets.DJANGO_SUPERUSER_PASSWORD }}" \
             -v
 
       - name: Deployment result comment

@@ -26,6 +26,8 @@ backend_branch: 'main'
 
 # Preview user
 bublik_user: bublik
+django_superuser_email: admin@bublik.com
+django_superuser_password: admin
 
 # Docker
 docker_install_compose_plugin: true
