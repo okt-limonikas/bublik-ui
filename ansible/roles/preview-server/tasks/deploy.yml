@@ -158,11 +158,28 @@
   delay: 10
   ignore_errors: true
 
-- name: Expose via domain
+- name: Expose Sub-Domain Proxy
   template:
     src: pr-preview.yml.j2
     dest: /opt/traefik/dynamic/pr-{{ pr_id }}-preview.yml
   become_user: '{{ bublik_user }}'
+
+- name: Setup Configs For Preview
+  args:
+    chdir: /opt/previews/bublik-pr{{ pr_id }}/repo
+  shell: |
+    echo "Creating configs for preview..."
+
+- name: Copy Bootstarp Log Files For Local Logs
+  copy:
+    src: /opt/bootstrap/logs
+    dest: /opt/previews/bublik-pr{{ pr_id }}/repo/data/logs/incoming
+    remote_src: true
+
+- name: Publish Logs And Start Import
+  args:
+    chdir: /opt/previews/bublik-pr{{ pr_id }}/repo
+  shell: task logs:publish-incoming-logs
 
 - name: Display preview URL
   debug:
