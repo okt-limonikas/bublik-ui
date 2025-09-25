@@ -146,7 +146,7 @@ jobs:
   prepare-preview:
     runs-on: ubuntu-latest
     needs: [lint, test, format-check, check-build, check-json-logs-build]
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.ref != 'refs/heads/main'
     outputs:
       pr_id: ${{ steps.set_pr_id.outputs.pr_id }}
       frontend_branch: ${{ steps.set_branches.outputs.frontend_branch }}
