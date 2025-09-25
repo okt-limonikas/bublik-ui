@@ -60,19 +60,26 @@
   shell: task setup
   become_user: '{{ bublik_user }}'
 
+- name: Generate random SECRET_KEY
+  set_fact:
+    secret_key: "{{ lookup('ansible.builtin.pipe', 'openssl rand -base64 50 | tr -d \"/+=\\n\"') }}"
+  no_log: true
+
 - name: Preprocess .env file - adjust variables for PR preview
   lineinfile:
     path: '/opt/previews/bublik-pr{{ pr_id }}/repo/.env'
     regexp: '^{{ item.key }}='
     line: '{{ item.key }}={{ item.value }}'
   loop:
-    - { key: 'IMAGE_TAG', value: 'pr-{{ pr_id }}' }
     - { key: 'COMPOSE_PROJECT_NAME', value: 'pr-{{ pr_id }}' }
+    - { key: 'IMAGE_TAG', value: 'pr-{{ pr_id }}' }
+    - { key: 'SECRET_KEY', value: '{{ secret_key }}' }
     - {
         key: 'BUBLIK_FQDN',
         value: 'https://pr-{{ pr_id }}.{{ traefik_domain }}'
       }
   become_user: '{{ bublik_user }}'
+  no_log: true
 
 - name: Adjust ports based on PR ID
   args:
