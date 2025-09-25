@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI / CD
 
 on:
   pull_request:
@@ -395,6 +395,7 @@ jobs:
 
     permissions:
       pull-requests: write
+      deployments: write
 
     steps:
       - name: Checkout repository
@@ -412,13 +413,29 @@ jobs:
           ansible_user: ${{ secrets.PREVIEW_ANSIBLE_USER }}
           ansible_port: ${{ secrets.PREVIEW_ANSIBLE_PORT || '22' }}
 
-      - name: Delete environment
-        if: steps.destroy.outcome == 'success'
+      - name: List deployments for this PR
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+        id: list
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/${{ github.repository }}/deployments
+          environment: pr-${{ github.event.pull_request.number }}
+
+      - name: Get list of deployment to mark as inactive
+        if: steps.list.outputs.data != '[]'
+        run: echo "${{ steps.list.outputs.data }}" | jq -r '.[].id' > deployment_ids.txt
+
+      - name: Mark deployments as inactive
+        if: steps.list.outputs.data != '[]'
         run: |
-          curl -X DELETE \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ github.token }}" \
-            https://api.github.com/repos/${{ github.repository }}/environments/pr-${{ github.event.pull_request.number }}
+          echo "${{ steps.list.outputs.data }}" | jq -r '.[].id' | while read dep_id; do
+            gh api \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/deployments/$dep_id/statuses \
+              -f state=inactive \
+          done
 
       - name: Destroy result comment
         if: always() && github.event_name != 'workflow_dispatch'
