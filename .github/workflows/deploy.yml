@@ -1,8 +1,11 @@
-name: Deploy PR Preview
+name: Deploy
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+  push:
+    branches:
+      - main
 
 jobs:
   prepare:
@@ -14,6 +17,7 @@ jobs:
       backend_branch: ${{ steps.set_branches.outputs.backend_branch }}
       docker_branch: ${{ steps.set_branches.outputs.docker_branch }}
       environment_url: ${{ steps.set_env_url.outputs.environment_url }}
+      is_staging: ${{ steps.check_staging.outputs.is_staging }}
 
     steps:
       - name: Checkout repository
@@ -28,27 +32,46 @@ jobs:
           echo "pr_id=$PR_ID" >> $GITHUB_OUTPUT
           echo "📋 PR ID: $PR_ID"
 
+      - name: Check if staging deployment
+        id: check_staging
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "is_staging=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_staging=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set environment URL
         id: set_env_url
         run: |
-          ENV_URL="https://pr-${{ steps.set_pr_id.outputs.pr_id }}.${{ vars.PREVIEW_TRAEFIK_DOMAIN }}"
+          if [[ "${{ steps.check_staging.outputs.is_staging }}" == "true" ]]; then
+            ENV_URL="https://staging.${{ vars.STAGING_DOMAIN || vars.PREVIEW_TRAEFIK_DOMAIN }}"
+          else
+            ENV_URL="https://pr-${{ steps.set_pr_id.outputs.pr_id }}.${{ vars.PREVIEW_TRAEFIK_DOMAIN }}"
+          fi
           echo "environment_url=$ENV_URL" >> $GITHUB_OUTPUT
 
       - name: Set Branch Variables
         id: set_branches
         run: |
-          FRONTEND_BRANCH="${{ github.head_ref }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
-
-          backend_branch=$(echo "$PR_BODY" | grep -oiE 'backend:\s*[A-Za-z0-9._/-]+' | awk '{print $2}' | head -1)
-          docker_branch=$(echo "$PR_BODY" | grep -oiE 'docker:\s*[A-Za-z0-9._/-]+' | awk '{print $2}' | head -1)
-
-          if [ -z "$backend_branch" ]; then
+          if [[ "${{ steps.check_staging.outputs.is_staging }}" == "true" ]]; then
+            FRONTEND_BRANCH="main"
             backend_branch="main"
-          fi
-
-          if [ -z "$docker_branch" ]; then
             docker_branch="main"
+          else
+            FRONTEND_BRANCH="${{ github.head_ref }}"
+            PR_BODY="${{ github.event.pull_request.body }}"
+
+            backend_branch=$(echo "$PR_BODY" | grep -oiE 'backend:\s*[A-Za-z0-9._/-]+' | awk '{print $2}' | head -1)
+            docker_branch=$(echo "$PR_BODY" | grep -oiE 'docker:\s*[A-Za-z0-9._/-]+' | awk '{print $2}' | head -1)
+
+            if [ -z "$backend_branch" ]; then
+              backend_branch="main"
+            fi
+
+            if [ -z "$docker_branch" ]; then
+              docker_branch="main"
+            fi
           fi
 
           echo "frontend_branch=$FRONTEND_BRANCH" >> $GITHUB_OUTPUT
@@ -60,10 +83,120 @@ jobs:
           echo "  Frontend Branch: $FRONTEND_BRANCH"
           echo "  Backend Branch: $backend_branch"
 
+  deploy-staging:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.is_staging == 'true'
+    timeout-minutes: 45
+
+    environment:
+      name: staging
+      url: ${{ needs.prepare.outputs.environment_url }}
+
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create deployment status
+        uses: actions/github-script@v7
+        id: deployment
+        with:
+          script: |
+            try {
+              const deployment = await github.rest.repos.createDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha,
+                environment: 'staging',
+                description: 'Deploy to staging environment',
+                auto_merge: false,
+                required_contexts: []
+              });
+
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: 'in_progress',
+                description: 'Staging deployment in progress',
+                environment_url: '${{ needs.prepare.outputs.environment_url }}'
+              });
+
+              return deployment.data.id;
+            } catch (error) {
+              console.error('Failed to create deployment:', error);
+              return null;
+            }
+
+      - name: Deploy Staging
+        id: deploy
+        uses: ./.github/actions/deploy
+        with:
+          action: 'deploy'
+          environment_name: staging
+          environment_domain: staging.${{ vars.STAGING_DOMAIN || vars.PREVIEW_TRAEFIK_DOMAIN }}
+          docker_repo: ${{ vars.STAGING_DOCKER_REPO || vars.PREVIEW_DOCKER_REPO || 'https://github.com/ts-factory/bublik-docker.git' }}
+          docker_branch: ${{ needs.prepare.outputs.docker_branch }}
+          frontend_repo: ${{ vars.STAGING_FRONTEND_REPO || vars.PREVIEW_FRONTEND_REPO || 'https://github.com/ts-factory/bublik-ui.git' }}
+          frontend_branch: ${{ needs.prepare.outputs.frontend_branch }}
+          backend_repo: ${{ vars.STAGING_BACKEND_REPO || vars.PREVIEW_BACKEND_REPO || 'https://github.com/ts-factory/bublik.git' }}
+          backend_branch: ${{ needs.prepare.outputs.backend_branch }}
+          ssh_private_key: ${{ secrets.STAGING_SSH_PRIVATE_KEY || secrets.PREVIEW_SSH_PRIVATE_KEY }}
+          ansible_host: ${{ secrets.STAGING_ANSIBLE_HOST }}
+          ansible_user: ${{ secrets.STAGING_ANSIBLE_USER || secrets.PREVIEW_ANSIBLE_USER }}
+          ansible_port: ${{ secrets.STAGING_ANSIBLE_PORT || '22' }}
+          admin_email: ${{ secrets.STAGING_DJANGO_SUPERUSER_EMAIL || secrets.PREVIEW_DJANGO_SUPERUSER_EMAIL }}
+          admin_password: ${{ secrets.STAGING_DJANGO_SUPERUSER_PASSWORD || secrets.PREVIEW_DJANGO_SUPERUSER_PASSWORD }}
+
+      - name: Update deployment status - Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'success',
+              description: 'Staging deployment successful',
+              environment_url: '${{ needs.prepare.outputs.environment_url }}'
+            });
+
+      - name: Update deployment status - Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'failure',
+              description: 'Staging deployment failed',
+              environment_url: '${{ needs.prepare.outputs.environment_url }}'
+            });
+
+      - name: Notify staging deployment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}' === 'success' ? '✅ **Staging deployment successful!**' : '❌ **Staging deployment failed!**';
+            const emoji = '${{ job.status }}' === 'success' ? '🎉' : '⚠️';
+            const message = '${{ job.status }}' === 'success' ?
+              'Staging environment has been updated successfully!' :
+              'Please check the workflow logs for error details.';
+
+            console.log(`${status}\n\n🌐 **Staging URL:** ${{ needs.prepare.outputs.environment_url }}\n\n${emoji} ${message}`);
+
   deploy-preview:
     needs: prepare
     runs-on: ubuntu-latest
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && needs.prepare.outputs.is_staging == 'false'
     timeout-minutes: 45
 
     environment:
@@ -187,13 +320,12 @@ jobs:
             <sub>This comment is automatically updated by the deployment workflow.</sub>
 
   destroy-preview:
-    needs: prepare
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     concurrency:
-      group: destroy-preview-${{ needs.prepare.outputs.pr_id }}
+      group: destroy-preview-${{ github.event.pull_request.number }}
       cancel-in-progress: false
 
     steps:
@@ -210,8 +342,8 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref: context.sha,
-                environment: `pr-${{ needs.prepare.outputs.pr_id }}`,
-                description: `Destroy PR #${{ needs.prepare.outputs.pr_id }} preview`,
+                environment: `pr-${{ github.event.pull_request.number }}`,
+                description: `Destroy PR #${{ github.event.pull_request.number }} preview`,
                 auto_merge: false,
                 required_contexts: []
               });
@@ -230,12 +362,13 @@ jobs:
               return null;
             }
 
-      - name: Destroy using composite action
+      - name: Destroy Preview
         id: destroy
-        uses: ./.github/actions/deploy-preview
+        uses: ./.github/actions/deploy
         with:
           action: 'destroy'
-          pr_id: ${{ needs.prepare.outputs.pr_id }}
+          pr_id: ${{ github.event.pull_request.number }}
+          environment_name: pr-${{ github.event.pull_request.number }}
           ssh_private_key: ${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}
           ansible_host: ${{ secrets.PREVIEW_ANSIBLE_HOST }}
           ansible_user: ${{ secrets.PREVIEW_ANSIBLE_USER }}
@@ -271,16 +404,15 @@ jobs:
         if: always() && github.event_name != 'workflow_dispatch'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          number: ${{ needs.prepare.outputs.pr_id }}
+          number: ${{ github.event.pull_request.number }}
           header: destroy-preview
           message: |
             ${{ job.status == 'success' && '🗑️ **Preview environment destroyed successfully!**' || '❌ **Failed to destroy preview environment!**' }}
 
-            ### 🧹 Cleanup Summary for PR #${{ needs.prepare.outputs.pr_id }}
+            ### 🧹 Cleanup Summary for PR #${{ github.event.pull_request.number }}
 
-            **🏷️ Environment:** `pr-${{ needs.prepare.outputs.pr_id }}`
+            **🏷️ Environment:** `pr-${{ github.event.pull_request.number }}`
             **📊 Status:** ${{ job.status == 'success' && '✅ Cleaned up' || '❌ Cleanup failed' }}
-            **⏰ Destroyed at:** ${{ github.event.head_commit.timestamp }}
 
             ${{ job.status == 'success' && '✨ All resources have been cleaned up successfully.' || '⚠️ Some resources may still be running. Please check manually.' }}
 
