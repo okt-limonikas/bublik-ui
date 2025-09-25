@@ -79,31 +79,30 @@
     chdir: /opt/previews/bublik-pr{{ pr_id }}/repo
   shell: |
     PR_ID={{ pr_id }}
-    BASE_PORT=40000
-    PORT_OFFSET=$((PR_ID * 100))
+    STEP=10
     ENV_FILE=".env"
 
-    echo "Adjusting ports for PR #${PR_ID} with base port ${BASE_PORT} and offset ${PORT_OFFSET}..."
+    echo "Adjusting ports for PR #${PR_ID} with step ${STEP}..."
 
     cp "${ENV_FILE}" "${ENV_FILE}.backup.$(date +%s)"
 
     update_port() {
         local var_name="$1"
-        local new_port="$2"
+        local base_port="$2"
+        local new_port=$((base_port + PR_ID * STEP))
         sed -i "s/^${var_name}=.*/${var_name}=${new_port}/" "${ENV_FILE}"
     }
 
-    update_port "BUBLIK_DOCKER_PROXY_PORT" $((BASE_PORT + 2000 + PORT_OFFSET))      # 42000 base + offset
-    update_port "BUBLIK_DOCKER_DJANGO_PORT" $((BASE_PORT - 32000 + PORT_OFFSET))    # 8000 base + offset
-    update_port "BUBLIK_DOCKER_TE_LOG_SERVER_PORT" $((BASE_PORT - 27000 + PORT_OFFSET)) # 13000 base + offset
-    update_port "BUBLIK_DOCKER_DOCS_PORT" $((BASE_PORT - 37000 + PORT_OFFSET))      # 3000 base + offset
-    update_port "BUBLIK_AI_PORT" $((BASE_PORT - 35400 + PORT_OFFSET))               # 4600 base + offset
-    update_port "DB_PORT" $((BASE_PORT - 34568 + PORT_OFFSET))                      # 5432 base + offset
-    update_port "REDIS_PORT" $((BASE_PORT - 33621 + PORT_OFFSET))                   # 6379 base + offset
-    update_port "RABBITMQ_PORT" $((BASE_PORT - 34328 + PORT_OFFSET))                # 5672 base + offset
-    update_port "FLOWER_PORT" $((BASE_PORT - 34445 + PORT_OFFSET))                  # 5555 base + offset
-    update_port "BUBLIK_DOCKER_BUBLIK_UI_PORT" $((BASE_PORT - 35800 + PORT_OFFSET)) # 4200 base + offset
-    update_port "EMAIL_PORT" $((BASE_PORT - 38975 + PORT_OFFSET))                   # 1025 base + offset
+    update_port "BUBLIK_DOCKER_PROXY_PORT"      42000
+    update_port "BUBLIK_DOCKER_DJANGO_PORT"    42100
+    update_port "BUBLIK_DOCKER_TE_LOG_SERVER_PORT" 42200
+    update_port "BUBLIK_DOCKER_DOCS_PORT"      42300
+    update_port "DB_PORT"                      42400
+    update_port "REDIS_PORT"                   42500
+    update_port "RABBITMQ_PORT"                42600
+    update_port "FLOWER_PORT"                  42700
+    update_port "BUBLIK_DOCKER_BUBLIK_UI_PORT" 42800
+    update_port "EMAIL_PORT"                   42900
 
     echo "Port adjustment completed!"
     echo "New ports for PR #${PR_ID}:"
