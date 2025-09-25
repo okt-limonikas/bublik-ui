@@ -106,15 +106,17 @@
         step: 0
         max_instances: 1
 
-- name: Determine environment type and calculate port offset
+- name: Determine environment type
   set_fact:
     env_type: "{{ 'pr_preview' if pr_id is defined and pr_id != '' else ('staging' if environment_name != 'production' else 'production') }}"
-    instance_id: '{{ pr_id | default(staging_id | default(0)) | int }}'
 
-- name: Validate instance ID within allowed range
-  fail:
-    msg: 'Instance ID {{ instance_id }} exceeds maximum allowed for {{ env_type }} (max: {{ port_ranges[env_type].max_instances }})'
-  when: instance_id > port_ranges[env_type].max_instances
+- name: Calculate instance ID
+  set_fact:
+    instance_id: '{{ pr_id | default(staging_id | default(0)) | int % port_ranges[env_type].max_instances }}'
+
+- name: Log calculated instance ID and port offset
+  debug:
+    msg: "Environment type: {{ env_type }}, PR ID: {{ pr_id | default('N/A') }}, Instance ID: {{ instance_id }}"
 
 - name: Calculate port offset
   set_fact:
