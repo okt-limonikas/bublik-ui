@@ -180,7 +180,7 @@ const router = createBrowserRouter(
 					ErrorBoundary: () => <ErrorBoundary />,
 					children: [
 						{ path: '/', element: <Navigate to="/dashboard" /> },
-						{ path: '/dashboard', element: <DashboardPageV2 /> },
+						{ path: '/dashboard', element: <div>Hello</div> },
 						{
 							path: '/tools/packet-viewer',
 							element: <NetPacketAnalyzerPage />
