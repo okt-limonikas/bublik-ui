@@ -81,7 +81,7 @@ export const columns = [
 						variant="secondary"
 						size="xss"
 						className="justify-start"
-						onClick={toggle(taskId)}
+						onClick={toggle(taskId, cell.row.original.status === 'STARTED')}
 					>
 						<Icon name="Paper" size={20} className="mr-1.5" />
 						<span>Log</span>
