@@ -2,7 +2,12 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { HistoryMeasurementResult } from '@/services/bublik-api';
 import { InfoBlock, SelectedChartsPopover } from '@/shared/charts';
-import { ButtonTw, CardHeader, Icon } from '@/shared/tailwind-ui';
+import {
+	ButtonTw,
+	CardHeader,
+	DataTableFacetedFilter,
+	Icon
+} from '@/shared/tailwind-ui';
 
 import { useHistoryQuery } from '../hooks';
 import { useHistoryActions } from '../slice';
@@ -17,6 +22,7 @@ import {
 import { PlotList, PlotListLoading } from './plot-list.component';
 import { Link } from 'react-router-dom';
 import { routes } from '@/router';
+import { useState } from 'react';
 
 export function PlotListContainer() {
 	const { query } = useHistoryQuery();
@@ -103,6 +109,8 @@ export function PlotListContainerByResult() {
 		handleOpenButtonClick
 	} = useCombinedView();
 
+	const [filter, setFilter] = useState<string[]>([]);
+
 	if (!query.testName) {
 		return (
 			<HistoryEmpty
@@ -131,12 +139,42 @@ export function PlotListContainerByResult() {
 		);
 	}
 
+	const names = Array.from(
+		new Set(
+			data.flatMap((d) => d.measurement_series_charts).map((c) => c.title)
+		)
+	).map((v) => ({ label: v, value: v }));
+
+	const filteredCharts = data.filter((d) =>
+		d.measurement_series_charts.some((c) =>
+			filter.every((f) => c.title.includes(f))
+		)
+	);
+	console.log(filteredCharts);
+
 	return (
 		<div className="bg-white rounded-md">
 			<div className="sticky top-0 z-10 bg-white rounded-md">
-				<CardHeader label="Series Charts" enableStickyShadow />
+				<CardHeader
+					label={
+						<div className="flex items-center gap-4">
+							<span className="text-text-primary text-[0.75rem] font-semibold leading-[0.875rem]">
+								Series Charts
+							</span>
+							<DataTableFacetedFilter
+								title="Name"
+								size="xss"
+								options={names}
+								value={filter}
+								onChange={(v) => setFilter(typeof v === 'undefined' ? [] : v)}
+								// disabled={!artifacts.length || isDiffMode}
+							/>
+						</div>
+					}
+					enableStickyShadow
+				/>
 			</div>
-			<MeasurementsList measurements={data} group="measurement" />
+			<MeasurementsList measurements={filteredCharts} group="measurement" />
 			<SelectedChartsPopover
 				open={!!selectedCharts.length}
 				label="Combined"
