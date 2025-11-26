@@ -8,6 +8,23 @@ body {
 	font-family: var(--fonts-body);
 }
 
+@media print {
+	body,
+	html,
+	* {
+		overflow: visible !important;
+		max-height: none !important;
+	}
+
+	/* If you have specific container classes, target them */
+	.container,
+	.report-wrapper,
+	.main-content {
+		overflow: visible !important;
+		height: auto !important;
+	}
+}
+
 html,
 body,
 #root {

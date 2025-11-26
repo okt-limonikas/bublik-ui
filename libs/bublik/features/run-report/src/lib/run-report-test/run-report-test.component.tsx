@@ -249,7 +249,7 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 							: undefined
 					}}
 				/>
-				<div className="flex overflow-y-auto h-full overflow-x-hidden">
+				<div className="flex overflow-y-auto h-full overflow-x-hidden print:flex-col">
 					{chart ? (
 						<div className="flex-1">
 							<div className="relative pt-2 h-full">
