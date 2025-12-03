@@ -23,6 +23,49 @@ body {
 		overflow: visible !important;
 		height: auto !important;
 	}
+
+	/* Force page breaks between major sections */
+	.run-report-chart-container {
+		page-break-after: always;
+		page-break-inside: avoid;
+		break-after: page;
+		break-inside: avoid;
+	}
+
+	.run-report-table-container {
+		page-break-before: always;
+		page-break-inside: auto;
+		break-before: page;
+		break-inside: auto;
+	}
+
+	/* Ensure charts render properly */
+	.echarts-container {
+		height: 400px !important;
+		width: 100% !important;
+	}
+
+	/* Prevent table rows from breaking across pages */
+	table tr {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+
+	/* Optional: Add page breaks between test blocks */
+	.test-block-container {
+		page-break-before: always;
+		break-before: page;
+	}
+
+	/* Ensure sticky headers don't interfere with printing */
+	thead {
+		position: static !important;
+	}
+
+	/* Remove any absolute positioning that might cause overlays */
+	.absolute {
+		position: static !important;
+	}
 }
 
 html,

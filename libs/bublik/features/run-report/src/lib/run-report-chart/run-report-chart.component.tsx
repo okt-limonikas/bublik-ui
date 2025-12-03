@@ -104,7 +104,7 @@ function RunReportChart(props: RunReportChartProps) {
 					<RunReportChart chart={chart} isFullScreen={true} />
 				</DrawerContent>
 			</DrawerRoot>
-			<div className="w-full flex flex-col gap-2 h-full pb-2 print:h-[400px]">
+			<div className="w-full flex flex-col gap-2 h-full pb-2 print:h-[400px] run-report-chart-container max-w-screen-lg">
 				<div className="pr-12">
 					<MeasurementChartToolbar
 						title=""

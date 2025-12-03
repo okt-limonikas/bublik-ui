@@ -95,11 +95,15 @@ function RunReportTable({ table }: RunReportTableProps) {
 
 	if (!table.data.length) return null;
 
-	if (table.data.length === 1) {
-		return <SingleSeriesTable table={table} runId={Number(runId)} />;
-	}
-
-	return <MultipleSeriesTable table={table} runId={Number(runId)} />;
+	return (
+		<div className="run-report-table-container max-w-screen-lg">
+			{table.data.length === 1 ? (
+				<SingleSeriesTable table={table} runId={Number(runId)} />
+			) : (
+				<MultipleSeriesTable table={table} runId={Number(runId)} />
+			)}
+		</div>
+	);
 }
 
 interface SingleSeriesTableProps {
@@ -112,7 +116,7 @@ function SingleSeriesTable({ table, runId }: SingleSeriesTableProps) {
 
 	return (
 		<table className="w-full relative border-separate border-spacing-0">
-			<thead className="sticky top-0">
+			<thead className="sticky top-0 print:static">
 				<tr>
 					{seriesNames.map((seriesName, idx, arr) => {
 						return (
@@ -199,7 +203,7 @@ function MultipleSeriesTable({ table, runId }: MultipleSeriesTableProps) {
 
 	return (
 		<table className="w-full relative border-separate border-spacing-0">
-			<thead className="sticky top-0">
+			<thead className="sticky top-0 print:static">
 				<tr>
 					<th
 						className={headerCellStyles({

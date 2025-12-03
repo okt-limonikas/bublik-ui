@@ -536,7 +536,7 @@ function RunReportContentItem({ block }: RunReportContentItemProps) {
 				</div>
 			</div>
 			<RunReportTestBlock
-				enableChartView={block.enable_chart_view}
+				enableChartView={false}
 				enableTableView={block.enable_table_view}
 				argsValBlocks={block.content}
 				offsetTop={offsetTop}
