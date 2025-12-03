@@ -77,7 +77,17 @@ interface RunReportTableOfContentsProps {
 function RunReportTableOfContents({ contents }: RunReportTableOfContentsProps) {
 	return (
 		<div className="bg-white flex flex-col rounded">
-			<CardHeader label="Table Of Contents" />
+			<CardHeader label="Table Of Contents">
+				<div className="flex items-center gap-4">
+					<ButtonTw
+						variant="secondary"
+						size="xss"
+						onClick={() => window.print()}
+					>
+						Export As PDF
+					</ButtonTw>
+				</div>
+			</CardHeader>
 			<ul className="flex flex-col py-2">
 				{contents.map((item, idx, arr) => (
 					<li key={item.id}>

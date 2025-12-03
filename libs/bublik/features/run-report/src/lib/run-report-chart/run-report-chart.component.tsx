@@ -122,7 +122,7 @@ function RunReportChart(props: RunReportChartProps) {
 					ref={chartRef}
 					notMerge={false}
 					options={options}
-					style={{ height: '100%' }}
+					style={{ height: '350px' }}
 				/>
 			</div>
 		</>
