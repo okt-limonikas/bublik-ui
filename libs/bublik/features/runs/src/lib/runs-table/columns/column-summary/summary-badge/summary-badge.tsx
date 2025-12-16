@@ -21,13 +21,15 @@ export interface SummaryBadgeProps extends LinkProps {
 
 export const SummaryBadge = (props: SummaryBadgeProps) => {
 	const { label, count, percentage, className, ...rest } = props;
-	const percentageStr = percentage ? `(${percentage}%)` : '(0%)';
+	const percentageStr = percentage ? `${percentage}%` : '0%';
 
 	return (
 		<LinkWithProject className={linkStyles({ className })} {...rest}>
 			<span>{label}:</span>
-			<span className="text-right">{count}</span>
-			<span className="text-right">{percentageStr}</span>
+			<span className="text-right border-l border-gray-500/30">{count}</span>
+			<span className="text-right border-l border-gray-500/30">
+				{percentageStr}
+			</span>
 		</LinkWithProject>
 	);
 };
