@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
 import { ButtonTw, cn, Icon } from '@/shared/tailwind-ui';
 
-import { useTocContext } from './run-report-toc.context';
+import { useTocContext } from './run-report-toc-context-hook';
 import { TocItem } from './run-report-toc-item.component';
 
 export function TocPanel() {

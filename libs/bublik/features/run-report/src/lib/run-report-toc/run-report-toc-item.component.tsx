@@ -5,7 +5,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import { cn, Icon, Tooltip } from '@/shared/tailwind-ui';
 
 import { TableOfContentsItem } from './run-report-toc.types';
-import { useTocContext } from './run-report-toc.context';
+import { useTocContext } from './run-report-toc-context-hook';
 
 interface TocItemProps {
 	item: TableOfContentsItem;
@@ -110,7 +110,7 @@ export function TocItem({ item, depth = 0 }: TocItemProps) {
 						) : (
 							<span className="size-4 shrink-0" />
 						)}
-						<span className="text-text-menu text-[0.65rem]">Arguments:</span>
+						<span className="text-[0.65rem]">Arguments:</span>
 					</div>
 					<div className="flex flex-wrap gap-1" style={{ paddingLeft: '20px' }}>
 						{argsEntries.slice(0, 4).map(([key, value]) => (

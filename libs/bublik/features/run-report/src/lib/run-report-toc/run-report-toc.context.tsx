@@ -1,14 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
-import {
-	createContext,
-	ReactNode,
-	useCallback,
-	useContext,
-	useEffect,
-	useMemo,
-	useState
-} from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useLocalStorage } from '@/shared/hooks';
 
@@ -18,16 +10,7 @@ import {
 	useFlattenedTocIds,
 	useScrollSpy
 } from './run-report-toc.hooks';
-
-const TocContext = createContext<TocContextValue | null>(null);
-
-export function useTocContext(): TocContextValue {
-	const context = useContext(TocContext);
-	if (!context) {
-		throw new Error('useTocContext must be used within a TocProvider');
-	}
-	return context;
-}
+import { TocContext } from './run-report-toc-context-hook';
 
 function scrollToItem(id: string) {
 	const elem = document.getElementById(encodeURIComponent(id));
