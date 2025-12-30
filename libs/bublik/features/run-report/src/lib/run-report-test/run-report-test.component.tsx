@@ -10,10 +10,14 @@ import {
 } from '@radix-ui/react-hover-card';
 
 import { ArgsValBlock, RecordBlock } from '@/shared/types';
-import { usePlatformSpecificCtrl } from '@/shared/hooks';
+import {
+	useIntersectionObserver,
+	usePlatformSpecificCtrl
+} from '@/shared/hooks';
 import {
 	CardHeader,
 	Icon,
+	Skeleton,
 	cn,
 	popoverContentStyles,
 	toast
@@ -172,6 +176,59 @@ type RunReportEntityBlockProps = Pick<
 	'enableChartView' | 'enableTableView'
 > & { block: RecordBlock; offset: number; idx: number };
 
+interface LazyChartProps {
+	chart: RecordBlock['chart'];
+	id: string;
+	idx: number;
+	enableTableView: boolean;
+	hasTable: boolean;
+}
+
+function LazyChart({
+	chart,
+	id,
+	idx,
+	enableTableView,
+	hasTable
+}: LazyChartProps) {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const entry = useIntersectionObserver(containerRef, {
+		rootMargin: '200px 0px', // Start loading 200px before entering viewport
+		freezeOnceVisible: true // Once visible, stay rendered
+	});
+
+	const isVisible = entry?.isIntersecting ?? false;
+
+	return (
+		<div
+			ref={containerRef}
+			className={cn(
+				'flex flex-col',
+				enableTableView && hasTable ? 'w-1/2' : 'w-full'
+			)}
+		>
+			<div className="relative pt-2 h-full">
+				{chart && (
+					<div className="absolute right-4 z-[1] top-2.5">
+						<WarningsHoverCard warnings={chart.warnings} />
+					</div>
+				)}
+				{isVisible && chart ? (
+					<RunReportChart
+						chart={chart}
+						stackedButton={<StackedAdd id={id} />}
+						idx={idx}
+					/>
+				) : (
+					<div className="flex items-center justify-center h-full">
+						<Skeleton className="w-full h-full" />
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
 function MeasurementBlock(props: RunReportEntityBlockProps) {
 	const { enableChartView, enableTableView, block, offset, idx } = props;
 	const { id, chart, table, label } = block;
@@ -263,23 +320,13 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 				/>
 				<div className="flex overflow-y-auto h-full overflow-x-hidden">
 					{chart ? (
-						<div
-							className={cn(
-								'flex flex-col',
-								enableTableView && table ? 'w-1/2' : 'w-full'
-							)}
-						>
-							<div className="relative pt-2 h-full">
-								<div className="absolute right-4 z-[1] top-2.5">
-									<WarningsHoverCard warnings={chart.warnings} />
-								</div>
-								<RunReportChart
-									chart={chart}
-									stackedButton={<StackedAdd id={id} />}
-									idx={idx}
-								/>
-							</div>
-						</div>
+						<LazyChart
+							chart={chart}
+							id={id}
+							idx={idx}
+							enableTableView={enableTableView}
+							hasTable={!!table}
+						/>
 					) : null}
 					{enableTableView && table ? (
 						<div

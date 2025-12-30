@@ -59,13 +59,21 @@ function RunReportChart(props: RunReportChartProps) {
 
 		instance.on('click', handleClick);
 		return () => {
-			instance.off('click', handleClick);
+			// Check if instance is disposed before calling methods on it
+			// This prevents warnings in React StrictMode which double-mounts components
+			if (!instance.isDisposed?.()) {
+				instance.off('click', handleClick);
+			}
 		};
 	}, [chart.data]);
 
 	useEffect(() => {
 		function handleResize() {
-			chartRef.current?.getEchartsInstance().resize();
+			const instance = chartRef.current?.getEchartsInstance();
+			// Guard against calling resize on disposed instance
+			if (instance && !instance.isDisposed?.()) {
+				instance.resize();
+			}
 		}
 
 		window.addEventListener('resize', handleResize);
