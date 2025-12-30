@@ -3,3 +3,5 @@
 export * from './lib/run-report.container';
 export * from './lib/run-report-configs';
 export * from './lib/run-report-stacked';
+export * from './lib/run-report-toc';
+export { generateTableOfContents } from './lib/run-report.component';

@@ -1,0 +1,132 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2024 OKTET LTD */
+import {
+	createContext,
+	ReactNode,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState
+} from 'react';
+
+import { useLocalStorage } from '@/shared/hooks';
+
+import { TableOfContentsItem, TocContextValue } from './run-report-toc.types';
+import {
+	findParentIds,
+	useFlattenedTocIds,
+	useScrollSpy
+} from './run-report-toc.hooks';
+
+const TocContext = createContext<TocContextValue | null>(null);
+
+export function useTocContext(): TocContextValue {
+	const context = useContext(TocContext);
+	if (!context) {
+		throw new Error('useTocContext must be used within a TocProvider');
+	}
+	return context;
+}
+
+function scrollToItem(id: string) {
+	const elem = document.getElementById(encodeURIComponent(id));
+	const scroller = document.getElementById('page-container');
+	const offset = Number(elem?.dataset.offset || 0);
+
+	if (!scroller || !elem) {
+		return;
+	}
+
+	const elemRect = elem.getBoundingClientRect();
+	const scrollerRect = scroller.getBoundingClientRect();
+
+	const relativeTop = elemRect.top - scrollerRect.top;
+	const targetScroll = scroller.scrollTop + relativeTop - offset;
+
+	scroller.scrollTo({ top: targetScroll, behavior: 'smooth' });
+}
+
+function getDefaultExpandedIds(contents: TableOfContentsItem[]): Set<string> {
+	const ids = new Set<string>();
+
+	function traverse(items: TableOfContentsItem[]) {
+		items.forEach((item) => {
+			if (item.type === 'test-block' || item.type === 'arg-val-block') {
+				ids.add(item.id);
+			}
+			if (item.children) {
+				traverse(item.children);
+			}
+		});
+	}
+
+	traverse(contents);
+	return ids;
+}
+
+interface TocProviderProps {
+	children: ReactNode;
+	contents: TableOfContentsItem[];
+}
+
+export function TocProvider({ children, contents }: TocProviderProps) {
+	const [isVisible, setIsVisible] = useLocalStorage(
+		'run-report-toc-visible',
+		false
+	);
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+		getDefaultExpandedIds(contents)
+	);
+
+	const itemIds = useFlattenedTocIds(contents);
+	const activeId = useScrollSpy(itemIds);
+
+	// Track parent IDs of the active item for hierarchical highlighting
+	const activeParentIds = useMemo(() => {
+		if (!activeId) return [];
+		return findParentIds(contents, activeId);
+	}, [activeId, contents]);
+
+	const toggleExpanded = useCallback((id: string) => {
+		setExpandedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) {
+				next.delete(id);
+			} else {
+				next.add(id);
+			}
+			return next;
+		});
+	}, []);
+
+	const toggleVisibility = useCallback(() => {
+		setIsVisible((prev) => !prev);
+	}, [setIsVisible]);
+
+	useEffect(() => {
+		if (activeId) {
+			const parentIds = findParentIds(contents, activeId);
+			if (parentIds.length > 0) {
+				setExpandedIds((prev) => {
+					const next = new Set(prev);
+					parentIds.forEach((id) => next.add(id));
+					return next;
+				});
+			}
+		}
+	}, [activeId, contents]);
+
+	const value: TocContextValue = {
+		contents,
+		activeId,
+		activeParentIds,
+		expandedIds,
+		toggleExpanded,
+		isVisible,
+		toggleVisibility,
+		scrollToItem
+	};
+
+	return <TocContext.Provider value={value}>{children}</TocContext.Provider>;
+}

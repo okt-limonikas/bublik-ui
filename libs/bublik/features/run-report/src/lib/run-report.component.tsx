@@ -2,7 +2,6 @@
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { BooleanParam, useQueryParam, withDefault } from 'use-query-params';
 import {
 	createColumnHelper,
 	flexRender,
@@ -15,11 +14,7 @@ import {
 	ButtonTw,
 	CardHeader,
 	cn,
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
 	Icon,
-	Separator,
 	Spinner,
 	Tooltip
 } from '@/shared/tailwind-ui';
@@ -38,6 +33,7 @@ import { RunReportTestBlock } from './run-report-test';
 import { WarningsHoverCard } from './run-report-warnings';
 import { useEnablePairGainColumns } from './run-report-table/run-report-table.hooks';
 import { RunReportArgs } from './run-report-args';
+import { TableOfContentsItem } from './run-report-toc';
 
 function scrollToItem(id: string) {
 	const elem = document.getElementById(encodeURIComponent(id));
@@ -45,7 +41,6 @@ function scrollToItem(id: string) {
 	const offset = Number(elem?.dataset.offset || 0);
 
 	if (!scroller || !elem) {
-		console.warn('Element or scroller not found', scroller, elem);
 		return;
 	}
 
@@ -58,128 +53,29 @@ function scrollToItem(id: string) {
 	scroller.scrollTo({ top: targetScroll, behavior: 'smooth' });
 }
 
-interface TableOfContentsItem {
-	type: string;
-	id: string;
-	label: string;
-	children?: TableOfContentsItem[];
-}
-
 function generateTableOfContents(data: ReportRoot): TableOfContentsItem[] {
 	return data.content
 		.filter((b) => b.type === 'test-block')
 		.map((t) => ({
 			id: t.id,
-			type: t.type,
+			type: t.type as TableOfContentsItem['type'],
 			label: t.label,
 			children: t.content.map((a) => ({
 				id: a.id,
 				label: a.label,
-				type: a.type,
+				type: a.type as TableOfContentsItem['type'],
 				children: a.content.map((c) => ({
 					id: c.id,
-					type: c.type,
+					type: c.type as TableOfContentsItem['type'],
 					label: c.label,
 					children: c.content.map((r) => ({
 						id: r.id,
 						label: r.label ?? '',
-						type: r.type
+						type: r.type as TableOfContentsItem['type']
 					}))
 				}))
 			}))
 		}));
-}
-
-interface RunReportTableOfContentsProps {
-	contents: TableOfContentsItem[];
-}
-
-function RunReportTableOfContents({ contents }: RunReportTableOfContentsProps) {
-	return (
-		<div className="bg-white flex flex-col rounded">
-			<CardHeader label="Table Of Contents" />
-			<ul className="flex flex-col py-2">
-				{contents.map((item, idx, arr) => {
-					return (
-						<li key={item.id}>
-							<TableOfContentsItem item={item} />
-							{idx < arr.length - 1 && (
-								<Separator orientation="horizontal" className="my-2" />
-							)}
-						</li>
-					);
-				})}
-			</ul>
-		</div>
-	);
-}
-
-interface TableOfContentsItemProps {
-	item: TableOfContentsItem;
-	depth?: number;
-}
-
-function TableOfContentsItem({ item, depth = 0 }: TableOfContentsItemProps) {
-	const isOpenByDefault =
-		item.type === 'arg-val-block' || item.type === 'test-block';
-	const [open, setOpen] = useQueryParam(
-		item.id,
-		withDefault(BooleanParam, isOpenByDefault)
-	);
-	const [params] = useSearchParams();
-	const configid = params.get('config');
-
-	return (
-		<Collapsible open={open} onOpenChange={setOpen}>
-			<div
-				className={cn(
-					'flex items-center gap-1 h-[22px] pr-2',
-					// In case of an empty label, hide the item (argument values block might be empty)
-					!item.label && 'hidden'
-				)}
-				style={{ paddingLeft: `${depth * 12 + 16}px` }}
-			>
-				<div className="border h-full rounded border-transparent px-1 hover:border-primary flex items-center gap-1 w-full">
-					{item.children ? (
-						<CollapsibleTrigger className="grid place-items-center p-0.5 rounded hover:bg-primary-wash hover:text-text-primary">
-							<Icon
-								name="ChevronDown"
-								className={cn('size-3', open ? '' : '-rotate-90')}
-							/>
-						</CollapsibleTrigger>
-					) : (
-						<div className="size-4 rounded-full" />
-					)}
-					<LinkWithProject
-						to={{
-							search: `?config=${configid}`,
-							hash: encodeURIComponent(item.id)
-						}}
-						className={cn(
-							'text-text-primary leading-[0.875rem] font-medium text-[0.875rem]',
-							item.type === 'test-block' || item.type === 'arg-val-block'
-								? 'font-semibold'
-								: 'font-medium'
-						)}
-						onClick={() => scrollToItem(item.id)}
-					>
-						{item.label}
-					</LinkWithProject>
-				</div>
-			</div>
-			{item.children && item.children.length ? (
-				<CollapsibleContent asChild>
-					<ul>
-						{item.children.map((child) => (
-							<li key={child.id}>
-								<TableOfContentsItem item={child} depth={depth + 1} />
-							</li>
-						))}
-					</ul>
-				</CollapsibleContent>
-			) : null}
-		</Collapsible>
-	);
 }
 
 interface RunReportProps {
@@ -211,7 +107,6 @@ function RunReport(props: RunReportProps) {
 				warnings={blocks.warnings}
 				config={blocks.config}
 			/>
-			<RunReportTableOfContents contents={generateTableOfContents(blocks)} />
 			<RunReportContentList blocks={testBlocks} />
 			<NotProcessedPointsTable points={blocks.unprocessed_iters} />
 		</div>
@@ -564,4 +459,10 @@ function RunReportContentItem({ block }: RunReportContentItemProps) {
 	);
 }
 
-export { RunReport, RunReportError, RunReportEmpty, RunReportLoading };
+export {
+	RunReport,
+	RunReportError,
+	RunReportEmpty,
+	RunReportLoading,
+	generateTableOfContents
+};

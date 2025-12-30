@@ -1,16 +1,23 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
+import { useMemo } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import {
+	generateTableOfContents,
 	ReportStackedContextProvider,
 	RunReportContainer,
 	RunReportStackedSelectedContainer,
-	RunReportStackedChartContainer
+	RunReportStackedChartContainer,
+	TocProvider,
+	TocPanel
 } from '@/bublik/features/run-report';
 import { formatTimeToDot } from '@/shared/utils';
-import { useGetRunDetailsQuery } from '@/services/bublik-api';
+import {
+	useGetRunDetailsQuery,
+	useGetRunReportQuery
+} from '@/services/bublik-api';
 
 import { useTabTitleWithPrefix } from '@/bublik/features/projects';
 
@@ -19,6 +26,17 @@ function RunReportPage() {
 	const { runId } = useParams<{ runId: string }>();
 	const configId = searchParams.get('config');
 	useRunReportPageName({ runId: runId ? Number(runId) : undefined });
+
+	const { data: reportData } = useGetRunReportQuery(
+		configId && runId
+			? { configId: Number(configId), runId: Number(runId) }
+			: skipToken
+	);
+
+	const tocContents = useMemo(() => {
+		if (!reportData) return [];
+		return generateTableOfContents(reportData);
+	}, [reportData]);
 
 	if (!configId) {
 		return <div className="flex flex-col gap-1 p-2">No config id found!</div>;
@@ -29,16 +47,22 @@ function RunReportPage() {
 	}
 
 	return (
-		<div className="flex flex-col gap-1 p-2">
-			<ReportStackedContextProvider
-				runId={Number(runId)}
-				configId={Number(configId)}
-			>
-				<RunReportContainer runId={Number(runId)} configId={Number(configId)} />
-				<RunReportStackedSelectedContainer />
-				<RunReportStackedChartContainer />
-			</ReportStackedContextProvider>
-		</div>
+		<TocProvider contents={tocContents}>
+			<TocPanel />
+			<div className="flex flex-col gap-1 p-2">
+				<ReportStackedContextProvider
+					runId={Number(runId)}
+					configId={Number(configId)}
+				>
+					<RunReportContainer
+						runId={Number(runId)}
+						configId={Number(configId)}
+					/>
+					<RunReportStackedSelectedContainer />
+					<RunReportStackedChartContainer />
+				</ReportStackedContextProvider>
+			</div>
+		</TocProvider>
 	);
 }
 
