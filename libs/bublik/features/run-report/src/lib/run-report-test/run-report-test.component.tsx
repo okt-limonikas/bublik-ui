@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { ArgsValBlock, RecordBlock } from '@/shared/types';
@@ -161,39 +161,59 @@ type RunReportEntityBlockProps = Pick<
 	'enableChartView' | 'enableTableView'
 > & { block: RecordBlock; offset: number; idx: number };
 
-function MeasurementBlock(props: RunReportEntityBlockProps) {
-	const { enableChartView, enableTableView, block, offset, idx } = props;
-	const { id, chart, table, label } = block;
-	const [searchParams] = useSearchParams();
+// Custom hook for sticky header shadow effect - optimized with IntersectionObserver
+function useStickyHeaderShadow(offset: number) {
 	const ref = useRef<HTMLDivElement>(null);
 	const [isSticky, setIsSticky] = useState(false);
 
 	useEffect(() => {
-		const handleScroll = () => {
-			if (ref.current) {
-				const { top } = ref.current.getBoundingClientRect();
-				setIsSticky(top <= offset);
-			}
-		};
+		const element = ref.current;
+		if (!element) return;
 
-		document
-			.getElementById('page-container')
-			?.addEventListener('scroll', handleScroll);
-		return () =>
-			document
-				.getElementById('page-container')
-				?.removeEventListener('scroll', handleScroll);
+		// Create a sentinel element that sits just above where the header becomes sticky
+		const sentinel = document.createElement('div');
+		sentinel.style.position = 'absolute';
+		sentinel.style.top = `${offset - 1}px`;
+		sentinel.style.height = '1px';
+		sentinel.style.width = '1px';
+		sentinel.style.pointerEvents = 'none';
+
+		// Insert sentinel before the sticky element
+		element.parentElement?.insertBefore(sentinel, element);
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				// When sentinel is not visible (scrolled past), header is sticky
+				setIsSticky(!entry.isIntersecting);
+			},
+			{
+				root: document.getElementById('page-container'),
+				threshold: 0
+			}
+		);
+
+		observer.observe(sentinel);
+
+		return () => {
+			observer.disconnect();
+			sentinel.remove();
+		};
 	}, [offset]);
 
-	const tableScrollRef = useRef<HTMLDivElement>(null);
+	return { ref, isSticky };
+}
+
+// Optimized wheel handler hook - shared across all measurement blocks
+function useTableWheelHandler(tableScrollRef: React.RefObject<HTMLDivElement>) {
 	const isPressed = usePlatformSpecificCtrl();
 
 	useEffect(() => {
-		function handleTableScroll(event: WheelEvent) {
-			const tableElement = tableScrollRef.current;
-			const pageContainer = document.getElementById('page-container');
+		const tableElement = tableScrollRef.current;
+		if (!tableElement) return;
 
-			if (!tableElement || !pageContainer) return;
+		function handleTableScroll(event: WheelEvent) {
+			const pageContainer = document.getElementById('page-container');
+			if (!pageContainer) return;
 
 			// Determine whether to scroll the table or propagate to the page container
 			if (isPressed) {
@@ -210,15 +230,28 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 			}
 		}
 
-		const tableElement = tableScrollRef.current;
-		tableElement?.addEventListener('wheel', handleTableScroll, {
+		tableElement.addEventListener('wheel', handleTableScroll, {
 			passive: false
 		});
 
 		return () => {
-			tableElement?.removeEventListener('wheel', handleTableScroll);
+			tableElement.removeEventListener('wheel', handleTableScroll);
 		};
-	}, [isPressed]);
+	}, [isPressed, tableScrollRef]);
+}
+
+// Memoized MeasurementBlock component
+const MeasurementBlock = memo(function MeasurementBlock(
+	props: RunReportEntityBlockProps
+) {
+	const { enableChartView, enableTableView, block, offset, idx } = props;
+	const { id, chart, table, label } = block;
+	const [searchParams] = useSearchParams();
+
+	const { ref, isSticky } = useStickyHeaderShadow(offset);
+	const tableScrollRef = useRef<HTMLDivElement>(null);
+
+	useTableWheelHandler(tableScrollRef);
 
 	return (
 		<div className="flex flex-col pl-1">
@@ -290,6 +323,6 @@ function MeasurementBlock(props: RunReportEntityBlockProps) {
 			</div>
 		</div>
 	);
-}
+});
 
 export { RunReportTestBlock };

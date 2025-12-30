@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -12,7 +12,7 @@ import {
 	RunReportStackedChartContainer,
 	TocProvider,
 	TocPanel,
-	useTocContext
+	useTocUI
 } from '@/bublik/features/run-report';
 import { formatTimeToDot } from '@/shared/utils';
 import {
@@ -49,7 +49,7 @@ function RunReportPage() {
 
 	return (
 		<TocProvider contents={tocContents}>
-			<RunReportPageContent runId={Number(runId)} configId={Number(configId)} />
+			<RunReportPageLayout runId={Number(runId)} configId={Number(configId)} />
 		</TocProvider>
 	);
 }
@@ -59,36 +59,55 @@ interface RunReportPageContentProps {
 	configId: number;
 }
 
-function RunReportPageContent({ runId, configId }: RunReportPageContentProps) {
-	const { displayMode } = useTocContext();
+// Memoized report content - never re-renders due to TOC state changes
+const ReportContent = memo(function ReportContent({
+	runId,
+	configId
+}: RunReportPageContentProps) {
+	return (
+		<ReportStackedContextProvider runId={runId} configId={configId}>
+			<RunReportContainer runId={runId} configId={configId} />
+			<RunReportStackedSelectedContainer />
+			<RunReportStackedChartContainer />
+		</ReportStackedContextProvider>
+	);
+});
 
-	if (displayMode === 'sidebar') {
-		return (
-			<div className="flex">
-				<div className="flex-1 flex flex-col gap-1 p-2 min-w-0">
-					<ReportStackedContextProvider runId={runId} configId={configId}>
-						<RunReportContainer runId={runId} configId={configId} />
-						<RunReportStackedSelectedContainer />
-						<RunReportStackedChartContainer />
-					</ReportStackedContextProvider>
-				</div>
-				<TocPanel />
+// Sidebar layout component
+function SidebarLayout({ runId, configId }: RunReportPageContentProps) {
+	return (
+		<div className="flex">
+			<div className="flex-1 flex flex-col gap-1 p-2 min-w-0">
+				<ReportContent runId={runId} configId={configId} />
 			</div>
-		);
-	}
+			<TocPanel />
+		</div>
+	);
+}
 
+// Floating layout component
+function FloatingLayout({ runId, configId }: RunReportPageContentProps) {
 	return (
 		<>
 			<TocPanel />
 			<div className="flex flex-col gap-1 p-2">
-				<ReportStackedContextProvider runId={runId} configId={configId}>
-					<RunReportContainer runId={runId} configId={configId} />
-					<RunReportStackedSelectedContainer />
-					<RunReportStackedChartContainer />
-				</ReportStackedContextProvider>
+				<ReportContent runId={runId} configId={configId} />
 			</div>
 		</>
 	);
+}
+
+// Layout switcher - only subscribes to UI context (displayMode)
+// This is the ONLY component that needs to know about displayMode
+function RunReportPageLayout({ runId, configId }: RunReportPageContentProps) {
+	// Only subscribe to UI context - NOT active context
+	const { displayMode } = useTocUI();
+
+	if (displayMode === 'sidebar') {
+		return <SidebarLayout runId={runId} configId={configId} />;
+	}
+
+	return <FloatingLayout runId={runId} configId={configId} />;
 }
 
 interface UseRunReportPageNameConfig {

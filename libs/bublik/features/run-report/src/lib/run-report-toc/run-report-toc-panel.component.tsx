@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
+import { memo } from 'react';
+
 import { ButtonTw, cn, Icon, Tooltip } from '@/shared/tailwind-ui';
 
-import { useTocContext } from './run-report-toc-context-hook';
+import { useTocStatic, useTocUI } from './run-report-toc.context';
 import { TocItem } from './run-report-toc-item.component';
 
-function TocContent() {
-	const { contents } = useTocContext();
+// Memoized content component - only re-renders when contents change
+const TocContent = memo(function TocContent() {
+	const { contents } = useTocStatic();
 
 	return (
 		<nav>
@@ -15,10 +18,11 @@ function TocContent() {
 			))}
 		</nav>
 	);
-}
+});
 
-function TocModeToggle() {
-	const { displayMode, setDisplayMode } = useTocContext();
+// Mode toggle - only subscribes to UI context
+const TocModeToggle = memo(function TocModeToggle() {
+	const { displayMode, setDisplayMode } = useTocUI();
 
 	return (
 		<Tooltip
@@ -42,9 +46,10 @@ function TocModeToggle() {
 			</ButtonTw>
 		</Tooltip>
 	);
-}
+});
 
-function TocHeader() {
+// Header is static, memoize it
+const TocHeader = memo(function TocHeader() {
 	return (
 		<div className="flex items-center justify-between px-4 py-2 border-b border-border-primary shrink-0">
 			<span className="text-[0.75rem] font-semibold leading-[0.875rem] text-text-primary">
@@ -55,10 +60,11 @@ function TocHeader() {
 			</div>
 		</div>
 	);
-}
+});
 
-export function TocFloatingPanel() {
-	const { isVisible, toggleVisibility } = useTocContext();
+// Floating panel - subscribes only to UI context for visibility
+export const TocFloatingPanel = memo(function TocFloatingPanel() {
+	const { isVisible, toggleVisibility } = useTocUI();
 
 	return (
 		<>
@@ -99,10 +105,11 @@ export function TocFloatingPanel() {
 			</ButtonTw>
 		</>
 	);
-}
+});
 
-export function TocSidebar() {
-	const { isVisible, toggleVisibility } = useTocContext();
+// Sidebar component
+export const TocSidebar = memo(function TocSidebar() {
+	const { isVisible, toggleVisibility } = useTocUI();
 
 	return (
 		<aside
@@ -129,10 +136,11 @@ export function TocSidebar() {
 			</div>
 		</aside>
 	);
-}
+});
 
-export function TocPanel() {
-	const { displayMode, isVisible, toggleVisibility } = useTocContext();
+// Main panel component - decides which layout to use
+export const TocPanel = memo(function TocPanel() {
+	const { displayMode, isVisible, toggleVisibility } = useTocUI();
 
 	if (displayMode === 'sidebar') {
 		return (
@@ -154,4 +162,4 @@ export function TocPanel() {
 	}
 
 	return <TocFloatingPanel />;
-}
+});
