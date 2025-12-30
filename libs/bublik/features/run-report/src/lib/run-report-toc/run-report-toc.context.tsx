@@ -4,7 +4,11 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useLocalStorage } from '@/shared/hooks';
 
-import { TableOfContentsItem, TocContextValue } from './run-report-toc.types';
+import {
+	TableOfContentsItem,
+	TocContextValue,
+	TocDisplayMode
+} from './run-report-toc.types';
 import {
 	findParentIds,
 	useFlattenedTocIds,
@@ -58,6 +62,10 @@ export function TocProvider({ children, contents }: TocProviderProps) {
 		'run-report-toc-visible',
 		false
 	);
+	const [displayMode, setDisplayModeState] = useLocalStorage<TocDisplayMode>(
+		'run-report-toc-mode',
+		'floating'
+	);
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
 		getDefaultExpandedIds(contents)
 	);
@@ -87,6 +95,13 @@ export function TocProvider({ children, contents }: TocProviderProps) {
 		setIsVisible((prev) => !prev);
 	}, [setIsVisible]);
 
+	const setDisplayMode = useCallback(
+		(mode: TocDisplayMode) => {
+			setDisplayModeState(mode);
+		},
+		[setDisplayModeState]
+	);
+
 	useEffect(() => {
 		if (activeId) {
 			const parentIds = findParentIds(contents, activeId);
@@ -108,6 +123,8 @@ export function TocProvider({ children, contents }: TocProviderProps) {
 		toggleExpanded,
 		isVisible,
 		toggleVisibility,
+		displayMode,
+		setDisplayMode,
 		scrollToItem
 	};
 

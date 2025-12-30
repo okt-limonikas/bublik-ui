@@ -11,7 +11,8 @@ import {
 	RunReportStackedSelectedContainer,
 	RunReportStackedChartContainer,
 	TocProvider,
-	TocPanel
+	TocPanel,
+	useTocContext
 } from '@/bublik/features/run-report';
 import { formatTimeToDot } from '@/shared/utils';
 import {
@@ -48,21 +49,45 @@ function RunReportPage() {
 
 	return (
 		<TocProvider contents={tocContents}>
+			<RunReportPageContent runId={Number(runId)} configId={Number(configId)} />
+		</TocProvider>
+	);
+}
+
+interface RunReportPageContentProps {
+	runId: number;
+	configId: number;
+}
+
+function RunReportPageContent({ runId, configId }: RunReportPageContentProps) {
+	const { displayMode } = useTocContext();
+
+	if (displayMode === 'sidebar') {
+		return (
+			<div className="flex">
+				<div className="flex-1 flex flex-col gap-1 p-2 min-w-0">
+					<ReportStackedContextProvider runId={runId} configId={configId}>
+						<RunReportContainer runId={runId} configId={configId} />
+						<RunReportStackedSelectedContainer />
+						<RunReportStackedChartContainer />
+					</ReportStackedContextProvider>
+				</div>
+				<TocPanel />
+			</div>
+		);
+	}
+
+	return (
+		<>
 			<TocPanel />
 			<div className="flex flex-col gap-1 p-2">
-				<ReportStackedContextProvider
-					runId={Number(runId)}
-					configId={Number(configId)}
-				>
-					<RunReportContainer
-						runId={Number(runId)}
-						configId={Number(configId)}
-					/>
+				<ReportStackedContextProvider runId={runId} configId={configId}>
+					<RunReportContainer runId={runId} configId={configId} />
 					<RunReportStackedSelectedContainer />
 					<RunReportStackedChartContainer />
 				</ReportStackedContextProvider>
 			</div>
-		</TocProvider>
+		</>
 	);
 }
 

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
 
+export type TocDisplayMode = 'floating' | 'sidebar';
+
 export interface TableOfContentsItem {
 	type: 'test-block' | 'arg-val-block' | 'measurement-block' | 'record-block';
 	id: string;
@@ -17,5 +19,7 @@ export interface TocContextValue {
 	toggleExpanded: (id: string) => void;
 	isVisible: boolean;
 	toggleVisibility: () => void;
+	displayMode: TocDisplayMode;
+	setDisplayMode: (mode: TocDisplayMode) => void;
 	scrollToItem: (id: string) => void;
 }

@@ -1,12 +1,64 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
-import { ButtonTw, cn, Icon } from '@/shared/tailwind-ui';
+import { ButtonTw, cn, Icon, Tooltip } from '@/shared/tailwind-ui';
 
 import { useTocContext } from './run-report-toc-context-hook';
 import { TocItem } from './run-report-toc-item.component';
 
-export function TocPanel() {
-	const { contents, isVisible, toggleVisibility } = useTocContext();
+function TocContent() {
+	const { contents } = useTocContext();
+
+	return (
+		<nav>
+			{contents.map((item) => (
+				<TocItem key={item.id} item={item} />
+			))}
+		</nav>
+	);
+}
+
+function TocModeToggle() {
+	const { displayMode, setDisplayMode } = useTocContext();
+
+	return (
+		<Tooltip
+			content={
+				displayMode === 'floating' ? 'Switch to sidebar' : 'Switch to floating'
+			}
+		>
+			<ButtonTw
+				variant="ghost"
+				size="xss"
+				onClick={() =>
+					setDisplayMode(displayMode === 'floating' ? 'sidebar' : 'floating')
+				}
+			>
+				<Icon
+					name={
+						displayMode === 'floating' ? 'LayoutLogSidebar' : 'LayoutLogSingle'
+					}
+					className="size-4"
+				/>
+			</ButtonTw>
+		</Tooltip>
+	);
+}
+
+function TocHeader() {
+	return (
+		<div className="flex items-center justify-between px-4 py-2 border-b border-border-primary shrink-0">
+			<span className="text-[0.75rem] font-semibold leading-[0.875rem] text-text-primary">
+				Table of Contents
+			</span>
+			<div className="flex items-center gap-1">
+				<TocModeToggle />
+			</div>
+		</div>
+	);
+}
+
+export function TocFloatingPanel() {
+	const { isVisible, toggleVisibility } = useTocContext();
 
 	return (
 		<>
@@ -21,20 +73,10 @@ export function TocPanel() {
 			>
 				{/* Panel content */}
 				<div className="flex flex-col flex-1 min-w-0">
-					{/* Header */}
-					<div className="flex items-center justify-between px-4 py-2 border-b border-border-primary shrink-0">
-						<span className="text-[0.75rem] font-semibold leading-[0.875rem] text-text-primary">
-							Table of Contents
-						</span>
-					</div>
-
+					<TocHeader />
 					{/* Scrollable content */}
 					<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-						<nav>
-							{contents.map((item) => (
-								<TocItem key={item.id} item={item} />
-							))}
-						</nav>
+						<TocContent />
 					</div>
 				</div>
 			</aside>
@@ -57,4 +99,59 @@ export function TocPanel() {
 			</ButtonTw>
 		</>
 	);
+}
+
+export function TocSidebar() {
+	const { isVisible, toggleVisibility } = useTocContext();
+
+	return (
+		<aside
+			className={cn(
+				'sticky top-4 rounded-lg h-[calc(100vh-32px)] flex flex-col bg-white border-r border-border-primary shrink-0',
+				'transition-all duration-200 ease-in-out overflow-hidden',
+				isVisible ? 'w-[280px]' : 'w-0'
+			)}
+		>
+			<div className="flex items-center justify-between px-4 py-2 border-b border-border-primary shrink-0">
+				<span className="text-[0.75rem] font-semibold leading-[0.875rem] text-text-primary">
+					Table of Contents
+				</span>
+				<div className="flex items-center gap-1">
+					<TocModeToggle />
+					<ButtonTw variant="ghost" size="xss" onClick={toggleVisibility}>
+						<Icon name="CrossSimple" className="size-4" />
+					</ButtonTw>
+				</div>
+			</div>
+			{/* Scrollable content */}
+			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+				<TocContent />
+			</div>
+		</aside>
+	);
+}
+
+export function TocPanel() {
+	const { displayMode, isVisible, toggleVisibility } = useTocContext();
+
+	if (displayMode === 'sidebar') {
+		return (
+			<>
+				<TocSidebar />
+				{/* Show button when sidebar is collapsed */}
+				{!isVisible && (
+					<ButtonTw
+						variant="secondary"
+						size="xss"
+						onClick={toggleVisibility}
+						className="fixed right-0 top-1/2 -translate-y-1/2 z-50 rounded-r-lg rounded-l-none px-2 py-4 shadow-lg"
+					>
+						<Icon name="PaperListText" className="size-5" />
+					</ButtonTw>
+				)}
+			</>
+		);
+	}
+
+	return <TocFloatingPanel />;
 }
