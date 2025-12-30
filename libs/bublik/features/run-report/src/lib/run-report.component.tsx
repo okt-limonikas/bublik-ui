@@ -60,21 +60,21 @@ function generateTableOfContents(data: ReportRoot): TableOfContentsItem[] {
 			id: t.id,
 			type: t.type as TableOfContentsItem['type'],
 			label: t.label,
-			children: t.content.map((a) => ({
-				id: a.id,
-				label: a.label,
-				type: a.type as TableOfContentsItem['type'],
-				children: a.content.map((c) => ({
-					id: c.id,
-					type: c.type as TableOfContentsItem['type'],
-					label: c.label,
-					children: c.content.map((r) => ({
-						id: r.id,
-						label: r.label ?? '',
-						type: r.type as TableOfContentsItem['type']
+			children: t.content
+				// Filter out empty arg-val-blocks (no args_vals or empty label)
+				.filter((a) => a.label && Object.keys(a.args_vals || {}).length > 0)
+				.map((a) => ({
+					id: a.id,
+					label: a.label,
+					type: a.type as TableOfContentsItem['type'],
+					argsVals: a.args_vals,
+					children: a.content.map((c) => ({
+						id: c.id,
+						type: c.type as TableOfContentsItem['type'],
+						label: c.label
+						// Exclude record-block level - too deep for navigation
 					}))
 				}))
-			}))
 		}));
 }
 

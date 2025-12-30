@@ -19,16 +19,6 @@ export function TocPanel() {
 					isVisible ? 'w-[320px] h-[60vh] opacity-100' : 'w-0 h-0 opacity-0'
 				)}
 			>
-				{/* Close button on the left side of panel */}
-				<ButtonTw
-					variant="secondary"
-					size="xss"
-					onClick={toggleVisibility}
-					className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-50 rounded-full p-2 shadow-lg"
-				>
-					<Icon name="CrossSimple" className="size-4" />
-				</ButtonTw>
-
 				{/* Panel content */}
 				<div className="flex flex-col flex-1 min-w-0">
 					{/* Header */}
@@ -49,17 +39,22 @@ export function TocPanel() {
 				</div>
 			</aside>
 
-			{/* Show button - only visible when panel is hidden */}
-			{!isVisible && (
-				<ButtonTw
-					variant="secondary"
-					size="xss"
-					onClick={toggleVisibility}
-					className="fixed right-0 top-1/2 -translate-y-1/2 z-50 rounded-l-lg rounded-r-none px-2 py-4 shadow-lg"
-				>
-					<Icon name="PaperListText" className="size-5" />
-				</ButtonTw>
-			)}
+			{/* Toggle button - always on the left edge of panel, outside */}
+			<ButtonTw
+				variant="secondary"
+				size="xss"
+				onClick={toggleVisibility}
+				className={cn(
+					'fixed top-1/2 -translate-y-1/2 z-50 rounded-l-lg rounded-r-none px-2 py-4 shadow-lg',
+					'transition-all duration-200 ease-in-out',
+					isVisible ? 'right-[320px]' : 'right-0'
+				)}
+			>
+				<Icon
+					name={isVisible ? 'CrossSimple' : 'PaperListText'}
+					className="size-5"
+				/>
+			</ButtonTw>
 		</>
 	);
 }

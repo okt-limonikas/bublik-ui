@@ -34,7 +34,7 @@ export function useScrollSpy(itemIds: string[]): string | null {
 
 		const findActiveId = () => {
 			const containerRect = pageContainer.getBoundingClientRect();
-			const scrollTop = pageContainer.scrollTop;
+
 			// Threshold line is 120px from top of container (accounting for sticky headers)
 			const thresholdY = containerRect.top + 120;
 

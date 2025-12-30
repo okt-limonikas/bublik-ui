@@ -5,6 +5,7 @@ export interface TableOfContentsItem {
 	type: 'test-block' | 'arg-val-block' | 'measurement-block' | 'record-block';
 	id: string;
 	label: string;
+	argsVals?: Record<string, string | number>;
 	children?: TableOfContentsItem[];
 }
 
