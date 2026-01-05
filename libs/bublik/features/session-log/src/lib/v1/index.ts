@@ -3,3 +3,4 @@
 export * from './log-root';
 export * from './log-blocks/log-table/log-table.context';
 export { useLogTableGlobalFilter } from './log-blocks/log-table/log-table.hooks';
+export * from '../log-diff';

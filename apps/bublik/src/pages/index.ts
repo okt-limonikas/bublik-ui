@@ -18,3 +18,4 @@ export * from './run-report';
 export * from './configs';
 export * from './run-multiple';
 export * from './net-packet-analyzer';
+export * from './log-diff-page';

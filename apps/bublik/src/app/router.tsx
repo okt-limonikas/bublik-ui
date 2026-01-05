@@ -39,7 +39,8 @@ import {
 	RunReportPage,
 	ConfigsPage,
 	RunMultiplePage,
-	NetPacketAnalyzerPage
+	NetPacketAnalyzerPage,
+	LogDiffPage
 } from '../pages';
 import { Layout } from './layout';
 import { RedirectToLogPage } from './redirects';
@@ -200,6 +201,7 @@ const router = createBrowserRouter(
 						{ path: '/runs', element: <RunsPage /> },
 						{ path: '/compare', element: <RunDiffPage /> },
 						{ path: '/multiple', element: <RunMultiplePage /> },
+						{ path: '/log-diff', element: <LogDiffPage /> },
 						{
 							path: '/runs/:runId',
 							element: <RunPage />
