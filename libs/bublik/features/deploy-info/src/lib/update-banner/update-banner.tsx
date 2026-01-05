@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { useState } from 'react';
+/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { Icon, twButtonStyles } from '@/shared/tailwind-ui';
 
 import { useVersionCheck } from '../hooks/useVersionCheck';
 import frontendInfo from '../git-info.json';
+import { UpdateBannerContextProvider } from './update-banner-context';
 
 export interface UpdateBannerProps {
 	isVisible: boolean;
@@ -26,7 +26,7 @@ export const UpdateBanner = (props: UpdateBannerProps) => {
 					initial={{ y: 100 }}
 					animate={{ y: 0 }}
 					exit={{ y: 100 }}
-					transition={{ bounce: 10 }}
+					transition={{ type: 'spring', bounce: 0.3 }}
 					data-testid="tw-update-banner"
 				>
 					<div className="flex items-center justify-center gap-2 basis-full">
@@ -59,9 +59,12 @@ export const UpdateBanner = (props: UpdateBannerProps) => {
 	);
 };
 
-export const UpdateBannerProvider = () => {
-	const [isDismissed, setIsDismissed] = useState(false);
-	const { hasUpdate, newVersion } = useVersionCheck({
+export const UpdateBannerProvider = ({
+	children
+}: {
+	children?: React.ReactNode;
+}) => {
+	const { hasUpdate, newVersion, dismiss, show } = useVersionCheck({
 		currentRevision: frontendInfo.revision
 	});
 
@@ -69,16 +72,15 @@ export const UpdateBannerProvider = () => {
 		window.location.reload();
 	};
 
-	const handleDismiss = () => {
-		setIsDismissed(true);
-	};
-
 	return (
-		<UpdateBanner
-			isVisible={hasUpdate && !isDismissed}
-			onRefresh={handleRefresh}
-			onDismiss={handleDismiss}
-			newVersion={newVersion?.latestTag}
-		/>
+		<UpdateBannerContextProvider value={{ hasUpdate, show, dismiss }}>
+			{children}
+			<UpdateBanner
+				isVisible={hasUpdate}
+				onRefresh={handleRefresh}
+				onDismiss={dismiss}
+				newVersion={newVersion?.latestTag}
+			/>
+		</UpdateBannerContextProvider>
 	);
 };

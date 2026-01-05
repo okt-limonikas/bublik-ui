@@ -15,8 +15,9 @@ export const App = () => {
 	return (
 		<Provider store={store}>
 			<Providers>
-				<UpdateBannerProvider />
-				<Router />
+				<UpdateBannerProvider>
+					<Router />
+				</UpdateBannerProvider>
 			</Providers>
 		</Provider>
 	);

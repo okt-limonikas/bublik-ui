@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { Icon } from '@/shared/tailwind-ui';
 import { config } from '@/bublik/config';
+import { useUpdateBanner } from '@/bublik/features/deploy-info';
 
 import { NavLink, SidebarItem } from '../nav-link';
 
@@ -77,12 +78,35 @@ const getNavSections = () => {
 	return [devSection, ...bottomNav];
 };
 
-const links = getNavSections();
-
 export const BottomNavigation = () => {
+	const { hasUpdate, show } = useUpdateBanner();
+	const links = useMemo(() => getNavSections(), []);
+
+	const linksWithBadge = useMemo(() => {
+		return links.map((item) => {
+			if (item.label === 'Help' && hasUpdate) {
+				return {
+					...item,
+					badge: (
+						<button
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								show();
+							}}
+							className="w-3 h-3 bg-bg-error rounded-full border-2 border-white animate-pulse"
+							aria-label="New version available"
+						/>
+					)
+				};
+			}
+			return item;
+		});
+	}, [links, hasUpdate, show]);
+
 	return (
 		<ul className="flex flex-col gap-3">
-			{links.map((item) => (
+			{linksWithBadge.map((item) => (
 				<li key={item.label}>
 					<NavLink {...item} />
 				</li>

@@ -88,6 +88,7 @@ type NavLinkCommon = {
 	subitems?: AccordionLinkProps[];
 	whenMatched?: boolean;
 	dialogContent?: ReactNode;
+	badge?: ReactNode;
 };
 
 export type NavLinkInternal = Pick<LinkProps, 'to'> &
@@ -109,7 +110,7 @@ export const isExternalLink = (
 };
 
 export const NavLink = (props: NavLinkProps) => {
-	const { label, icon, subitems = [], whenMatched, dialogContent } = props;
+	const { label, icon, subitems = [], whenMatched, dialogContent, badge } = props;
 
 	const { isSidebarOpen } = useSidebar();
 	const { isActive, to } = useNavLink(
@@ -156,7 +157,12 @@ export const NavLink = (props: NavLinkProps) => {
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					<div className="grid flex-shrink-0 place-items-center">{icon}</div>
+					<div className="grid flex-shrink-0 place-items-center relative">
+						{icon}
+						{badge && (
+							<div className="absolute -top-1 -right-1">{badge}</div>
+						)}
+					</div>
 					<span className="text-[1.125rem] truncate">{label}</span>
 				</a>
 			);
@@ -169,7 +175,12 @@ export const NavLink = (props: NavLinkProps) => {
 				style={paddingTransition}
 				onClick={handleClick}
 			>
-				<div className="grid flex-shrink-0 place-items-center">{icon}</div>
+				<div className="grid flex-shrink-0 place-items-center relative">
+					{icon}
+					{badge && (
+						<div className="absolute -top-1 -right-1">{badge}</div>
+					)}
+				</div>
 				<span className="text-[1.125rem] truncate">{label}</span>
 			</LinkWithProject>
 		);

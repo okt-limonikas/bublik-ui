@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { config } from '@/bublik/config';
 
@@ -23,6 +23,25 @@ interface UseVersionCheckResult {
 	error: Error | null;
 	checkForUpdate: () => Promise<void>;
 	dismiss: () => void;
+	show: () => void;
+}
+
+const DISMISSED_VERSION_KEY = 'bublik_dismissed_version';
+
+function getDismissedVersion(): string | null {
+	try {
+		return localStorage.getItem(DISMISSED_VERSION_KEY);
+	} catch {
+		return null;
+	}
+}
+
+function setDismissedVersion(revision: string): void {
+	try {
+		localStorage.setItem(DISMISSED_VERSION_KEY, revision);
+	} catch {
+		// Ignore localStorage errors
+	}
 }
 
 export function useVersionCheck(
@@ -32,14 +51,13 @@ export function useVersionCheck(
 
 	const [hasUpdate, setHasUpdate] = useState(false);
 	const [newVersion, setNewVersion] = useState<GitInfo | null>(null);
-	const [isChecking, setIsChecking] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
-	const [isDismissed, setIsDismissed] = useState(false);
+	const isCheckingRef = useRef(false);
 
 	const checkForUpdate = useCallback(async () => {
-		if (isChecking) return;
+		if (isCheckingRef.current) return;
 
-		setIsChecking(true);
+		isCheckingRef.current = true;
 		setError(null);
 
 		try {
@@ -59,22 +77,27 @@ export function useVersionCheck(
 
 			if (serverVersion.revision !== currentRevision) {
 				setNewVersion(serverVersion);
-				setHasUpdate(true);
+
+				// Check if this version was already dismissed
+				const dismissedVersion = getDismissedVersion();
+				if (dismissedVersion !== serverVersion.revision) {
+					setHasUpdate(true);
+				}
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err : new Error('Unknown error'));
 		} finally {
-			setIsChecking(false);
+			isCheckingRef.current = false;
 		}
-	}, [currentRevision, isChecking]);
+	}, [currentRevision]);
 
 	useEffect(() => {
 		checkForUpdate();
-	}, []);
+	}, [checkForUpdate]);
 
 	useEffect(() => {
 		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible' && !isDismissed) {
+			if (document.visibilityState === 'visible') {
 				checkForUpdate();
 			}
 		};
@@ -83,19 +106,26 @@ export function useVersionCheck(
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		};
-	}, [checkForUpdate, isDismissed]);
+	}, [checkForUpdate]);
 
 	const dismiss = useCallback(() => {
-		setIsDismissed(true);
+		if (newVersion) setDismissedVersion(newVersion.revision);
 		setHasUpdate(false);
-	}, []);
+	}, [newVersion]);
+
+	const show = useCallback(() => {
+		if (newVersion && newVersion.revision !== currentRevision) {
+			setHasUpdate(true);
+		}
+	}, [newVersion, currentRevision]);
 
 	return {
-		hasUpdate: hasUpdate && !isDismissed,
+		hasUpdate,
 		newVersion,
-		isChecking,
+		isChecking: isCheckingRef.current,
 		error,
 		checkForUpdate,
-		dismiss
+		dismiss,
+		show
 	};
 }
