@@ -2,7 +2,41 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { LogTableData, RootBlockSchema } from '@/shared/types';
 
-import { MergedLogEntry, StepRange } from './log-diff.types';
+import {
+	MergedLogEntry,
+	StepRange,
+	ParsedAttachmentLog,
+	AlignedRow
+} from './log-diff.types';
+
+/** Colors for different attachment sources */
+export const ATTACHMENT_COLORS = [
+	{
+		bg: 'bg-purple-100/70 hover:bg-purple-200/70',
+		border: 'border-l-4 border-purple-400',
+		badge: 'bg-purple-200 text-purple-700'
+	},
+	{
+		bg: 'bg-amber-100/70 hover:bg-amber-200/70',
+		border: 'border-l-4 border-amber-400',
+		badge: 'bg-amber-200 text-amber-700'
+	},
+	{
+		bg: 'bg-teal-100/70 hover:bg-teal-200/70',
+		border: 'border-l-4 border-teal-400',
+		badge: 'bg-teal-200 text-teal-700'
+	},
+	{
+		bg: 'bg-pink-100/70 hover:bg-pink-200/70',
+		border: 'border-l-4 border-pink-400',
+		badge: 'bg-pink-200 text-pink-700'
+	},
+	{
+		bg: 'bg-cyan-100/70 hover:bg-cyan-200/70',
+		border: 'border-l-4 border-cyan-400',
+		badge: 'bg-cyan-200 text-cyan-700'
+	}
+];
 
 /**
  * Deep clone a log entry and its children
@@ -69,91 +103,114 @@ export function findMatchingStep(
 }
 
 /**
- * Merge attachment log entries into the main log structure
+ * Merge multiple attachment logs into the main log structure
  *
  * Algorithm:
  * 1. Find all Steps in main log (user_name === "Step")
  * 2. Build timestamp ranges for each Step
- * 3. For each level-0 entry in attachment log, find matching Step by timestamp
+ * 3. For each attachment log, for each level-0 entry, find matching Step by timestamp
  * 4. Insert as child of that Step with composite line number
+ */
+export function mergeMultipleLogData(
+	mainLog: LogTableData[],
+	attachmentLogs: ParsedAttachmentLog[]
+): MergedLogEntry[] {
+	// Deep clone main log to avoid mutations
+	const mergedLog: MergedLogEntry[] = mainLog.map(
+		(entry) => cloneLogEntry(entry) as MergedLogEntry
+	);
+
+	// Filter out attachment logs with no data
+	const validAttachments = attachmentLogs.filter((a) => a.data && a.data.length > 0);
+
+	if (validAttachments.length === 0) {
+		return mergedLog;
+	}
+
+	// Find all step ranges
+	const stepRanges = findStepRanges(mainLog);
+
+	if (stepRanges.length === 0) {
+		// No steps found, append all attachment entries at root level
+		validAttachments.forEach((attachment, attachmentIndex) => {
+			const attachmentEntries = attachment.data!.map((entry, idx) =>
+				createAttachmentEntry(
+					entry,
+					idx + 1,
+					'root',
+					attachment.name,
+					attachmentIndex
+				)
+			);
+			mergedLog.push(...attachmentEntries);
+		});
+		return mergedLog;
+	}
+
+	// Process each attachment log
+	validAttachments.forEach((attachment, attachmentIndex) => {
+		// Group attachment entries by their matching step
+		const entriesByStep = new Map<number, MergedLogEntry[]>();
+
+		attachment.data!.forEach((entry, idx) => {
+			const matchingStep = findMatchingStep(
+				entry.timestamp.timestamp,
+				stepRanges
+			);
+
+			if (matchingStep) {
+				const stepLineNumber = matchingStep.entry.line_number;
+				if (!entriesByStep.has(stepLineNumber)) {
+					entriesByStep.set(stepLineNumber, []);
+				}
+				entriesByStep.get(stepLineNumber)!.push(
+					createAttachmentEntry(
+						entry,
+						idx + 1,
+						stepLineNumber.toString(),
+						attachment.name,
+						attachmentIndex
+					)
+				);
+			}
+		});
+
+		// Insert attachment entries as children of their matching steps
+		entriesByStep.forEach((entries) => {
+			entries.forEach((entry) => {
+				const stepLineNumber = entry.compositeLineNumber?.split('.')[0];
+				if (!stepLineNumber) return;
+
+				const stepEntry = mergedLog.find(
+					(e) =>
+						e.line_number === Number(stepLineNumber) && e.user_name === 'Step'
+				);
+
+				if (stepEntry) {
+					if (!stepEntry.children) {
+						stepEntry.children = [];
+					}
+					// Insert at the appropriate position based on timestamp
+					insertByTimestamp(stepEntry.children, entry);
+				}
+			});
+		});
+	});
+
+	return mergedLog;
+}
+
+/**
+ * Legacy single attachment merge (for backward compatibility)
  */
 export function mergeLogData(
 	mainLog: LogTableData[],
 	attachmentLog: LogTableData[],
 	attachmentSource = 'attachment'
 ): MergedLogEntry[] {
-	if (!attachmentLog.length) {
-		return mainLog.map((entry) => cloneLogEntry(entry) as MergedLogEntry);
-	}
-
-	// Deep clone main log to avoid mutations
-	const mergedLog: MergedLogEntry[] = mainLog.map(
-		(entry) => cloneLogEntry(entry) as MergedLogEntry
-	);
-
-	// Find all step ranges
-	const stepRanges = findStepRanges(mainLog);
-
-	if (stepRanges.length === 0) {
-		// No steps found, append attachment entries at root level
-		const attachmentEntries = attachmentLog.map((entry, idx) =>
-			createAttachmentEntry(entry, idx + 1, 'root', attachmentSource)
-		);
-		return [...mergedLog, ...attachmentEntries];
-	}
-
-	// Group attachment entries by their matching step
-	const entriesByStep = new Map<number, MergedLogEntry[]>();
-
-	attachmentLog.forEach((entry, idx) => {
-		const matchingStep = findMatchingStep(
-			entry.timestamp.timestamp,
-			stepRanges
-		);
-
-		if (matchingStep) {
-			const stepLineNumber = matchingStep.entry.line_number;
-			if (!entriesByStep.has(stepLineNumber)) {
-				entriesByStep.set(stepLineNumber, []);
-			}
-			entriesByStep.get(stepLineNumber)!.push(
-				createAttachmentEntry(
-					entry,
-					idx + 1,
-					stepLineNumber.toString(),
-					attachmentSource
-				)
-			);
-		}
-	});
-
-	// Insert attachment entries as children of their matching steps
-	function insertIntoChildren(entries: MergedLogEntry[]): void {
-		entries.forEach((entry) => {
-			const stepLineNumber = entry.compositeLineNumber?.split('.')[0];
-			if (!stepLineNumber) return;
-
-			const stepEntry = mergedLog.find(
-				(e) =>
-					e.line_number === Number(stepLineNumber) && e.user_name === 'Step'
-			);
-
-			if (stepEntry) {
-				if (!stepEntry.children) {
-					stepEntry.children = [];
-				}
-				// Insert at the appropriate position based on timestamp
-				insertByTimestamp(stepEntry.children, entry);
-			}
-		});
-	}
-
-	// Insert all grouped entries
-	entriesByStep.forEach((entries) => {
-		insertIntoChildren(entries);
-	});
-
-	return mergedLog;
+	return mergeMultipleLogData(mainLog, [
+		{ id: '1', name: attachmentSource, data: attachmentLog, error: null }
+	]);
 }
 
 /**
@@ -163,14 +220,16 @@ function createAttachmentEntry(
 	entry: LogTableData,
 	attachmentLineNumber: number,
 	stepLineNumber: string,
-	attachmentSource: string
+	attachmentSource: string,
+	attachmentIndex: number
 ): MergedLogEntry {
 	return {
 		...cloneLogEntry(entry),
 		isFromAttachment: true,
 		originalLineNumber: entry.line_number,
-		compositeLineNumber: `${stepLineNumber}.${attachmentLineNumber}`,
-		attachmentSource
+		compositeLineNumber: `${stepLineNumber}.${attachmentSource.charAt(0).toUpperCase()}${attachmentLineNumber}`,
+		attachmentSource,
+		attachmentIndex
 	};
 }
 
@@ -190,6 +249,98 @@ function insertByTimestamp(
 	} else {
 		children.splice(insertIndex, 0, entry);
 	}
+}
+
+/**
+ * Flatten log entries including children into a single array with depth info
+ */
+export function flattenLogEntries(
+	entries: LogTableData[],
+	depth = 0
+): Array<LogTableData & { depth: number }> {
+	const result: Array<LogTableData & { depth: number }> = [];
+
+	entries.forEach((entry) => {
+		result.push({ ...entry, depth });
+		if (entry.children) {
+			result.push(...flattenLogEntries(entry.children, depth + 1));
+		}
+	});
+
+	return result;
+}
+
+/**
+ * Create aligned rows for side-by-side view with placeholders
+ * This aligns entries by timestamp so users can see where attachment entries fit
+ */
+export function createAlignedRows(
+	mainLog: LogTableData[],
+	attachmentLogs: ParsedAttachmentLog[]
+): AlignedRow[] {
+	// Flatten all logs
+	const flatMain = flattenLogEntries(mainLog);
+	const flatAttachments = attachmentLogs.map((a) =>
+		a.data ? flattenLogEntries(a.data) : []
+	);
+
+	// Collect all unique timestamps and sort them
+	const allTimestamps = new Set<number>();
+
+	flatMain.forEach((e) => allTimestamps.add(e.timestamp.timestamp));
+	flatAttachments.forEach((entries) => {
+		entries.forEach((e) => allTimestamps.add(e.timestamp.timestamp));
+	});
+
+	const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+
+	// Create index maps for quick lookup
+	const mainByTimestamp = new Map<number, LogTableData & { depth: number }>();
+	flatMain.forEach((e) => {
+		// If multiple entries have same timestamp, keep first one
+		if (!mainByTimestamp.has(e.timestamp.timestamp)) {
+			mainByTimestamp.set(e.timestamp.timestamp, e);
+		}
+	});
+
+	const attachmentsByTimestamp = flatAttachments.map((entries) => {
+		const map = new Map<number, LogTableData & { depth: number }>();
+		entries.forEach((e) => {
+			if (!map.has(e.timestamp.timestamp)) {
+				map.set(e.timestamp.timestamp, e);
+			}
+		});
+		return map;
+	});
+
+	// Build aligned rows
+	const alignedRows: AlignedRow[] = [];
+
+	sortedTimestamps.forEach((timestamp) => {
+		const mainEntry = mainByTimestamp.get(timestamp) || null;
+		const attachmentEntries = attachmentsByTimestamp.map(
+			(map) => map.get(timestamp) || null
+		);
+
+		// Only include row if at least one log has an entry at this timestamp
+		if (mainEntry || attachmentEntries.some((e) => e !== null)) {
+			alignedRows.push({
+				timestamp,
+				mainEntry: mainEntry as MergedLogEntry | null,
+				attachmentEntries: attachmentEntries.map((e, idx) => {
+					if (!e) return null;
+					return {
+						...e,
+						isFromAttachment: true,
+						attachmentIndex: idx,
+						attachmentSource: attachmentLogs[idx]?.name || `Attachment ${idx + 1}`
+					} as MergedLogEntry;
+				})
+			});
+		}
+	});
+
+	return alignedRows;
 }
 
 /**
@@ -233,11 +384,17 @@ export function parseLogJson(json: string): {
 }
 
 /**
- * Get row color for merged entries (extends getRowColor from log-table.utils)
+ * Get row color for merged entries based on attachment index
  */
 export function getMergedRowColor(row: MergedLogEntry): string {
+	if (row.isPlaceholder) {
+		return 'bg-gray-50';
+	}
+
 	if (row.isFromAttachment) {
-		return 'bg-purple-100/70 hover:bg-purple-200/70 border-l-4 border-purple-400';
+		const colorIndex = (row.attachmentIndex ?? 0) % ATTACHMENT_COLORS.length;
+		const colors = ATTACHMENT_COLORS[colorIndex];
+		return `${colors.bg} ${colors.border}`;
 	}
 
 	// Fall back to standard row colors
@@ -282,4 +439,12 @@ export function getMergedRowColor(row: MergedLogEntry): string {
 	}
 
 	return getColorByLevel(row.level);
+}
+
+/**
+ * Get badge color for attachment source
+ */
+export function getAttachmentBadgeColor(attachmentIndex: number): string {
+	const colorIndex = attachmentIndex % ATTACHMENT_COLORS.length;
+	return ATTACHMENT_COLORS[colorIndex].badge;
 }

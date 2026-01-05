@@ -6,16 +6,20 @@ import { LogTableData } from '@/shared/types';
  * Extended log entry with merge metadata
  */
 export interface MergedLogEntry extends LogTableData {
-	/** Indicates if this entry came from the attachment log */
+	/** Indicates if this entry came from an attachment log */
 	isFromAttachment?: boolean;
 	/** Original line number from source log */
 	originalLineNumber?: number;
 	/** Composite line number for attachment entries (e.g., "42.1") */
 	compositeLineNumber?: string;
-	/** Source identifier for the attachment log */
+	/** Source identifier for the attachment log (e.g., "attachment-1", "attachment-2") */
 	attachmentSource?: string;
+	/** Index of the attachment source (for coloring) */
+	attachmentIndex?: number;
 	/** Extended children with merge metadata */
 	children?: MergedLogEntry[];
+	/** Indicates this is a placeholder row for alignment in side-by-side view */
+	isPlaceholder?: boolean;
 }
 
 /**
@@ -38,20 +42,30 @@ export interface StepRange {
 export type LogDiffViewMode = 'side-by-side' | 'merged';
 
 /**
- * State for the log diff page
+ * Attachment log input
  */
-export interface LogDiffState {
-	mainLogJson: string;
-	attachmentLogJson: string;
-	viewMode: LogDiffViewMode;
+export interface AttachmentLogInput {
+	id: string;
+	name: string;
+	json: string;
 	error: string | null;
 }
 
 /**
- * Parsed log data for rendering
+ * Parsed attachment log
  */
-export interface ParsedLogData {
-	mainLog: LogTableData[] | null;
-	attachmentLog: LogTableData[] | null;
-	mergedLog: MergedLogEntry[] | null;
+export interface ParsedAttachmentLog {
+	id: string;
+	name: string;
+	data: LogTableData[] | null;
+	error: string | null;
+}
+
+/**
+ * Aligned row for side-by-side view
+ */
+export interface AlignedRow {
+	timestamp: number;
+	mainEntry: MergedLogEntry | null;
+	attachmentEntries: (MergedLogEntry | null)[];
 }
