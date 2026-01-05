@@ -37,7 +37,7 @@ function UserPreferencesForm(props: UserPreferencesFormProps) {
 				render={({ field }) => (
 					<div className="flex flex-col gap-4">
 						<label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-							Default history mode
+							Default Mode
 						</label>
 						<RadioGroup
 							onValueChange={field.onChange}
@@ -74,14 +74,14 @@ function UserPreferencesForm(props: UserPreferencesFormProps) {
 						</RadioGroup>
 					</div>
 				)}
-			></Controller>
+			/>
 			<div>
 				<CheckboxField
 					name="log.preferLegacyLog"
 					label="Legacy Logs"
 					control={control}
 				/>
-				<p className="text-sm text-text-menu ml-6 mt-1.5">
+				<p className="text-xs text-text-menu ml-6 mt-1.5">
 					Make legacy logs your default choice
 				</p>
 			</div>

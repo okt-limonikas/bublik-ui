@@ -8,6 +8,7 @@ import {
 	ButtonTw,
 	Dialog,
 	DialogClose,
+	DialogPortal,
 	DialogTrigger,
 	Icon,
 	ModalContent,
@@ -48,20 +49,5 @@ export const ChangePasswordFormContainer = () => {
 		}
 	};
 
-	return (
-		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<ButtonTw>Change Password</ButtonTw>
-			</DialogTrigger>
-			<ModalContent className="w-full sm:max-w-md p-6 bg-white sm:rounded-lg md:shadow min-w-[420px] z-10 relative overflow-auto max-h-[85vh]">
-				<DialogClose className="absolute grid p-1 transition-colors rounded-md right-4 top-4 place-items-center text-text-menu hover:bg-primary-wash hover:text-primary">
-					<Icon name={'Cross'} size={14} />
-				</DialogClose>
-				<h1 className="mb-6 text-2xl font-bold leading-tight tracking-tight text-text-primary">
-					Change password
-				</h1>
-				<ChangePasswordForm onSubmit={handleChangePassword} ref={formRef} />
-			</ModalContent>
-		</Dialog>
-	);
+	return <ChangePasswordForm onSubmit={handleChangePassword} ref={formRef} />;
 };
