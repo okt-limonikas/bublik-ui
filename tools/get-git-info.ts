@@ -9,6 +9,7 @@ const exec = promisify(child.exec);
 
 (async () => {
 	const GIT_INFO_FILE_LOCATION = `libs/bublik/features/deploy-info/src/lib/git-info.json`;
+	const GIT_INFO_PUBLIC_LOCATION = `apps/bublik/src/public/git-info.json`;
 
 	const longSHA = (await exec('git rev-parse HEAD')).stdout.toString().trim();
 	const shortSHA = (await exec('git rev-parse --short HEAD')).stdout
@@ -54,4 +55,6 @@ const exec = promisify(child.exec);
 	};
 
 	writeFileSync(GIT_INFO_FILE_LOCATION, JSON.stringify(versions));
+	writeFileSync(GIT_INFO_PUBLIC_LOCATION, JSON.stringify(versions));
+	await exec('pnpm run format');
 })();

@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 
 import { store } from '@/bublik/+state';
 import { Providers } from '@/shared/tailwind-ui';
+import { UpdateBannerProvider } from '@/bublik/features/deploy-info';
 
 import { Router } from './router';
 
@@ -14,6 +15,7 @@ export const App = () => {
 	return (
 		<Provider store={store}>
 			<Providers>
+				<UpdateBannerProvider />
 				<Router />
 			</Providers>
 		</Provider>

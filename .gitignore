@@ -44,3 +44,6 @@ requests.http
 
 .nx/cache
 .nx/workspace-data
+
+# Generated at build time
+apps/bublik/src/public/git-info.json
