@@ -273,6 +273,7 @@ export function flattenLogEntries(
 /**
  * Create aligned rows for side-by-side view with placeholders
  * This aligns entries by timestamp so users can see where attachment entries fit
+ * NOTE: Handles multiple entries at the same timestamp by grouping them
  */
 export function createAlignedRows(
 	mainLog: LogTableData[],
@@ -294,21 +295,27 @@ export function createAlignedRows(
 
 	const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
 
-	// Create index maps for quick lookup
-	const mainByTimestamp = new Map<number, LogTableData & { depth: number }>();
+	// Create index maps for quick lookup - now storing arrays for same timestamps
+	const mainByTimestamp = new Map<
+		number,
+		Array<LogTableData & { depth: number }>
+	>();
 	flatMain.forEach((e) => {
-		// If multiple entries have same timestamp, keep first one
-		if (!mainByTimestamp.has(e.timestamp.timestamp)) {
-			mainByTimestamp.set(e.timestamp.timestamp, e);
+		const ts = e.timestamp.timestamp;
+		if (!mainByTimestamp.has(ts)) {
+			mainByTimestamp.set(ts, []);
 		}
+		mainByTimestamp.get(ts)!.push(e);
 	});
 
 	const attachmentsByTimestamp = flatAttachments.map((entries) => {
-		const map = new Map<number, LogTableData & { depth: number }>();
+		const map = new Map<number, Array<LogTableData & { depth: number }>>();
 		entries.forEach((e) => {
-			if (!map.has(e.timestamp.timestamp)) {
-				map.set(e.timestamp.timestamp, e);
+			const ts = e.timestamp.timestamp;
+			if (!map.has(ts)) {
+				map.set(ts, []);
 			}
+			map.get(ts)!.push(e);
 		});
 		return map;
 	});
@@ -317,25 +324,31 @@ export function createAlignedRows(
 	const alignedRows: AlignedRow[] = [];
 
 	sortedTimestamps.forEach((timestamp) => {
-		const mainEntry = mainByTimestamp.get(timestamp) || null;
+		const mainEntries = mainByTimestamp.get(timestamp) || [];
 		const attachmentEntries = attachmentsByTimestamp.map(
-			(map) => map.get(timestamp) || null
+			(map) => map.get(timestamp) || []
 		);
 
 		// Only include row if at least one log has an entry at this timestamp
-		if (mainEntry || attachmentEntries.some((e) => e !== null)) {
+		if (
+			mainEntries.length > 0 ||
+			attachmentEntries.some((arr) => arr.length > 0)
+		) {
 			alignedRows.push({
 				timestamp,
-				mainEntry: mainEntry as MergedLogEntry | null,
-				attachmentEntries: attachmentEntries.map((e, idx) => {
-					if (!e) return null;
-					return {
-						...e,
-						isFromAttachment: true,
-						attachmentIndex: idx,
-						attachmentSource: attachmentLogs[idx]?.name || `Attachment ${idx + 1}`
-					} as MergedLogEntry;
-				})
+				mainEntries: mainEntries as MergedLogEntry[],
+				attachmentEntries: attachmentEntries.map((entries, idx) =>
+					entries.map(
+						(e) =>
+							({
+								...e,
+								isFromAttachment: true,
+								attachmentIndex: idx,
+								attachmentSource:
+									attachmentLogs[idx]?.name || `Attachment ${idx + 1}`
+							}) as MergedLogEntry
+					)
+				)
 			});
 		}
 	});

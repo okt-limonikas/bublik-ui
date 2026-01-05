@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, Fragment } from 'react';
 
 import { ButtonTw, cn, TextArea, Icon } from '@/shared/tailwind-ui';
 
@@ -211,16 +211,26 @@ function DataInput({
 }
 
 /**
- * Simple log entry row component
+ * Simple log entry row component with collapse/expand support
  */
 interface LogRowProps {
 	entry: MergedLogEntry;
 	depth?: number;
+	collapsedRows: Set<string>;
+	onToggleCollapse: (rowId: string) => void;
 }
 
-function LogRow({ entry, depth = 0 }: LogRowProps) {
+function LogRow({
+	entry,
+	depth = 0,
+	collapsedRows,
+	onToggleCollapse
+}: LogRowProps) {
 	const rowColor = getMergedRowColor(entry);
 	const paddingLeft = depth * 24;
+	const hasChildren = entry.children && entry.children.length > 0;
+	const rowId = `${entry.line_number}-${entry.timestamp.timestamp}`;
+	const isCollapsed = collapsedRows.has(rowId);
 
 	return (
 		<>
@@ -229,7 +239,25 @@ function LogRow({ entry, depth = 0 }: LogRowProps) {
 					className="px-2 py-1 font-mono text-xs text-gray-500 whitespace-nowrap"
 					style={{ paddingLeft: paddingLeft + 8 }}
 				>
-					{entry.compositeLineNumber ?? entry.line_number}
+					<div className="flex items-center gap-1">
+						{hasChildren && (
+							<button
+								onClick={() => onToggleCollapse(rowId)}
+								className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+								title={isCollapsed ? 'Expand' : 'Collapse'}
+							>
+								<Icon
+									name="ArrowShortSmall"
+									className={cn(
+										'w-3 h-3 transition-transform',
+										isCollapsed ? '' : 'rotate-90'
+									)}
+								/>
+							</button>
+						)}
+						{!hasChildren && <span className="w-4" />}
+						{entry.compositeLineNumber ?? entry.line_number}
+					</div>
 				</td>
 				<td className="px-2 py-1 text-xs font-medium whitespace-nowrap">
 					{entry.level}
@@ -253,6 +281,11 @@ function LogRow({ entry, depth = 0 }: LogRowProps) {
 									: `[${content.type}]`}
 						</span>
 					))}
+					{hasChildren && isCollapsed && (
+						<span className="ml-2 text-gray-400 text-[10px]">
+							({entry.children!.length} hidden)
+						</span>
+					)}
 				</td>
 				<td className="px-2 py-1 text-xs">
 					{entry.isFromAttachment && (
@@ -267,15 +300,39 @@ function LogRow({ entry, depth = 0 }: LogRowProps) {
 					)}
 				</td>
 			</tr>
-			{entry.children?.map((child, idx) => (
-				<LogRow key={`${child.line_number}-${idx}`} entry={child} depth={depth + 1} />
-			))}
+			{!isCollapsed &&
+				entry.children?.map((child, idx) => (
+					<LogRow
+						key={`${child.line_number}-${idx}`}
+						entry={child}
+						depth={depth + 1}
+						collapsedRows={collapsedRows}
+						onToggleCollapse={onToggleCollapse}
+					/>
+				))}
 		</>
 	);
 }
 
 /**
- * Simple log table component
+ * Collect all row IDs that have children (for collapse all functionality)
+ */
+function collectRowsWithChildren(
+	entries: MergedLogEntry[],
+	result: Set<string> = new Set()
+): Set<string> {
+	entries.forEach((entry) => {
+		if (entry.children && entry.children.length > 0) {
+			const rowId = `${entry.line_number}-${entry.timestamp.timestamp}`;
+			result.add(rowId);
+			collectRowsWithChildren(entry.children, result);
+		}
+	});
+	return result;
+}
+
+/**
+ * Simple log table component with collapse/expand all
  */
 interface LogTableProps {
 	data: MergedLogEntry[];
@@ -283,11 +340,65 @@ interface LogTableProps {
 }
 
 function LogTable({ data, title }: LogTableProps) {
+	const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
+
+	const allRowsWithChildren = useMemo(
+		() => collectRowsWithChildren(data),
+		[data]
+	);
+
+	const handleToggleCollapse = useCallback((rowId: string) => {
+		setCollapsedRows((prev) => {
+			const next = new Set(prev);
+			if (next.has(rowId)) {
+				next.delete(rowId);
+			} else {
+				next.add(rowId);
+			}
+			return next;
+		});
+	}, []);
+
+	const handleCollapseAll = useCallback(() => {
+		setCollapsedRows(new Set(allRowsWithChildren));
+	}, [allRowsWithChildren]);
+
+	const handleExpandAll = useCallback(() => {
+		setCollapsedRows(new Set());
+	}, []);
+
+	const hasAnyChildren = allRowsWithChildren.size > 0;
+	const isAllCollapsed = collapsedRows.size === allRowsWithChildren.size;
+
 	return (
 		<div className="flex flex-col h-full overflow-hidden border rounded-lg border-border-primary">
 			{title && (
-				<div className="px-3 py-2 font-medium bg-gray-50 border-b border-border-primary">
-					{title}
+				<div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-border-primary">
+					<span className="font-medium">{title}</span>
+					{hasAnyChildren && (
+						<div className="flex gap-1">
+							<ButtonTw
+								variant="ghost"
+								size="xs"
+								onClick={handleExpandAll}
+								disabled={collapsedRows.size === 0}
+								title="Expand all subrows"
+							>
+								<Icon name="ExpandSelection" className="w-4 h-4" />
+								<span className="ml-1 text-[10px]">Expand</span>
+							</ButtonTw>
+							<ButtonTw
+								variant="ghost"
+								size="xs"
+								onClick={handleCollapseAll}
+								disabled={isAllCollapsed}
+								title="Collapse all subrows"
+							>
+								<Icon name="ArrowShortSmall" className="w-4 h-4 -rotate-90" />
+								<span className="ml-1 text-[10px]">Collapse</span>
+							</ButtonTw>
+						</div>
+					)}
 				</div>
 			)}
 			<div className="flex-1 overflow-auto">
@@ -319,7 +430,12 @@ function LogTable({ data, title }: LogTableProps) {
 					</thead>
 					<tbody>
 						{data.map((entry, idx) => (
-							<LogRow key={`${entry.line_number}-${idx}`} entry={entry} />
+							<LogRow
+								key={`${entry.line_number}-${idx}`}
+								entry={entry}
+								collapsedRows={collapsedRows}
+								onToggleCollapse={handleToggleCollapse}
+							/>
 						))}
 					</tbody>
 				</table>
@@ -344,23 +460,21 @@ function MergedView({ mergedData }: MergedViewProps) {
 }
 
 /**
- * Aligned cell for side-by-side view
+ * Single entry display in aligned cell
  */
-interface AlignedCellProps {
-	entry: MergedLogEntry | null;
+interface EntryDisplayProps {
+	entry: MergedLogEntry;
 	isMainLog?: boolean;
 	attachmentIndex?: number;
+	showConcurrentBadge?: boolean;
 }
 
-function AlignedCell({ entry, isMainLog, attachmentIndex }: AlignedCellProps) {
-	if (!entry) {
-		return (
-			<div className="px-2 py-1 text-xs text-gray-300 bg-gray-50 border-b border-gray-100 min-h-[28px]">
-				—
-			</div>
-		);
-	}
-
+function EntryDisplay({
+	entry,
+	isMainLog,
+	attachmentIndex,
+	showConcurrentBadge
+}: EntryDisplayProps) {
 	const rowColor = isMainLog
 		? getMergedRowColor(entry)
 		: getMergedRowColor({ ...entry, isFromAttachment: true, attachmentIndex });
@@ -378,12 +492,56 @@ function AlignedCell({ entry, isMainLog, attachmentIndex }: AlignedCellProps) {
 				</span>
 				<span className="font-medium">{entry.level}</span>
 				<span className="text-gray-500">{entry.timestamp.formatted}</span>
+				{showConcurrentBadge && (
+					<span className="px-1 py-0.5 text-[9px] font-medium bg-blue-100 text-blue-700 rounded">
+						CONCURRENT
+					</span>
+				)}
 				<span className="flex-1 truncate">
 					{entry.log_content[0]?.type === 'te-log-table-content-text'
 						? (entry.log_content[0] as { content: string }).content
 						: '...'}
 				</span>
 			</div>
+		</div>
+	);
+}
+
+/**
+ * Aligned cell for side-by-side view - now supports multiple entries at same timestamp
+ */
+interface AlignedCellProps {
+	entries: MergedLogEntry[];
+	isMainLog?: boolean;
+	attachmentIndex?: number;
+	hasConcurrentEntries?: boolean;
+}
+
+function AlignedCell({
+	entries,
+	isMainLog,
+	attachmentIndex,
+	hasConcurrentEntries
+}: AlignedCellProps) {
+	if (entries.length === 0) {
+		return (
+			<div className="px-2 py-1 text-xs text-gray-300 bg-gray-50 border-b border-gray-100 min-h-[28px]">
+				—
+			</div>
+		);
+	}
+
+	return (
+		<div>
+			{entries.map((entry, idx) => (
+				<EntryDisplay
+					key={`${entry.line_number}-${idx}`}
+					entry={entry}
+					isMainLog={isMainLog}
+					attachmentIndex={attachmentIndex}
+					showConcurrentBadge={hasConcurrentEntries && idx === 0}
+				/>
+			))}
 		</div>
 	);
 }
@@ -401,6 +559,15 @@ function AlignedSideBySideView({
 	attachmentNames
 }: AlignedSideBySideViewProps) {
 	const columnCount = 1 + attachmentNames.length; // main + attachments
+
+	// Check if any row has concurrent entries (main + any attachment at same timestamp)
+	const hasConcurrentAt = (row: AlignedRow): boolean => {
+		const mainHasEntries = row.mainEntries.length > 0;
+		const anyAttachmentHasEntries = row.attachmentEntries.some(
+			(arr) => arr.length > 0
+		);
+		return mainHasEntries && anyAttachmentHasEntries;
+	};
 
 	return (
 		<div className="flex flex-col h-full overflow-hidden border rounded-lg border-border-primary">
@@ -442,26 +609,37 @@ function AlignedSideBySideView({
 					className="grid"
 					style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}
 				>
-					{alignedRows.map((row, rowIdx) => (
-						<>
-							{/* Main log cell */}
-							<div key={`main-${rowIdx}`} className="border-r border-gray-200">
-								<AlignedCell entry={row.mainEntry} isMainLog />
-							</div>
-							{/* Attachment cells */}
-							{row.attachmentEntries.map((entry, attIdx) => (
-								<div
-									key={`att-${rowIdx}-${attIdx}`}
-									className={cn(
-										attIdx < row.attachmentEntries.length - 1 &&
-											'border-r border-gray-200'
-									)}
-								>
-									<AlignedCell entry={entry} attachmentIndex={attIdx} />
+					{alignedRows.map((row, rowIdx) => {
+						const isConcurrent = hasConcurrentAt(row);
+						return (
+							<Fragment key={rowIdx}>
+								{/* Main log cell */}
+								<div className="border-r border-gray-200">
+									<AlignedCell
+										entries={row.mainEntries}
+										isMainLog
+										hasConcurrentEntries={isConcurrent}
+									/>
 								</div>
-							))}
-						</>
-					))}
+								{/* Attachment cells */}
+								{row.attachmentEntries.map((entries, attIdx) => (
+									<div
+										key={`att-${rowIdx}-${attIdx}`}
+										className={cn(
+											attIdx < row.attachmentEntries.length - 1 &&
+												'border-r border-gray-200'
+										)}
+									>
+										<AlignedCell
+											entries={entries}
+											attachmentIndex={attIdx}
+											hasConcurrentEntries={isConcurrent}
+										/>
+									</div>
+								))}
+							</Fragment>
+						);
+					})}
 				</div>
 			</div>
 		</div>

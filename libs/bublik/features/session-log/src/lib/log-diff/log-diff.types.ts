@@ -63,9 +63,10 @@ export interface ParsedAttachmentLog {
 
 /**
  * Aligned row for side-by-side view
+ * NOTE: Each cell can have multiple entries if they share the same timestamp
  */
 export interface AlignedRow {
 	timestamp: number;
-	mainEntry: MergedLogEntry | null;
-	attachmentEntries: (MergedLogEntry | null)[];
+	mainEntries: MergedLogEntry[];
+	attachmentEntries: MergedLogEntry[][];
 }

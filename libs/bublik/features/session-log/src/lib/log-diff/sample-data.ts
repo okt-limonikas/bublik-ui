@@ -226,6 +226,7 @@ export const SAMPLE_MAIN_LOG = {
 
 /**
  * Sample attachment log 1: Debug agent messages (purple)
+ * NOTE: Some entries have EXACT same timestamps as main log to demonstrate handling of concurrent events
  */
 export const SAMPLE_ATTACHMENT_LOG_1 = {
 	version: 'v1' as const,
@@ -242,6 +243,23 @@ export const SAMPLE_ATTACHMENT_LOG_1 = {
 							entity_name: 'debug_agent',
 							user_name: 'Debug',
 							timestamp: {
+								// EXACT MATCH with main log Step 1 (10:00:00.000)
+								timestamp: 1704067200.0,
+								formatted: '10:00:00.000'
+							},
+							log_content: [
+								{
+									type: 'te-log-table-content-text' as const,
+									content: '[DEBUG] === Test started (concurrent with Step) ==='
+								}
+							]
+						},
+						{
+							line_number: 2,
+							level: 'RING' as const,
+							entity_name: 'debug_agent',
+							user_name: 'Debug',
+							timestamp: {
 								timestamp: 1704067200.05,
 								formatted: '10:00:00.050'
 							},
@@ -253,23 +271,24 @@ export const SAMPLE_ATTACHMENT_LOG_1 = {
 							]
 						},
 						{
-							line_number: 2,
+							line_number: 3,
 							level: 'RING' as const,
 							entity_name: 'debug_agent',
 							user_name: 'Debug',
 							timestamp: {
-								timestamp: 1704067200.15,
-								formatted: '10:00:00.150'
+								// EXACT MATCH with main log child at 10:00:00.100
+								timestamp: 1704067200.1,
+								formatted: '10:00:00.100'
 							},
 							log_content: [
 								{
 									type: 'te-log-table-content-text' as const,
-									content: '[DEBUG] Config loaded successfully'
+									content: '[DEBUG] Config loaded (concurrent with init)'
 								}
 							]
 						},
 						{
-							line_number: 3,
+							line_number: 4,
 							level: 'WARN' as const,
 							entity_name: 'debug_agent',
 							user_name: 'Debug',
@@ -285,7 +304,7 @@ export const SAMPLE_ATTACHMENT_LOG_1 = {
 							]
 						},
 						{
-							line_number: 4,
+							line_number: 5,
 							level: 'RING' as const,
 							entity_name: 'debug_agent',
 							user_name: 'Debug',
@@ -309,6 +328,7 @@ export const SAMPLE_ATTACHMENT_LOG_1 = {
 
 /**
  * Sample attachment log 2: Network monitor messages (amber)
+ * NOTE: Some entries have EXACT same timestamps as main log or other attachments
  */
 export const SAMPLE_ATTACHMENT_LOG_2 = {
 	version: 'v1' as const,
@@ -325,6 +345,23 @@ export const SAMPLE_ATTACHMENT_LOG_2 = {
 							entity_name: 'net_monitor',
 							user_name: 'Network',
 							timestamp: {
+								// EXACT MATCH with main log Step 2 (10:00:10.000)
+								timestamp: 1704067210.0,
+								formatted: '10:00:10.000'
+							},
+							log_content: [
+								{
+									type: 'te-log-table-content-text' as const,
+									content: '[NET] === Network monitoring started (concurrent with Step) ==='
+								}
+							]
+						},
+						{
+							line_number: 2,
+							level: 'RING' as const,
+							entity_name: 'net_monitor',
+							user_name: 'Network',
+							timestamp: {
 								timestamp: 1704067210.05,
 								formatted: '10:00:10.050'
 							},
@@ -336,7 +373,24 @@ export const SAMPLE_ATTACHMENT_LOG_2 = {
 							]
 						},
 						{
-							line_number: 2,
+							line_number: 3,
+							level: 'RING' as const,
+							entity_name: 'net_monitor',
+							user_name: 'Network',
+							timestamp: {
+								// EXACT MATCH with main log bind (10:00:15.000)
+								timestamp: 1704067215.0,
+								formatted: '10:00:15.000'
+							},
+							log_content: [
+								{
+									type: 'te-log-table-content-text' as const,
+									content: '[NET] Socket bound (concurrent with bind call)'
+								}
+							]
+						},
+						{
+							line_number: 4,
 							level: 'RING' as const,
 							entity_name: 'net_monitor',
 							user_name: 'Network',
@@ -352,7 +406,7 @@ export const SAMPLE_ATTACHMENT_LOG_2 = {
 							]
 						},
 						{
-							line_number: 3,
+							line_number: 5,
 							level: 'ERROR' as const,
 							entity_name: 'net_monitor',
 							user_name: 'Network',
@@ -368,7 +422,7 @@ export const SAMPLE_ATTACHMENT_LOG_2 = {
 							]
 						},
 						{
-							line_number: 4,
+							line_number: 6,
 							level: 'RING' as const,
 							entity_name: 'net_monitor',
 							user_name: 'Network',
