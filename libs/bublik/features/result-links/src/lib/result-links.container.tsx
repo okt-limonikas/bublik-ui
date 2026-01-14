@@ -59,8 +59,8 @@ export const ResultLinks = (props: ResultLinksProps) => {
 				</li>
 				<li className="pl-0.5">
 					<HistoryLinkContainer
-						runId={runId}
-						resultId={String(resultId)}
+						runId={Number(runId)}
+						result={result}
 						userPreferredHistoryMode={userPreferredHistoryMode}
 					/>
 				</li>
@@ -111,13 +111,13 @@ export const ResultLinksContainer = (props: ActionLinksProps) => {
 	const { userPreferences } = useUserPreferences();
 
 	const prefetchLogURL = usePrefetch('getLogUrlByResultId');
-	const prefetchHistory = usePrefetch('getHistoryLinkDefaults');
 	const prefetchMeasurements = usePrefetch('getSingleMeasurement');
 	const prefetchMeasurementsHeader = usePrefetch('getResultInfo');
+	const prefetchResult = usePrefetch('getResultInfo');
 
 	const handleLogLinkMouseEnter = () => {
 		prefetchLogURL(resultId);
-		prefetchHistory(resultId);
+		prefetchResult(resultId);
 	};
 
 	const handleMeasurementLinkMouseEnter = () => {

@@ -45,15 +45,9 @@ const ErrorState = () => (
 export const HistoryLinkComponent = (props: HistoryLinkComponentProps) => {
 	const { search, isLoading, isError, disabled } = props;
 
-	// Loading state
-	if (isLoading) {
-		return <LoadingState />;
-	}
+	if (isLoading) return <LoadingState />;
 
-	// Error or disabled state
-	if (isError || disabled || !search) {
-		return <ErrorState />;
-	}
+	if (isError || disabled || !search) return <ErrorState />;
 
 	const { direct, prefilled } = search;
 

@@ -145,7 +145,6 @@ export type RunDataResults = {
 	comments: string[];
 	parameters: string[];
 	start: string;
-	finish: string;
 	artifacts?: string[];
 	requirements?: string[];
 };
