@@ -219,7 +219,7 @@ export const logEndpoints = {
 			}
 		}),
 		getLogJson: build.query<RootBlock, GetLogJsonInputs>({
-			queryFn: async ({ page, id }, _api, _extraOptions, baseQuery) => {
+			queryFn: async ({ page, id }, api, _extraOptions, baseQuery) => {
 				const getUrl = constructJsonUrl({ page, id });
 
 				const jsonUrl = (await baseQuery(
@@ -249,9 +249,13 @@ export const logEndpoints = {
 						artifactsAndVerdicts.data!
 					);
 
-					return {
-						data: blocksWithAddedVerdictsAndArtifacts
-					};
+					const result = fixPagesCountForAllView(
+						blocksWithAddedVerdictsAndArtifacts,
+						id,
+						api
+					);
+
+					return { data: result };
 				} catch (e) {
 					console.error(e);
 
@@ -296,4 +300,61 @@ function addArtifactsVerdicts(
 			}));
 		}
 	});
+}
+
+function fixPagesCountForAllView(
+	logBlocks: RootBlock,
+	id: string | number | null | undefined,
+	api: { getState: () => unknown }
+): RootBlock {
+	const teLog = logBlocks.root.find((b) => b.type === 'te-log');
+
+	// Only fix when pages_count is 0 (ALL PAGES)
+	if (!teLog?.pagination || teLog.pagination.pages_count !== 0) {
+		return logBlocks;
+	}
+
+	const state = api.getState() as {
+		bublikApi?: {
+			queries?: Record<
+				string,
+				{ originalArgs?: GetLogJsonInputs; data?: RootBlock }
+			>;
+		};
+	};
+	const queries = state?.bublikApi?.queries ?? {};
+
+	// Find cached query for same id with valid pages_count
+	let cachedPagesCount: number | undefined;
+	for (const key of Object.keys(queries)) {
+		if (!key.startsWith('getLogJson')) continue;
+
+		const cached = queries[key];
+		if (cached?.originalArgs?.id !== id) continue;
+
+		// Skip page=0 entries (they also have pages_count=0)
+		// Allow page=null/undefined (defaults to page 1) or explicit page numbers > 0
+		const cachedPage = cached.originalArgs?.page;
+		if (cachedPage === 0 || cachedPage === '0') continue;
+
+		const cachedTeLog = cached.data?.root.find((b) => b.type === 'te-log');
+		if (
+			cachedTeLog?.pagination?.pages_count &&
+			cachedTeLog.pagination.pages_count > 0
+		) {
+			cachedPagesCount = cachedTeLog.pagination.pages_count;
+			break;
+		}
+	}
+
+	if (cachedPagesCount) {
+		return createNextState(logBlocks, (draft) => {
+			const teLogDraft = draft.root.find((b) => b.type === 'te-log');
+			if (teLogDraft?.pagination) {
+				teLogDraft.pagination.pages_count = cachedPagesCount;
+			}
+		});
+	}
+
+	return logBlocks;
 }
