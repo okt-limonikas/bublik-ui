@@ -29,6 +29,7 @@ const LayoutHandlerLoading = () => {
 export const LayoutHandlerContainer = () => {
 	const modeSettings = useDashboardMode();
 	const dateSearch = useDashboardDate(DASHBOARD_TABLE_ID.Main);
+	const secondaryDateSearch = useDashboardDate(DASHBOARD_TABLE_ID.Secondary);
 	const { projectIds } = useProjectSearch();
 	const todayQuery = useGetDashboardByDateQuery({ projects: projectIds });
 
@@ -45,24 +46,43 @@ export const LayoutHandlerContainer = () => {
 			-1
 		);
 
+		// Determine effective dates (URL param takes priority over initial)
+		const effectiveMainDate = dateSearch.date || initialMainDate;
+		const effectiveSecondaryDate =
+			secondaryDateSearch.date || initialSecondaryDate;
+
+		// Check if dates need to be swapped to maintain chronological order (older on left)
+		const shouldSwap =
+			effectiveSecondaryDate &&
+			effectiveMainDate &&
+			effectiveSecondaryDate.getTime() > effectiveMainDate.getTime();
+
+		// Determine which table goes on which side based on date comparison
+		const leftTable = shouldSwap
+			? { id: DASHBOARD_TABLE_ID.Main, initialDate: initialMainDate }
+			: { id: DASHBOARD_TABLE_ID.Secondary, initialDate: initialSecondaryDate };
+		const rightTable = shouldSwap
+			? { id: DASHBOARD_TABLE_ID.Secondary, initialDate: initialSecondaryDate }
+			: { id: DASHBOARD_TABLE_ID.Main, initialDate: initialMainDate };
+
 		return (
 			<div className="flex flex-grow gap-1 overflow-hidden h-full">
 				<div
 					className={cn('overflow-auto w-full relative styled-scrollbar pr-1')}
 				>
 					<DashboardTableContainer
-						id={DASHBOARD_TABLE_ID.Secondary}
+						id={leftTable.id}
 						mode={modeSettings.mode}
-						initialDate={initialSecondaryDate}
+						initialDate={leftTable.initialDate}
 					/>
 				</div>
 				<div
 					className={cn('overflow-auto w-full relative styled-scrollbar pr-1')}
 				>
 					<DashboardTableContainer
-						id={DASHBOARD_TABLE_ID.Main}
+						id={rightTable.id}
 						mode={modeSettings.mode}
-						initialDate={initialMainDate}
+						initialDate={rightTable.initialDate}
 					/>
 				</div>
 			</div>
