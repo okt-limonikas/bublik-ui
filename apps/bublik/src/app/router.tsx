@@ -12,7 +12,6 @@ import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
 import { config } from '@/bublik/config';
 import { ErrorBoundary } from '@/shared/tailwind-ui';
-import { PrivateRoute } from '@/bublik/features/auth';
 
 import {
 	DevelopersLayout,
@@ -27,10 +26,7 @@ import {
 	RunDiffPage,
 	HistoryPageV2,
 	LoginPage,
-	SettingsProfilePage,
-	SettingsAppearancePage,
 	ForgotPage,
-	SettingsLayout,
 	AuthLayout,
 	ResetPasswordPage,
 	AdminUsersPage,
@@ -43,7 +39,6 @@ import {
 } from '../pages';
 import { Layout } from './layout';
 import { RedirectToLogPage } from './redirects';
-import { PerformancePage } from '../pages/performance-page';
 
 import { useEffect, useState } from 'react';
 import { CopyShortUrlCommandItemContainer } from '@/bublik/features/copy-url';
@@ -209,7 +204,6 @@ const router = createBrowserRouter(
 							element: <DevelopersLayout />,
 							children: [
 								{ path: 'import', element: <ImportPage /> },
-								{ path: 'performance', element: <PerformancePage /> },
 								{ path: 'flower', element: <FlowerFeature /> },
 								{ path: 'users', element: <AdminUsersPage /> },
 								{ path: 'config', element: <ConfigsPage /> },
@@ -219,18 +213,6 @@ const router = createBrowserRouter(
 						{
 							path: '/help',
 							children: [{ path: 'faq', element: <HelpPage /> }]
-						},
-						{
-							path: '/settings',
-							element: (
-								<PrivateRoute>
-									<SettingsLayout />
-								</PrivateRoute>
-							),
-							children: [
-								{ path: 'profile', element: <SettingsProfilePage /> },
-								{ path: 'appearance', element: <SettingsAppearancePage /> }
-							]
 						},
 						{ path: '*', element: <NoMatchFeature /> }
 					]
