@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import {
 	bublikAPI,
@@ -92,7 +93,28 @@ function UpdateProjectForm({
 			form.reset({ name: data.name });
 			onSuccess?.();
 		} catch (e) {
-			return form.setError('root', { message: getErrorMessage(e).description });
+			try {
+				const {
+					data: { message }
+				} = z
+					.object({
+						status: z.number(),
+						data: z.object({
+							type: z.string(),
+							message: z.record(z.string(), z.array(z.string()))
+						})
+					})
+					.parse(e);
+				const errorMessage = Object.entries(message)
+					.map(([key, error]) => `${key}: ${error}`)
+					.flat()
+					.join('\n');
+
+				return form.setError('root', { message: errorMessage });
+			} catch (parseError) {
+				console.error(parseError);
+				form.setError('root', { message: 'Unknown Error!' });
+			}
 		}
 	}
 

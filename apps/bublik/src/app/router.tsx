@@ -39,7 +39,8 @@ import {
 	RunReportPage,
 	ConfigsPage,
 	RunMultiplePage,
-	NetPacketAnalyzerPage
+	NetPacketAnalyzerPage,
+	ChatPage
 } from '../pages';
 import { Layout } from './layout';
 import { RedirectToLogPage } from './redirects';
@@ -181,6 +182,7 @@ const router = createBrowserRouter(
 					children: [
 						{ path: '/', element: <Navigate to="/dashboard" /> },
 						{ path: '/dashboard', element: <DashboardPageV2 /> },
+						{ path: '/chat', element: <ChatPage /> },
 						{
 							path: '/tools/packet-viewer',
 							element: <NetPacketAnalyzerPage />

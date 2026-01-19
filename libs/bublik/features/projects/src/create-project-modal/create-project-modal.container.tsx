@@ -87,7 +87,7 @@ function CreateProjectForm({ onSuccess, onCancel }: CreateProjectFormProps) {
 						status: z.number(),
 						data: z.object({
 							type: z.string(),
-							message: z.record(z.array(z.string()))
+							message: z.record(z.string(), z.array(z.string()))
 						})
 					})
 					.parse(e);

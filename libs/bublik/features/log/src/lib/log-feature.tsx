@@ -8,6 +8,9 @@ import {
 	ButtonTw,
 	CardHeader,
 	cn,
+	DrawerContent,
+	DrawerRoot,
+	DrawerTrigger,
 	Resizable,
 	resizableStyles,
 	ScrollToTop
@@ -17,6 +20,7 @@ import {
 	useGetTreeByRunIdQuery
 } from '@/services/bublik-api';
 import { RunReportConfigsContainer } from '@/bublik/features/run-report';
+import { ChatContent, DataStreamProvider } from '@/bublik/features/ai';
 import { LogAttachmentsContainer } from '@/bublik/features/log-artifacts';
 import { NewBugContainer } from '@/bublik/features/log-preview-drawer';
 import { LinkToSourceContainer } from '@/bublik/features/link-to-source';
@@ -106,6 +110,18 @@ function LogFeature(props: LogFeatureProps) {
 								resultId={focusId ?? Number(runId)}
 								runId={Number(runId)}
 							/>
+							<DrawerRoot>
+								<DrawerTrigger asChild>
+									<ButtonTw variant="secondary" size="xss">
+										Chat
+									</ButtonTw>
+								</DrawerTrigger>
+								<DrawerContent className="w-[45vw]">
+									<DataStreamProvider>
+										<ChatContent />
+									</DataStreamProvider>
+								</DrawerContent>
+							</DrawerRoot>
 						</div>
 					</CardHeader>
 					<div
