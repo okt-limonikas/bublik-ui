@@ -206,12 +206,8 @@ const TableHeader = (props: TableHeaderProps) => {
 
 	const renderHeaderCells =
 		(id: string) => (header: Header<DashboardData, unknown>) => {
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
-			const style = header.column.columnDef.meta?.style as
-				| CSSProperties
-				| undefined;
-
+			const headerStyle = header.column.columnDef.meta?.headerStyle;
+			console.log(id, headerStyle);
 			return (
 				<div
 					role="columnheader"
@@ -220,7 +216,7 @@ const TableHeader = (props: TableHeaderProps) => {
 						headerCellStyles(),
 						header.column.getCanSort() && 'cursor-pointer select-none'
 					)}
-					style={style}
+					style={headerStyle}
 					onClick={header.column.getToggleSortingHandler()}
 				>
 					{header.isPlaceholder

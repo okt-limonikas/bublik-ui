@@ -20,6 +20,7 @@ declare module '@tanstack/react-table' {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface ColumnMeta<TData extends RowData, TValue> {
 		style?: CSSProperties;
+		headerStyle?: CSSProperties;
 	}
 }
 
@@ -37,11 +38,11 @@ export const createColumns = (
 			flexShrink: 1,
 			flexBasis: '0%',
 			minWidth: 0,
-			paddingLeft: hasLinks ? 26 : idx === 0 ? 4 : 1,
+			paddingLeft: idx === 0 ? 4 : 1,
 			paddingRight: idx === 0 ? 4 : 1
 		} satisfies CSSProperties;
 
-		console.log(name, key, hasLinks);
+		const headerStyle = hasLinks ? { ...style, paddingLeft: 18 } : style;
 
 		const column: ColumnDef<DashboardData> = {
 			id: key,
@@ -90,7 +91,7 @@ export const createColumns = (
 					</Tooltip>
 				);
 			},
-			meta: { style }
+			meta: { style, headerStyle }
 		};
 
 		return column;
