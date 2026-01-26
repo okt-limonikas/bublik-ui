@@ -206,8 +206,9 @@ const TableHeader = (props: TableHeaderProps) => {
 
 	const renderHeaderCells =
 		(id: string) => (header: Header<DashboardData, unknown>) => {
-			const headerStyle = header.column.columnDef.meta?.headerStyle;
-			console.log(id, headerStyle);
+			const meta = header.column.columnDef.meta;
+			const headerStyle = meta?.headerStyle ?? meta?.style;
+
 			return (
 				<div
 					role="columnheader"

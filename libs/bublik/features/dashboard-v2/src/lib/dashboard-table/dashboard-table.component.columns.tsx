@@ -38,11 +38,11 @@ export const createColumns = (
 			flexShrink: 1,
 			flexBasis: '0%',
 			minWidth: 0,
-			paddingLeft: idx === 0 ? 4 : 1,
+			paddingLeft: hasLinks ? 0 : idx === 0 ? 4 : 1,
 			paddingRight: idx === 0 ? 4 : 1
 		} satisfies CSSProperties;
 
-		const headerStyle = hasLinks ? { ...style, paddingLeft: 18 } : style;
+		const headerStyle = hasLinks ? { ...style, paddingLeft: 8 } : style;
 
 		const column: ColumnDef<DashboardData> = {
 			id: key,
