@@ -53,6 +53,16 @@ export const getCellStrFromArray = (arr: DashboardCellArray[]) => {
 		.join(', ');
 };
 
+export const columnHasLinks = (
+	rows: DashboardData[],
+	key: string
+): boolean => {
+	return rows.some((row) => {
+		const cell = row.row_cells[key];
+		return !Array.isArray(cell) && cell?.payload;
+	});
+};
+
 export const createColorMap = (
 	rows: DashboardAPIResponse['rows'] | DashboardData
 ) => {

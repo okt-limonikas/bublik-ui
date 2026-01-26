@@ -9,7 +9,8 @@ import { Tooltip } from '@/shared/tailwind-ui';
 import { CellList, CellLink, RunIcon, CellProgress } from './components';
 import {
 	createColorMap,
-	getColumnWidth
+	getColumnWidth,
+	columnHasLinks
 } from './dashboard-table.component.utils';
 
 import { ExpandButtonContainer } from '../expand-button';
@@ -30,14 +31,17 @@ export const createColumns = (
 	const map = createColorMap(rows);
 
 	const mainColumns = headers.map(({ name, key }, idx) => {
+		const hasLinks = columnHasLinks(rows, key);
 		const style = {
 			flexGrow: getColumnWidth(rows, key, name),
 			flexShrink: 1,
 			flexBasis: '0%',
 			minWidth: 0,
-			paddingLeft: idx === 0 ? 4 : 1,
+			paddingLeft: hasLinks ? 26 : idx === 0 ? 4 : 1,
 			paddingRight: idx === 0 ? 4 : 1
 		} satisfies CSSProperties;
+
+		console.log(name, key, hasLinks);
 
 		const column: ColumnDef<DashboardData> = {
 			id: key,
