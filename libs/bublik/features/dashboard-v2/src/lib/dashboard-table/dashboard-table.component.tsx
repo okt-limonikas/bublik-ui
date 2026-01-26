@@ -9,7 +9,6 @@ import {
 	useState
 } from 'react';
 import {
-	Cell,
 	ExpandedState,
 	flexRender,
 	getCoreRowModel,
@@ -32,10 +31,10 @@ import { createColumns } from './dashboard-table.component.columns';
 import { DashboardLayoutType } from './dashboard-table.types';
 import {
 	bodyCellStyles,
+	bodyCellErrorStyles,
 	bodyRowStyles,
-	bodyRowWrapperStyles,
-	headerCellStyles,
-	headerRowStyles
+	gridContainerStyles,
+	headerCellStyles
 } from './dashboard-table.component.styles';
 import { isRowError } from './dashboard-table.component.utils';
 
@@ -156,9 +155,40 @@ export const DashboardTable = (props: DashboardTableProps) => {
 		)
 	};
 
+	if (layout === 'column') {
+		return (
+			<div className="w-full">
+				<div className="sticky top-0 z-40 bg-bg-body">
+					<div className="bg-white h-8.5 flex items-center justify-center">
+						<SwitchDatePicker
+							label="Date"
+							value={fromDate(date, getLocalTimeZone())}
+							onChange={(value) =>
+								onDateChange?.(value.toDate(getLocalTimeZone()))
+							}
+						/>
+					</div>
+					<div className="h-1 bg-bg-body" />
+				</div>
+				{error ? (
+					state['error']
+				) : rows.length ? (
+					<TwoColumnLayout
+						table={table}
+						isFetching={isFetching}
+						renderSubrow={renderSubrow}
+						context={context}
+					/>
+				) : (
+					state['empty']
+				)}
+			</div>
+		);
+	}
+
 	return (
-		<div role="table" className="flex flex-col w-full gap-1">
-			<div className="sticky top-0 z-40">
+		<div className="w-full">
+			<div className="sticky top-0 z-40 bg-bg-body">
 				<div className="bg-white h-8.5 flex items-center justify-center">
 					<SwitchDatePicker
 						label="Date"
@@ -169,9 +199,23 @@ export const DashboardTable = (props: DashboardTableProps) => {
 					/>
 				</div>
 				<div className="h-1 bg-bg-body" />
-				<TableHeader table={table} layout={layout} />
 			</div>
-			{error ? state['error'] : rows.length ? state['data'] : state['empty']}
+			{error ? (
+				state['error']
+			) : rows.length ? (
+				<div className={gridContainerStyles()}>
+					<TableHeader table={table} />
+					<TableBody
+						table={table}
+						layout="row"
+						isFetching={isFetching}
+						renderSubrow={renderSubrow}
+						context={context}
+					/>
+				</div>
+			) : (
+				state['empty']
+			)}
 		</div>
 	);
 };
@@ -193,77 +237,62 @@ const SortIcon = (props: SVGProps<SVGSVGElement>) => {
 
 interface TableHeaderProps {
 	table: Table<DashboardData>;
-	layout?: DashboardLayoutType;
 }
 
-const TableHeader = (props: TableHeaderProps) => {
-	const { table, layout = 'row' } = props;
-
+const TableHeader = ({ table }: TableHeaderProps) => {
 	const sorting = {
 		asc: <SortIcon className="ml-1 rotate-180" />,
 		desc: <SortIcon className="ml-1" />
 	} as const;
 
-	const renderHeaderCells =
-		(id: string) => (header: Header<DashboardData, unknown>) => {
-			const meta = header.column.columnDef.meta;
-			const headerStyle = meta?.headerStyle ?? meta?.style;
-
-			return (
-				<div
-					role="columnheader"
-					key={`${id}_${header.id}`}
-					className={cn(
-						headerCellStyles(),
-						header.column.getCanSort() && 'cursor-pointer select-none'
-					)}
-					style={headerStyle}
-					onClick={header.column.getToggleSortingHandler()}
-				>
-					{header.isPlaceholder
-						? null
-						: flexRender(header.column.columnDef.header, header.getContext())}
-					{sorting[header.column.getIsSorted() as keyof typeof sorting] ?? null}
-				</div>
-			);
-		};
-
 	const headerGroups = table.getHeaderGroups();
+	const columns = table.getAllColumns();
 
-	if (layout === 'row') {
-		return (
-			<div role="rowheader">
-				{headerGroups.map((headerGroup) => (
-					<div
-						key={headerGroup.id}
-						role="row"
-						className={cn(headerRowStyles())}
-					>
-						{headerGroup.headers.map(renderHeaderCells('all'))}
-					</div>
-				))}
-			</div>
-		);
-	}
+	const gridTemplateColumns = columns
+		.map((col) => {
+			const meta = col.columnDef.meta?.style as CSSProperties | undefined;
+			if (meta?.width) {
+				return `${meta.width}px`;
+			}
+			return 'minmax(0, 1fr)';
+		})
+		.join(' ');
 
 	return (
-		<div className="flex gap-1" role="rowheader">
-			{headerGroups.map((headerGroup) => {
+		<div
+			className="sticky top-[4.25rem] z-30 bg-white"
+			style={{ display: 'grid', gridTemplateColumns }}
+			role="row"
+			aria-rowindex={1}
+		>
+			{headerGroups[0]?.headers.map((header) => {
 				return (
-					<Fragment key={headerGroup.id}>
-						<div
-							key={`left_${headerGroup.id}`}
-							className={cn(headerRowStyles(), 'flex-1')}
-						>
-							{headerGroup.headers.map(renderHeaderCells('left'))}
-						</div>
-						<div
-							key={`right_${headerGroup.id}`}
-							className={cn(headerRowStyles(), 'flex-1')}
-						>
-							{headerGroup.headers.map(renderHeaderCells('right'))}
-						</div>
-					</Fragment>
+					<div
+						key={header.id}
+						className={cn(
+							headerCellStyles(),
+							header.column.getCanSort() && 'cursor-pointer select-none'
+						)}
+						onClick={header.column.getToggleSortingHandler()}
+						role="columnheader"
+						aria-sort={
+							header.column.getIsSorted() === 'asc'
+								? 'ascending'
+								: header.column.getIsSorted() === 'desc'
+								? 'descending'
+								: 'none'
+						}
+						aria-colindex={header.index + 1}
+					>
+						{header.isPlaceholder
+							? null
+							: flexRender(
+									header.column.columnDef.header,
+									header.getContext()
+							  )}
+						{sorting[header.column.getIsSorted() as keyof typeof sorting] ??
+							null}
+					</div>
 				);
 			})}
 		</div>
@@ -279,125 +308,159 @@ interface TableLayoutProps {
 }
 
 const TableBody = (props: TableLayoutProps) => {
-	const {
-		table,
-		layout = 'row',
-		isFetching = false,
-		renderSubrow,
-		context
-	} = props;
+	const { table, isFetching = false, renderSubrow, context } = props;
 
 	const rows = table.getRowModel().rows;
-	const [first, second] = splitInHalf(rows);
+	const columns = table.getAllColumns();
 
-	const renderCells = (cell: Cell<DashboardData, unknown>) => {
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		const style = cell.column.columnDef.meta?.style as
-			| CSSProperties
-			| undefined;
-
-		return (
-			<div
-				key={cell.id}
-				role="cell"
-				className={cn(bodyCellStyles())}
-				style={style}
-			>
-				{flexRender(cell.column.columnDef.cell, cell.getContext())}
-			</div>
-		);
-	};
-
-	if (layout === 'row') {
-		return (
-			<div
-				role="rowgroup"
-				className={cn(
-					'flex flex-col gap-1',
-					isFetching && 'pointer-events-none opacity-40'
-				)}
-			>
-				{rows.map((row) => {
-					return (
-						<div
-							key={row.id}
-							className={bodyRowWrapperStyles({
-								isExpanded: row.getIsExpanded()
-							})}
-						>
-							<div
-								className={cn(
-									bodyRowStyles({
-										isRowError: isRowError(row),
-										isExpanded: row.getIsExpanded()
-									})
-								)}
-							>
-								{row.getVisibleCells().map(renderCells)}
-							</div>
-							{row.getIsExpanded() ? renderSubrow?.(row, context) : null}
-						</div>
-					);
-				})}
-			</div>
-		);
-	}
+	const gridTemplateColumns = columns
+		.map((col) => {
+			const meta = col.columnDef.meta?.style as CSSProperties | undefined;
+			if (meta?.width) {
+				return `${meta.width}px`;
+			}
+			return 'minmax(0, 1fr)';
+		})
+		.join(' ');
 
 	return (
 		<div
-			className={cn(
-				'flex gap-1',
-				isFetching && 'pointer-events-none opacity-40'
-			)}
+			className={cn(isFetching && 'pointer-events-none opacity-40')}
+			style={{ display: 'grid', gridTemplateColumns }}
+			role="grid"
 		>
-			<div className="flex flex-col flex-1 gap-1">
-				{first.map((left) => {
-					return (
+			{rows.map((row) => (
+				<Fragment key={row.id}>
+					<div
+						className={bodyRowStyles({
+							isExpanded: row.getIsExpanded()
+						})}
+						role="row"
+						aria-rowindex={row.index + 2}
+					>
+						{row.getVisibleCells().map((cell) => {
+							const meta = cell.column.columnDef.meta?.style as CSSProperties | undefined;
+							const rowHasError = isRowError(row);
+							const isExpanded = row.getIsExpanded();
+							const isFirstCell = cell.column.getIsPinned() === 'left' || cell.column.getIndex() === 0;
+
+							return (
+								<div
+									key={cell.id}
+									className={cn(
+										rowHasError ? bodyCellErrorStyles() : bodyCellStyles(),
+										isExpanded && isFirstCell ? 'rounded-t-md' : 'rounded-md',
+										isExpanded && 'border-primary'
+									)}
+									style={meta}
+									role="gridcell"
+									aria-colindex={cell.column.getIndex() + 1}
+								>
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+								</div>
+							);
+						})}
+					</div>
+					{row.getIsExpanded() && (
 						<div
-							key={left.id}
-							className={bodyRowWrapperStyles({
-								isExpanded: left.getIsExpanded()
-							})}
+							className="col-span-full p-0"
+							role="row"
+							aria-expanded="true"
 						>
-							<div
-								className={cn(
-									bodyRowStyles({
-										isRowError: isRowError(left),
-										isExpanded: left.getIsExpanded()
-									})
-								)}
-							>
-								{left.getVisibleCells().map(renderCells)}
-							</div>
-							{left.getIsExpanded() ? renderSubrow?.(left, context) : null}
+							{renderSubrow?.(row, context)}
 						</div>
-					);
-				})}
+					)}
+				</Fragment>
+			))}
+		</div>
+	);
+};
+
+interface TwoColumnLayoutProps {
+	table: Table<DashboardData>;
+	isFetching?: boolean;
+	renderSubrow: DashboardTableProps['renderSubrow'];
+	context: DashboardTableProps['context'];
+}
+
+const TwoColumnLayout = (props: TwoColumnLayoutProps) => {
+	const { table, isFetching = false, renderSubrow, context } = props;
+
+	const rows = table.getRowModel().rows;
+	const [firstHalf, secondHalf] = splitInHalf(rows);
+	const columns = table.getAllColumns();
+
+	const gridTemplateColumns = columns
+		.map((col) => {
+			const meta = col.columnDef.meta?.style as CSSProperties | undefined;
+			if (meta?.width) {
+				return `${meta.width}px`;
+			}
+			return 'minmax(0, 1fr)';
+		})
+		.join(' ');
+
+	const renderTableRows = (rowsToRender: typeof rows) => (
+		<div
+			className={cn(isFetching && 'pointer-events-none opacity-40')}
+			style={{ display: 'grid', gridTemplateColumns }}
+			role="grid"
+		>
+			{rowsToRender.map((row) => (
+				<Fragment key={row.id}>
+					<div
+						className={bodyRowStyles({
+							isExpanded: row.getIsExpanded()
+						})}
+						role="row"
+						aria-rowindex={row.index + 2}
+					>
+						{row.getVisibleCells().map((cell) => {
+							const meta = cell.column.columnDef.meta?.style as CSSProperties | undefined;
+							const rowHasError = isRowError(row);
+							const isExpanded = row.getIsExpanded();
+							const isFirstCell = cell.column.getIsPinned() === 'left' || cell.column.getIndex() === 0;
+
+							return (
+								<div
+									key={cell.id}
+									className={cn(
+										rowHasError ? bodyCellErrorStyles() : bodyCellStyles(),
+										isExpanded && isFirstCell ? 'rounded-t-md' : 'rounded-md',
+										isExpanded && 'border-primary'
+									)}
+									style={meta}
+									role="gridcell"
+									aria-colindex={cell.column.getIndex() + 1}
+								>
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+								</div>
+							);
+						})}
+					</div>
+					{row.getIsExpanded() && (
+						<div
+							className="col-span-full p-0"
+							role="row"
+							aria-expanded="true"
+						>
+							{renderSubrow?.(row, context)}
+						</div>
+					)}
+				</Fragment>
+			))}
+		</div>
+	);
+
+	return (
+		<div className="flex gap-1">
+			<div className="flex-1">
+				<TableHeader table={table} />
+				{renderTableRows(firstHalf)}
 			</div>
-			<div className="flex flex-col flex-1 gap-1">
-				{second.map((right) => {
-					return (
-						<div
-							key={right.id}
-							className={bodyRowWrapperStyles({
-								isExpanded: right.getIsExpanded()
-							})}
-						>
-							<div
-								className={cn(
-									bodyRowStyles({
-										isRowError: isRowError(right),
-										isExpanded: right.getIsExpanded()
-									})
-								)}
-							>
-								{right.getVisibleCells().map(renderCells)}
-							</div>
-							{right.getIsExpanded() ? renderSubrow?.(right, context) : null}
-						</div>
-					);
-				})}
+			<div className="flex-1">
+				<TableHeader table={table} />
+				{renderTableRows(secondHalf)}
 			</div>
 		</div>
 	);

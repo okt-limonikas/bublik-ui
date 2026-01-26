@@ -4,7 +4,6 @@ import { Row } from '@tanstack/react-table';
 
 import {
 	DashboardAPIResponse,
-	DashboardCellArray,
 	DashboardData,
 	RUN_STATUS
 } from '@/shared/types';
@@ -13,44 +12,6 @@ import { getColorFromContext } from '../utils';
 
 export const isRowError = (row: Row<DashboardData>) => {
 	return row.original.context.conclusion === RUN_STATUS.Error;
-};
-
-export const getColumnWidth = (
-	rows: DashboardData[],
-	accessor: string,
-	headerText: string
-) => {
-	const MAX_WIDTH = 400;
-	const MAGIC_SPACING = 14;
-
-	const maxLengthInColumn = getMaxLengthInColumn(rows, accessor);
-	const maxLength = Math.max(maxLengthInColumn, headerText.length);
-
-	return Math.min(MAX_WIDTH, maxLength * MAGIC_SPACING + 128);
-};
-
-export const getMaxLengthInColumn = (
-	rows: DashboardData[],
-	accessor: string
-) => {
-	return rows.reduce((acc, curr) => {
-		const data = curr.row_cells[accessor];
-
-		if (Array.isArray(data)) {
-			return Math.max(acc, getCellStrFromArray(data).length);
-		}
-
-		const length = data?.value?.toString()?.length ?? 0;
-
-		return Math.max(acc, length);
-	}, 0);
-};
-
-export const getCellStrFromArray = (arr: DashboardCellArray[]) => {
-	return arr
-		.map((data) => data.value)
-		.filter((str) => str)
-		.join(', ');
 };
 
 export const columnHasLinks = (

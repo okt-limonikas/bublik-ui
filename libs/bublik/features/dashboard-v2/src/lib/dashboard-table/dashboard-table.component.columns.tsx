@@ -9,7 +9,6 @@ import { Tooltip } from '@/shared/tailwind-ui';
 import { CellList, CellLink, RunIcon, CellProgress } from './components';
 import {
 	createColorMap,
-	getColumnWidth,
 	columnHasLinks
 } from './dashboard-table.component.utils';
 
@@ -20,7 +19,6 @@ declare module '@tanstack/react-table' {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface ColumnMeta<TData extends RowData, TValue> {
 		style?: CSSProperties;
-		headerStyle?: CSSProperties;
 	}
 }
 
@@ -31,19 +29,7 @@ export const createColumns = (
 ): ColumnDef<DashboardData>[] => {
 	const map = createColorMap(rows);
 
-	const mainColumns = headers.map(({ name, key }, idx) => {
-		const hasLinks = columnHasLinks(rows, key);
-		const style = {
-			flexGrow: getColumnWidth(rows, key, name),
-			flexShrink: 1,
-			flexBasis: '0%',
-			minWidth: 0,
-			paddingLeft: hasLinks ? 0 : idx === 0 ? 4 : 1,
-			paddingRight: idx === 0 ? 4 : 1
-		} satisfies CSSProperties;
-
-		const headerStyle = hasLinks ? { ...style, paddingLeft: 8 } : style;
-
+	const mainColumns = headers.map(({ name, key }) => {
 		const column: ColumnDef<DashboardData> = {
 			id: key,
 			header: () => <span className="truncate">{name}</span>,
@@ -90,8 +76,7 @@ export const createColumns = (
 						<span className="truncate">{value}</span>
 					</Tooltip>
 				);
-			},
-			meta: { style, headerStyle }
+			}
 		};
 
 		return column;
@@ -106,7 +91,7 @@ export const createColumns = (
 				conclusionReason={row.original.context.conclusion_reason}
 			/>
 		),
-		meta: { style: { width: 24, position: 'relative' } }
+		meta: { style: { width: 24 } }
 	};
 
 	const expandColumn: ColumnDef<DashboardData> = {
@@ -121,7 +106,7 @@ export const createColumns = (
 				/>
 			);
 		},
-		meta: { style: { paddingLeft: 4, paddingRight: 4, width: 32 } }
+		meta: { style: { width: 32, paddingLeft: 4, paddingRight: 4 } }
 	};
 
 	return [statusColumn, ...mainColumns, expandColumn];

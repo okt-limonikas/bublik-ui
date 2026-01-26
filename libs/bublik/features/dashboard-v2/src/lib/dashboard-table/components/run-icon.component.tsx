@@ -18,7 +18,7 @@ function RunIcon({ runStatus, conclusionReason }: RunStatusIconProps) {
 			side="right"
 		>
 			<div
-				className={`flex items-center z-20 justify-center w-full absolute -top-px -left-px rounded-l-md ${color} ${bg}`}
+				className={`flex items-center z-20 justify-center w-full rounded-l-md ${color} ${bg}`}
 				style={{ height: 'calc(100% + 2px)' }}
 			>
 				{icon}
