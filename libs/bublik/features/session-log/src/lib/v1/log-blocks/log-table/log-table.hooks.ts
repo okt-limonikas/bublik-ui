@@ -5,6 +5,7 @@ import { ExpandedState, PaginationState, Table } from '@tanstack/react-table';
 
 import { LogTableData } from '@/shared/types';
 import { PaginationProps } from '@/shared/tailwind-ui';
+import { useUserPreferences } from '@/bublik/features/user-preferences';
 
 import {
 	FilterButton,
@@ -355,8 +356,11 @@ export const useLogTableExpandedState = ({
 	id,
 	data
 }: UseLogTableExpandedState) => {
+	const { userPreferences } = useUserPreferences();
+	const defaultExpandLevel = userPreferences.log.defaultExpandLevel ?? 1;
+
 	const [expanded, setExpanded] = useState<ExpandedState>(
-		getInitialExpandedState(id, data, 1)
+		getInitialExpandedState(id, data, defaultExpandLevel)
 	);
 
 	return { expanded, setExpanded };

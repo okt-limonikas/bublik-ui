@@ -3,7 +3,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 
-import { Checkbox } from '@/shared/tailwind-ui';
+import {
+	Checkbox,
+	RadioGroup,
+	RadioGroupItemWithLabel
+} from '@/shared/tailwind-ui';
 
 import { useUserPreferences } from './user-preferences.hooks';
 import { UserPreferencesSchema } from './user-preference.types';
@@ -16,7 +20,7 @@ function LogPreferencesForm() {
 	});
 
 	return (
-		<div className="max-w-md">
+		<div className="flex flex-col gap-6 max-w-md">
 			<Controller
 				name="log.preferLegacyLog"
 				control={control}
@@ -46,7 +50,52 @@ function LogPreferencesForm() {
 						</p>
 					</div>
 				)}
-			></Controller>
+			/>
+			<Controller
+				name="log.defaultExpandLevel"
+				control={control}
+				render={({ field }) => (
+					<div className="flex flex-col gap-4">
+						<label className="text-sm font-medium leading-none">
+							Default Expansion Level
+						</label>
+						<p className="text-xs text-text-menu">
+							Set the initial nesting level when opening log pages
+						</p>
+						<RadioGroup
+							onValueChange={(value) => {
+								const numValue = parseInt(value, 10);
+								field.onChange(numValue);
+								setUserPreferences({
+									...userPreferences,
+									log: {
+										...userPreferences.log,
+										defaultExpandLevel: numValue
+									}
+								});
+							}}
+							defaultValue={String(field.value)}
+							className="flex flex-wrap gap-2"
+						>
+							{[0, 1, 2, 3, 4, 5].map((level) => (
+								<RadioGroupItemWithLabel
+									key={level}
+									id={`expand-level-${level}`}
+									value={String(level)}
+									label={String(level)}
+									description={
+										level === 0
+											? 'All collapsed'
+											: level === 1
+											? 'Default'
+											: undefined
+									}
+								/>
+							))}
+						</RadioGroup>
+					</div>
+				)}
+			/>
 		</div>
 	);
 }
