@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
-import { Monaco } from '@monaco-editor/react';
+import type { Monaco } from '../utils';
 import { MutableRefObject, useCallback, useMemo } from 'react';
 import { useQueryParam, NumberParam, JsonParam } from 'use-query-params';
 import { useSessionStorage, useUnmount } from 'react-use';

@@ -1,21 +1,19 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2024 OKTET LTD */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import {
-	ComponentProps,
 	forwardRef,
+	useEffect,
 	useImperativeHandle,
 	useRef,
 	useState
 } from 'react';
 import ShikiHighlighter from 'react-shiki';
-import MonacoEditor, { Monaco, OnMount } from '@monaco-editor/react';
+import { init } from 'modern-monaco';
+import type { Monaco } from '../utils';
 import { format } from 'prettier';
 import parserJson from 'prettier/parser-babel';
-
-import * as monaco from 'monaco-editor';
-import { loader } from '@monaco-editor/react';
 
 import { useLocalStorage } from '@/shared/hooks';
 import {
@@ -39,79 +37,116 @@ import {
 
 import { DEFAULT_URI } from '../config.constants';
 
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-
-// eslint-disable-next-line no-restricted-globals
-self.MonacoEnvironment = {
-	getWorker(_, label) {
-		if (label === 'json') {
-			return new jsonWorker();
-		}
-		return new editorWorker();
-	}
-};
-
-loader.config({ monaco });
-
 function formatJson(value: string) {
 	return format(value, { parser: 'json', plugins: [parserJson] });
 }
 
-// MARK: Editor
-interface ConfigEditorProps extends ComponentProps<typeof MonacoEditor> {
+interface ConfigEditorProps {
 	schema?: Record<string, unknown>;
-	label?: ComponentProps<typeof CardHeader>['label'];
+	label?: React.ComponentProps<typeof CardHeader>['label'];
 	readOnly?: boolean;
+	className?: string;
+	value?: string;
+	onChange?: (value: string) => void;
+	defaultValue?: string;
 }
 
 const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
-	({ schema, label, readOnly, className, ...props }, ref) => {
+	(
+		{ schema, label, readOnly, className, value, onChange, defaultValue },
+		ref
+	) => {
+		const containerRef = useRef<HTMLDivElement>(null);
+		const editorRef = useRef<ReturnType<Monaco['editor']['create']> | null>(
+			null
+		);
 		const [monaco, setMonaco] = useState<Monaco>();
-		const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 		const [fontSize, setFontSize] = useLocalStorage('editor-font-size', 14);
 		const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 		useImperativeHandle(ref, () => monaco, [monaco]);
 
-		function handleEditorWillMount(monaco: Monaco) {
-			monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-				validate: true,
-				schemas: [{ fileMatch: ['*'], schema: schema, uri: '' }]
-			});
-			monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-			setMonaco(monaco);
-		}
+		useEffect(() => {
+			if (!containerRef.current) return;
 
-		const handleEditorDidMount: OnMount = (editor, monaco) => {
-			editorRef.current = editor;
+			let mounted = true;
 
-			editor.addCommand(
-				monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backslash,
-				() => {
-					editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+			init({
+				lsp: {
+					json: {
+						validate: true,
+						schemas: schema
+							? [{ fileMatch: ['*'], schema: schema, uri: '' }]
+							: undefined
+					}
 				}
-			);
-		};
+			}).then((monacoInstance) => {
+				if (!mounted || !containerRef.current) return;
+
+				const initialValue = value ?? defaultValue ?? '';
+
+				const editor = monacoInstance.editor.create(containerRef.current, {
+					value: initialValue,
+					language: 'json',
+					fontSize,
+					readOnly,
+					automaticLayout: true,
+					theme: 'github-light'
+				});
+
+				const uri = monacoInstance.Uri.parse(DEFAULT_URI);
+				const model = monacoInstance.editor.createModel(
+					initialValue,
+					'json',
+					uri
+				);
+				editor.setModel(model);
+
+				editor.onDidChangeModelContent(() => {
+					const newValue = editor.getValue();
+					onChange?.(newValue);
+				});
+
+				editor.addCommand(
+					monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Backslash,
+					() => {
+						editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+					}
+				);
+
+				editorRef.current = editor;
+				setMonaco(monacoInstance);
+			});
+
+			return () => {
+				mounted = false;
+				editorRef.current?.dispose();
+				editorRef.current = null;
+			};
+		}, [schema, readOnly, fontSize, onChange, defaultValue]);
+
+		useEffect(() => {
+			if (editorRef.current && value !== undefined) {
+				const currentValue = editorRef.current.getValue();
+				if (currentValue !== value) {
+					editorRef.current.setValue(value);
+				}
+			}
+		}, [value]);
+
+		useEffect(() => {
+			if (editorRef.current) {
+				editorRef.current.updateOptions({ fontSize });
+			}
+		}, [fontSize]);
 
 		function handleFormatClick() {
-			const URI = monaco?.Uri.parse(DEFAULT_URI);
-			if (!URI) {
-				toast.error('Failed to create URI');
-				return;
-			}
+			if (!editorRef.current) return;
 
-			const model = monaco?.editor.getModel(URI);
-
-			if (!model) {
-				toast.error(`Failed to get model by ${URI}`);
-				return;
-			}
-
-			const value = model.getValue();
+			const editorValue = editorRef.current.getValue();
 			try {
-				const formatted = formatJson(value);
-				model.setValue(formatted);
+				const formatted = formatJson(editorValue);
+				editorRef.current.setValue(formatted);
 			} catch (error) {
 				toast.error('Failed to format JSON');
 				console.error(error);
@@ -198,21 +233,7 @@ const ConfigEditor = forwardRef<Monaco | undefined, ConfigEditorProps>(
 						</DropdownMenu>
 					</div>
 				</CardHeader>
-				<div className={cn('flex-1', className)}>
-					<MonacoEditor
-						language="json"
-						path={DEFAULT_URI}
-						beforeMount={handleEditorWillMount}
-						onMount={handleEditorDidMount}
-						options={{
-							fontSize,
-							readOnly
-						}}
-						className="[&_.line-numbers]:before:!content-none"
-						loading={null}
-						{...props}
-					/>
-				</div>
+				<div ref={containerRef} className={cn('flex-1', className)} />
 			</div>
 		);
 	}

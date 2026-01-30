@@ -2,8 +2,10 @@
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Monaco } from '@monaco-editor/react';
+import { init } from 'modern-monaco';
 import { DEFAULT_URI } from '../config.constants';
+
+export type Monaco = Awaited<ReturnType<typeof init>>;
 
 const ValidJsonStringSchema = z.string().refine(
 	(val) => {

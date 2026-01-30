@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024 OKTET LTD */
 import { useState, useRef, useEffect } from 'react';
-import { Monaco } from '@monaco-editor/react';
+import { type Monaco } from '../utils';
 import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
