@@ -5,6 +5,15 @@
 	"projectType": "application",
 	"tags": [],
 	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					{ "command": "tsc --noEmit -p {projectRoot}/tsconfig.app.json" },
+					{ "command": "tsc --noEmit -p {projectRoot}/tsconfig.spec.json" }
+				]
+			}
+		},
 		"build": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
