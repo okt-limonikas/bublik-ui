@@ -181,7 +181,7 @@ export const RunSection = (props: RunSectionProps) => {
 					iconSize={16}
 					name="runProperties"
 					value={RUN_PROPERTIES.NotCompromised}
-					label="Not compromised"
+					label="Not Compromised"
 					control={control}
 				/>
 			</div>
