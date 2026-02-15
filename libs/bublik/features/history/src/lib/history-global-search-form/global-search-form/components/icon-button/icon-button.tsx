@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { ComponentProps } from 'react';
+import { ComponentProps, MouseEventHandler } from 'react';
 
 import { cn, Icon, Tooltip } from '@/shared/tailwind-ui';
 
-export type IconButtonProps = ComponentProps<typeof Icon> & {
-	onClick: () => void;
+export type IconButtonProps = Omit<ComponentProps<typeof Icon>, 'onClick'> & {
+	onClick: MouseEventHandler<HTMLButtonElement>;
 	helpMessage: string;
 };
 

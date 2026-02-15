@@ -13,7 +13,8 @@ import {
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type TestSectionProps = {
-	onResetTestSectionResetClick: () => void;
+	onResetTestSectionClick: () => void;
+	onResetTestSectionDefaultClick: () => void;
 };
 
 export const TestSection = (props: TestSectionProps) => {
@@ -27,15 +28,21 @@ export const TestSection = (props: TestSectionProps) => {
 				<IconButton
 					name="Bin"
 					size={18}
-					helpMessage="Reset test section"
-					onClick={props.onResetTestSectionResetClick}
+					helpMessage="Clear test section"
+					onClick={props.onResetTestSectionClick}
+				/>
+				<IconButton
+					name="Refresh"
+					size={18}
+					helpMessage="Reset test section to defaults"
+					onClick={props.onResetTestSectionDefaultClick}
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
 				<div className="grid gap-4 md:grid-cols-2">
 					<TextField
 						name="testName"
-						label="Test name"
+						label="Test Name"
 						type="text"
 						placeholder="default_buff"
 						control={control}
@@ -48,19 +55,24 @@ export const TestSection = (props: TestSectionProps) => {
 						control={control}
 					/>
 				</div>
-				<BadgeField
-					name="parameters"
-					label="Parameters"
-					placeholder="time_limit:30"
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="parameter expression"
-					isOpen={isParametersExpressionVisible}
-					onClick={() =>
-						setIsParametersExpressionVisible((previous) => !previous)
-					}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							name="parameters"
+							label="Parameters"
+							placeholder="time_limit:30"
+							control={control}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="parameter expression"
+						isOpen={isParametersExpressionVisible}
+						onClick={() =>
+							setIsParametersExpressionVisible((previous) => !previous)
+						}
+					/>
+				</div>
 				{isParametersExpressionVisible ? (
 					<TextField
 						name={'testArgExpr'}

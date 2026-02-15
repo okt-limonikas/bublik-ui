@@ -20,6 +20,7 @@ import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type RunSectionProps = {
 	onResetRunSectionClick: () => void;
+	onResetRunSectionDefaultClick: () => void;
 };
 
 export const RunSection = (props: RunSectionProps) => {
@@ -49,8 +50,14 @@ export const RunSection = (props: RunSectionProps) => {
 				<IconButton
 					name="Bin"
 					size={18}
-					helpMessage="Reset run section"
+					helpMessage="Clear run section"
 					onClick={props.onResetRunSectionClick}
+				/>
+				<IconButton
+					name="Refresh"
+					size={18}
+					helpMessage="Reset run section to defaults"
+					onClick={props.onResetRunSectionDefaultClick}
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
@@ -63,17 +70,22 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				</div>
-				<BadgeField
-					name="labels"
-					label="Labels"
-					placeholder="label"
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="label expression"
-					isOpen={isLabelExpressionVisible}
-					onClick={() => setIsLabelExpressionVisible((previous) => !previous)}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							name="labels"
+							label="Labels"
+							placeholder="label"
+							control={control}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="label expression"
+						isOpen={isLabelExpressionVisible}
+						onClick={() => setIsLabelExpressionVisible((previous) => !previous)}
+					/>
+				</div>
 				{isLabelExpressionVisible ? (
 					<TextField
 						name="labelExpr"
@@ -82,17 +94,24 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<BadgeField
-					name="branches"
-					label="Branches"
-					placeholder="master"
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="branch expression"
-					isOpen={isBranchExpressionVisible}
-					onClick={() => setIsBranchExpressionVisible((previous) => !previous)}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							name="branches"
+							label="Branches"
+							placeholder="master"
+							control={control}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="branch expression"
+						isOpen={isBranchExpressionVisible}
+						onClick={() =>
+							setIsBranchExpressionVisible((previous) => !previous)
+						}
+					/>
+				</div>
 				{isBranchExpressionVisible ? (
 					<TextField
 						name={'branchExpr'}
@@ -101,19 +120,24 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<BadgeField
-					name="revisions"
-					label="Revisions"
-					placeholder="8af383125f20cc5ecdb8393bf"
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="revision expression"
-					isOpen={isRevisionExpressionVisible}
-					onClick={() =>
-						setIsRevisionExpressionVisible((previous) => !previous)
-					}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							name="revisions"
+							label="Revisions"
+							placeholder="8af383125f20cc5ecdb8393bf"
+							control={control}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="revision expression"
+						isOpen={isRevisionExpressionVisible}
+						onClick={() =>
+							setIsRevisionExpressionVisible((previous) => !previous)
+						}
+					/>
+				</div>
 				{isRevisionExpressionVisible ? (
 					<TextField
 						name={'revisionExpr'}
@@ -122,17 +146,22 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<BadgeField
-					label="Tags"
-					name="runData"
-					placeholder="medford"
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="tag expression"
-					isOpen={isTagExpressionVisible}
-					onClick={() => setIsTagExpressionVisible((previous) => !previous)}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							label="Tags"
+							name="runData"
+							placeholder="medford"
+							control={control}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="tag expression"
+						isOpen={isTagExpressionVisible}
+						onClick={() => setIsTagExpressionVisible((previous) => !previous)}
+					/>
+				</div>
 				{isTagExpressionVisible ? (
 					<TextField
 						name="tagExpr"

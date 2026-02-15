@@ -29,7 +29,7 @@ export interface HistoryGlobalSearchFormValues {
 	testName: string;
 	hash: string;
 	parameters: BadgeItem[];
-	dates: { startDate: Date; endDate: Date };
+	dates?: { startDate: Date; endDate: Date };
 	runData: BadgeItem[];
 	runIds: string;
 	tagExpr: string;

@@ -54,9 +54,18 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 					className="flex h-full flex-col gap-4 px-4 pt-4 pb-2 md:px-6"
 				>
 					<MainFormHeader onCloseButtonClick={onCloseButtonClick} />
-					<TestSection onResetTestSectionResetClick={form.resetTestSection} />
-					<RunSection onResetRunSectionClick={form.resetRunSection} />
-					<ResultSection onResultSectionClick={form.resetVerdictSection} />
+					<TestSection
+						onResetTestSectionClick={form.resetTestSection}
+						onResetTestSectionDefaultClick={form.resetTestSectionToDefault}
+					/>
+					<RunSection
+						onResetRunSectionClick={form.resetRunSection}
+						onResetRunSectionDefaultClick={form.resetRunSectionToDefault}
+					/>
+					<ResultSection
+						onResetResultSectionClick={form.resetResultSection}
+						onResetResultSectionDefaultClick={form.resetResultSectionToDefault}
+					/>
 					<VerdictSection />
 					<StickySubmit
 						onResetClick={form.resetForm}
@@ -101,7 +110,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 	return (
 		<div
 			className={cn(
-				'sticky bottom-0 z-20 mt-auto w-full border-t border-border-primary bg-white/95 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85',
+				'sticky bottom-0 z-20 mt-auto -mx-4 border-t border-border-primary bg-white/95 px-4 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85 md:-mx-6 md:px-6',
 				props.isScrollable && 'shadow-sticky'
 			)}
 		>

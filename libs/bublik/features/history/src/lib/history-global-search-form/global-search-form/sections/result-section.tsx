@@ -13,7 +13,8 @@ import {
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type ResultSectionProps = {
-	onResultSectionClick: () => void;
+	onResetResultSectionClick: () => void;
+	onResetResultSectionDefaultClick: () => void;
 };
 
 export const ResultSection = (props: ResultSectionProps) => {
@@ -46,14 +47,21 @@ export const ResultSection = (props: ResultSectionProps) => {
 					<IconButton
 						name="Bin"
 						size={18}
-						helpMessage="Reset verdict section"
-						onClick={props.onResultSectionClick}
+						helpMessage="Clear result section"
+						onClick={props.onResetResultSectionClick}
+					/>
+					<IconButton
+						name="Refresh"
+						size={18}
+						helpMessage="Reset result section to defaults"
+						onClick={props.onResetResultSectionDefaultClick}
 					/>
 				</FormSectionHeader>
 				<FormSectionSubheader name="Result type classification" />
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					<CheckboxField
 						iconName="TriangleExclamationMark"
+						iconClassName="text-text-unexpected rdx-state-unchecked:text-text-unexpected rdx-state-checked:text-text-unexpected"
 						iconSize={16}
 						name="resultProperties"
 						value={RESULT_PROPERTIES.Unexpected}
@@ -62,6 +70,7 @@ export const ResultSection = (props: ResultSectionProps) => {
 					/>
 					<CheckboxField
 						iconName="TriangleQuestionMark"
+						iconClassName="text-text-expected rdx-state-unchecked:text-text-expected rdx-state-checked:text-text-expected"
 						iconSize={16}
 						name="resultProperties"
 						value={RESULT_PROPERTIES.Expected}

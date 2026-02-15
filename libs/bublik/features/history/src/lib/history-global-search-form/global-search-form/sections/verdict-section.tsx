@@ -4,61 +4,91 @@ import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { VERDICT_TYPE } from '@/shared/types';
-import { RadioField, BadgeField, TextField } from '@/shared/tailwind-ui';
+import { BadgeField, TextField, cn } from '@/shared/tailwind-ui';
 
-import { ExpressionToggleButton, FormSectionHeader } from '../components';
+import {
+	ExpressionToggleButton,
+	FormSectionHeader,
+	IconButton
+} from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export const VerdictSection = () => {
-	const { control, watch } = useFormContext<HistoryGlobalSearchFormValues>();
+	const { control, watch, setValue } =
+		useFormContext<HistoryGlobalSearchFormValues>();
 	const [isVerdictExpressionVisible, setIsVerdictExpressionVisible] = useState(
 		() => Boolean(watch('verdictExpr'))
 	);
 
 	const verdictLookup = watch('verdictLookup');
 
+	const setVerdictLookup = (lookup: VERDICT_TYPE) => {
+		setValue('verdictLookup', lookup, {
+			shouldDirty: true,
+			shouldTouch: true
+		});
+	};
+
+	const lookupToggleClassName = (lookup: VERDICT_TYPE) =>
+		cn(
+			'h-7 w-7 border rounded-md',
+			verdictLookup === lookup
+				? 'border-primary bg-primary-wash text-primary'
+				: 'border-transparent text-text-menu hover:bg-primary-wash hover:text-primary'
+		);
+
 	return (
 		<fieldset className="rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
 			<FormSectionHeader name="Verdict" />
-			<div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-				<RadioField
-					name="verdictLookup"
-					value={VERDICT_TYPE.String}
-					label="String"
-					control={control}
-				/>
-				<RadioField
-					name="verdictLookup"
-					value={VERDICT_TYPE.Regex}
-					label="Regex"
-					control={control}
-				/>
-				<RadioField
-					name="verdictLookup"
-					value={VERDICT_TYPE.None}
-					label="None"
-					control={control}
-				/>
-			</div>
 			<div className="flex flex-col gap-4">
-				<BadgeField
-					label="String Verdict"
-					name="verdict"
-					placeholder={
-						verdictLookup === VERDICT_TYPE.String
-							? 'Unexpectedly failed with errno ENOPROTOOPT'
-							: verdictLookup === VERDICT_TYPE.Regex
-							? '.\\*'
-							: ''
-					}
-					disabled={watch('verdictLookup') === VERDICT_TYPE.None}
-					control={control}
-				/>
-				<ExpressionToggleButton
-					label="verdict expression"
-					isOpen={isVerdictExpressionVisible}
-					onClick={() => setIsVerdictExpressionVisible((previous) => !previous)}
-				/>
+				<div className="flex items-start gap-2">
+					<div className="flex-1">
+						<BadgeField
+							label="String Verdict"
+							name="verdict"
+							placeholder={
+								verdictLookup === VERDICT_TYPE.String
+									? 'Unexpectedly failed with errno ENOPROTOOPT'
+									: verdictLookup === VERDICT_TYPE.Regex
+									? '.\\*'
+									: ''
+							}
+							disabled={verdictLookup === VERDICT_TYPE.None}
+							control={control}
+						/>
+					</div>
+					<div className="mt-[7px] flex items-center gap-1 rounded-md border border-border-primary bg-white p-1">
+						<IconButton
+							name="TextWrap"
+							size={14}
+							helpMessage="Lookup as string"
+							onClick={() => setVerdictLookup(VERDICT_TYPE.String)}
+							className={lookupToggleClassName(VERDICT_TYPE.String)}
+						/>
+						<IconButton
+							name="Filter"
+							size={14}
+							helpMessage="Lookup as regex"
+							onClick={() => setVerdictLookup(VERDICT_TYPE.Regex)}
+							className={lookupToggleClassName(VERDICT_TYPE.Regex)}
+						/>
+						<IconButton
+							name="CrossSimple"
+							size={14}
+							helpMessage="Disable verdict lookup"
+							onClick={() => setVerdictLookup(VERDICT_TYPE.None)}
+							className={lookupToggleClassName(VERDICT_TYPE.None)}
+						/>
+					</div>
+					<ExpressionToggleButton
+						className="mt-[7px]"
+						label="verdict expression"
+						isOpen={isVerdictExpressionVisible}
+						onClick={() =>
+							setIsVerdictExpressionVisible((previous) => !previous)
+						}
+					/>
+				</div>
 				{isVerdictExpressionVisible ? (
 					<TextField
 						name={'verdictExpr'}

@@ -107,11 +107,12 @@ type BoxedCheckboxProps = RadixCheckbox.CheckboxProps & {
 	label: string;
 	iconName: IconProps['name'];
 	iconSize: IconProps['size'];
+	iconClassName?: string;
 };
 
 const BoxedCheckbox = forwardRef<HTMLButtonElement, BoxedCheckboxProps>(
 	(props, ref) => {
-		const { iconName, iconSize, label, ...restProps } = props;
+		const { iconName, iconSize, label, iconClassName, ...restProps } = props;
 
 		return (
 			<RadixCheckbox.Root
@@ -122,7 +123,10 @@ const BoxedCheckbox = forwardRef<HTMLButtonElement, BoxedCheckboxProps>(
 				data-testid="tw-checkbox"
 				ref={ref}
 			>
-				<RadixCheckbox.CheckboxIndicator forceMount className={iconStyles()}>
+				<RadixCheckbox.CheckboxIndicator
+					forceMount
+					className={cn(iconStyles(), iconClassName)}
+				>
 					<Icon name={iconName} size={iconSize} />
 				</RadixCheckbox.CheckboxIndicator>
 				<label
