@@ -14,7 +14,7 @@ export const FormSectionHeader = forwardRef<
 	return (
 		<div className="mb-4" {...props}>
 			<div className="flex items-center justify-between" ref={ref}>
-				<legend className="pl-2 text-[0.875rem] font-semibold leading-5 tracking-[0.02em] text-text-primary">
+				<legend className="pl-[7px] text-[0.875rem] font-semibold leading-5 tracking-[0.02em] text-text-primary">
 					{name}
 				</legend>
 				<div className="flex items-center gap-1">{children}</div>
