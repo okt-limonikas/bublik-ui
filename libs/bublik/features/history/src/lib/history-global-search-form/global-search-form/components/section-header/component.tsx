@@ -14,13 +14,13 @@ export const FormSectionHeader = forwardRef<
 	return (
 		<div className="mb-4" {...props}>
 			<div className="flex items-center justify-between" ref={ref}>
-				<legend className="text-[0.8125rem] font-semibold leading-5 tracking-[0.02em] text-text-primary">
+				<legend className="pl-2 text-[0.8125rem] font-semibold leading-5 tracking-[0.02em] text-text-primary">
 					{name}
 				</legend>
 				<div className="flex items-center gap-1">{children}</div>
 			</div>
 			{error && (
-				<span className="mt-1 inline-flex text-[0.75rem] font-medium leading-[1rem] text-text-unexpected">
+				<span className="mt-1 inline-flex pl-2 text-[0.75rem] font-medium leading-[1rem] text-text-unexpected">
 					{error}
 				</span>
 			)}
