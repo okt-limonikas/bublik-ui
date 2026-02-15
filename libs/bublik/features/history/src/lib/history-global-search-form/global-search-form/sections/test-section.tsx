@@ -1,10 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { TextField, BadgeField } from '@/shared/tailwind-ui';
 
-import { FormSectionHeader, IconButton } from '../components';
+import {
+	ExpressionToggleButton,
+	FormSectionHeader,
+	IconButton
+} from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type TestSectionProps = {
@@ -12,10 +17,12 @@ export type TestSectionProps = {
 };
 
 export const TestSection = (props: TestSectionProps) => {
-	const { control } = useFormContext<HistoryGlobalSearchFormValues>();
+	const { control, watch } = useFormContext<HistoryGlobalSearchFormValues>();
+	const [isParametersExpressionVisible, setIsParametersExpressionVisible] =
+		useState(() => Boolean(watch('testArgExpr')));
 
 	return (
-		<fieldset className="history-search-section flex flex-col rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
+		<fieldset className="flex flex-col rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
 			<FormSectionHeader name="Test">
 				<IconButton
 					name="Bin"
@@ -47,12 +54,21 @@ export const TestSection = (props: TestSectionProps) => {
 					placeholder="time_limit:30"
 					control={control}
 				/>
-				<TextField
-					name={'testArgExpr'}
-					label="Parameter Expression"
-					placeholder={'argument1 != 5 & argument2 >= 10'}
-					control={control}
+				<ExpressionToggleButton
+					label="parameter expression"
+					isOpen={isParametersExpressionVisible}
+					onClick={() =>
+						setIsParametersExpressionVisible((previous) => !previous)
+					}
 				/>
+				{isParametersExpressionVisible ? (
+					<TextField
+						name={'testArgExpr'}
+						label="Parameter Expression"
+						placeholder={'argument1 != 5 & argument2 >= 10'}
+						control={control}
+					/>
+				) : null}
 			</div>
 		</fieldset>
 	);

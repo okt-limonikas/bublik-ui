@@ -36,7 +36,7 @@ export const ResultSection = (props: ResultSectionProps) => {
 		| undefined;
 
 	return (
-		<fieldset className="history-search-section rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
+		<fieldset className="rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
 			<div className="mb-5">
 				<FormSectionHeader
 					name="Result"

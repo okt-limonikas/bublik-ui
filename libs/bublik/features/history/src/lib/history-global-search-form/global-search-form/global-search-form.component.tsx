@@ -44,14 +44,14 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 
 	return (
 		<div
-			className="history-search-shell h-full w-screen max-w-[48rem] overflow-auto styled-scrollbar"
+			className="h-full w-screen max-w-[48rem] overflow-auto bg-white styled-scrollbar"
 			ref={scrollableRef}
 		>
 			<FormProvider {...form.methods}>
 				<form
 					onSubmit={form.methods.handleSubmit(onSubmit)}
 					onKeyDown={form.handleKeyDown}
-					className="flex h-full flex-col gap-4 pt-4 pb-2 [&>*]:px-4 md:[&>*]:px-6"
+					className="flex h-full flex-col gap-4 px-4 pt-4 pb-2 md:px-6"
 				>
 					<MainFormHeader onCloseButtonClick={onCloseButtonClick} />
 					<TestSection onResetTestSectionResetClick={form.resetTestSection} />
@@ -101,8 +101,8 @@ const StickySubmit = (props: StickySubmitProps) => {
 	return (
 		<div
 			className={cn(
-				'sticky bottom-0 z-20 mt-auto w-full border-t border-history-divider bg-white/95 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85',
-				props.isScrollable && 'history-search-sticky'
+				'sticky bottom-0 z-20 mt-auto w-full border-t border-border-primary bg-white/95 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85',
+				props.isScrollable && 'shadow-sticky'
 			)}
 		>
 			<div className="flex flex-col gap-3 sm:flex-row">

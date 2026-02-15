@@ -20,7 +20,7 @@ export const FormHeader: FC<FormHeaderProps> = ({
 					{name}
 				</span>
 				{description ? (
-					<span className="text-[0.75rem] leading-[1rem] text-history-subtle">
+					<span className="text-[0.75rem] leading-[1rem] text-text-secondary">
 						{description}
 					</span>
 				) : null}

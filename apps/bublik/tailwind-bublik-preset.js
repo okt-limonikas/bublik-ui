@@ -16,12 +16,6 @@ module.exports = {
 			colors: {
 				white: 'hsl(var(--colors-white) / <alpha-value>)',
 				primary: 'hsl(var(--colors-primary) / <alpha-value>)',
-				'history-panel': 'hsl(var(--history-panel) / <alpha-value>)',
-				'history-panel-muted':
-					'hsl(var(--history-panel-muted) / <alpha-value>)',
-				'history-section': 'hsl(var(--history-section) / <alpha-value>)',
-				'history-divider': 'hsl(var(--history-divider) / <alpha-value>)',
-				'history-subtle': 'hsl(var(--history-subtle) / <alpha-value>)',
 				'primary-wash': 'hsl(var(--colors-primary-wash) / <alpha-value>)',
 				'text-primary': 'hsl(var(--colors-text-primary) / <alpha-value>)',
 				'text-secondary': 'hsl(var(--colors-text-secondary) / <alpha-value>)',
@@ -73,9 +67,7 @@ module.exports = {
 				'text-field': 'var(--shadow-text-field)',
 				'dialog-sheet': 'var(--shadow-dialog-sheet)',
 				'text-field-error': 'var(--shadow-text-field-error)',
-				sticky: 'var(--shadow-sticky)',
-				'history-panel': 'var(--shadow-history-panel)',
-				'history-sticky': 'var(--shadow-history-sticky)'
+				sticky: 'var(--shadow-sticky)'
 			},
 			keyframes: {
 				'fade-in': {
@@ -209,10 +201,6 @@ module.exports = {
 						color: 'white',
 						backgroundColor: 'hsl(var(--colors-primary))'
 					}
-				},
-				'history-section-in': {
-					'0%': { opacity: 0, transform: 'translateY(8px)' },
-					'100%': { opacity: 1, transform: 'translateY(0)' }
 				}
 			},
 			animation: {
@@ -256,9 +244,7 @@ module.exports = {
 				'toast-swipe-out': 'toast-swipe-out 100ms ease-out forwards',
 				'collapsible-slide-up': 'collapsible-slide-up 300ms ease-out',
 				'collapsible-slide-down': 'collapsible-slide-down 300ms ease-out',
-				'highlight-row': 'highlight-row 0.6s 6 alternate',
-				'history-section-in':
-					'history-section-in 220ms cubic-bezier(0.16, 1, 0.3, 1)'
+				'highlight-row': 'highlight-row 0.6s 6 alternate'
 			}
 		}
 	},

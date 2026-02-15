@@ -111,46 +111,11 @@ body,
 	--shadow-dialog-sheet: -15px 0px 15px 0px rgba(34, 60, 80, 0.05);
 	--shadow-text-field-error: 0 0 0 3px rgba(247, 29, 69, 0.1);
 	--shadow-sticky: 0 0 15px 0 rgb(0 0 0 / 10%);
-
-	/* HISTORY GLOBAL SEARCH */
-	--history-panel: 217 73% 98%;
-	--history-panel-muted: 210 42% 99%;
-	--history-section: 0 0% 100%;
-	--history-divider: 214 26% 89%;
-	--history-subtle: 218 12% 41%;
-	--shadow-history-panel: 0 18px 40px rgba(21, 36, 53, 0.08);
-	--shadow-history-sticky: 0 -10px 20px rgba(21, 36, 53, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
 	}
-}
-
-.history-search-shell {
-	background-color: hsl(var(--history-panel-muted));
-	background-image: radial-gradient(
-		100% 65% at 100% 0,
-		hsl(var(--history-panel) / 0.9) 0%,
-		transparent 100%
-	);
-	box-shadow: var(--shadow-history-panel);
-}
-
-.history-search-section {
-	border: 1px solid hsl(var(--history-divider));
-	background-color: hsl(var(--history-section));
-	transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.history-search-section:hover,
-.history-search-section:focus-within {
-	border-color: hsl(var(--colors-primary) / 0.55);
-	box-shadow: 0 0 0 3px hsl(var(--colors-primary) / 0.08);
-}
-
-.history-search-sticky {
-	box-shadow: var(--shadow-history-sticky);
 }
 
 html .no-bg-scrollbar {
