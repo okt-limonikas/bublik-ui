@@ -45,7 +45,7 @@ export const RunSection = (props: RunSectionProps) => {
 	) as string | undefined;
 
 	return (
-		<fieldset className="rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
+		<fieldset className="relative rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
 			<FormSectionHeader name="Run" error={runPropsError}>
 				<IconButton
 					name="Refresh"

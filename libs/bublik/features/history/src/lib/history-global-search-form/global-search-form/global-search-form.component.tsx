@@ -51,7 +51,7 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 				<form
 					onSubmit={form.methods.handleSubmit(onSubmit)}
 					onKeyDown={form.handleKeyDown}
-					className="flex h-full flex-col gap-4 px-4 pt-4 pb-2 md:px-6"
+					className="flex h-full flex-col gap-8 px-4 pt-4 pb-2 md:px-6"
 				>
 					<MainFormHeader onCloseButtonClick={onCloseButtonClick} />
 					<TestSection

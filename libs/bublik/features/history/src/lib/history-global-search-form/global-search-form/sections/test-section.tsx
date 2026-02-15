@@ -23,7 +23,7 @@ export const TestSection = (props: TestSectionProps) => {
 		useState(() => Boolean(watch('testArgExpr')));
 
 	return (
-		<fieldset className="flex flex-col rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
+		<fieldset className="relative flex flex-col rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
 			<FormSectionHeader name="Test">
 				<IconButton
 					name="Refresh"
