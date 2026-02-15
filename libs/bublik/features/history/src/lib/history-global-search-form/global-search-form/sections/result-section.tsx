@@ -73,7 +73,7 @@ export const ResultSection = (props: ResultSectionProps) => {
 						iconSize={16}
 						name="resultProperties"
 						value={RESULT_PROPERTIES.NotRun}
-						label="Not run"
+						label="Not Run"
 						control={control}
 					/>
 				</div>
