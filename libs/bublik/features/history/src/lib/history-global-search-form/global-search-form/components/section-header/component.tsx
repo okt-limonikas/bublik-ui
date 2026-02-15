@@ -17,7 +17,7 @@ export const FormSectionHeader = forwardRef<
 				<legend className="text-[0.8125rem] font-semibold leading-5 tracking-[0.02em] text-text-primary">
 					{name}
 				</legend>
-				<div className="flex items-center gap-2">{children}</div>
+				<div className="flex items-center gap-1">{children}</div>
 			</div>
 			{error && (
 				<span className="mt-1 inline-flex text-[0.75rem] font-medium leading-[1rem] text-text-unexpected">

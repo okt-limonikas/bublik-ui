@@ -48,16 +48,16 @@ export const RunSection = (props: RunSectionProps) => {
 		<fieldset className="rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
 			<FormSectionHeader name="Run" error={runPropsError}>
 				<IconButton
-					name="Bin"
-					size={18}
-					helpMessage="Clear run section"
-					onClick={props.onResetRunSectionClick}
-				/>
-				<IconButton
 					name="Refresh"
 					size={18}
 					helpMessage="Reset run section to defaults"
 					onClick={props.onResetRunSectionDefaultClick}
+				/>
+				<IconButton
+					name="Bin"
+					size={18}
+					helpMessage="Clear run section"
+					onClick={props.onResetRunSectionClick}
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
@@ -70,7 +70,7 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				</div>
-				<div className="flex items-start gap-2">
+				<div className="flex gap-2">
 					<div className="flex-1">
 						<BadgeField
 							name="labels"
@@ -80,7 +80,6 @@ export const RunSection = (props: RunSectionProps) => {
 						/>
 					</div>
 					<ExpressionToggleButton
-						className="mt-[7px]"
 						label="label expression"
 						isOpen={isLabelExpressionVisible}
 						onClick={() => setIsLabelExpressionVisible((previous) => !previous)}
@@ -94,7 +93,7 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<div className="flex items-start gap-2">
+				<div className="flex gap-2">
 					<div className="flex-1">
 						<BadgeField
 							name="branches"
@@ -104,7 +103,6 @@ export const RunSection = (props: RunSectionProps) => {
 						/>
 					</div>
 					<ExpressionToggleButton
-						className="mt-[7px]"
 						label="branch expression"
 						isOpen={isBranchExpressionVisible}
 						onClick={() =>
@@ -120,7 +118,7 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<div className="flex items-start gap-2">
+				<div className="flex gap-2">
 					<div className="flex-1">
 						<BadgeField
 							name="revisions"
@@ -130,7 +128,6 @@ export const RunSection = (props: RunSectionProps) => {
 						/>
 					</div>
 					<ExpressionToggleButton
-						className="mt-[7px]"
 						label="revision expression"
 						isOpen={isRevisionExpressionVisible}
 						onClick={() =>
@@ -146,7 +143,7 @@ export const RunSection = (props: RunSectionProps) => {
 						control={control}
 					/>
 				) : null}
-				<div className="flex items-start gap-2">
+				<div className="flex gap-2">
 					<div className="flex-1">
 						<BadgeField
 							label="Tags"
@@ -156,7 +153,6 @@ export const RunSection = (props: RunSectionProps) => {
 						/>
 					</div>
 					<ExpressionToggleButton
-						className="mt-[7px]"
 						label="tag expression"
 						isOpen={isTagExpressionVisible}
 						onClick={() => setIsTagExpressionVisible((previous) => !previous)}

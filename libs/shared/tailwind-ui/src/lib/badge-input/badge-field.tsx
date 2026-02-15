@@ -10,6 +10,7 @@ export type BadgeFieldProps<T extends FieldValues> = {
 	label: string;
 	placeholder: BadgeInputProps['placeholder'];
 	disabled?: BadgeInputProps['disabled'];
+	trailingContent?: BadgeInputProps['trailingContent'];
 };
 
 export const BadgeField = <T extends FieldValues>(

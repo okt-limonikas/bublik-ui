@@ -31,12 +31,22 @@ export interface BadgeInputProps {
 	placeholder?: string;
 	disabled?: boolean;
 	icon?: ReactNode;
+	trailingContent?: ReactNode;
 	name?: string;
 }
 
 export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 	(
-		{ label, onBadgesChange, badges = [], placeholder, icon, disabled, name },
+		{
+			label,
+			onBadgesChange,
+			badges = [],
+			placeholder,
+			icon,
+			trailingContent,
+			disabled,
+			name
+		},
 		ref
 	) => {
 		const [value, setValue] = useState('');
@@ -199,6 +209,11 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 							autoComplete="off"
 						/>
 					</div>
+					{trailingContent ? (
+						<div className="flex h-full shrink-0 items-center border-l border-border-primary px-1.5">
+							{trailingContent}
+						</div>
+					) : null}
 				</div>
 			</BadgeInputContext.Provider>
 		);

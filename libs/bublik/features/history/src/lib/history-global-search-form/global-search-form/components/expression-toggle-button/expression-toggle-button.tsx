@@ -27,7 +27,12 @@ export const ExpressionToggleButton = ({
 			size={16}
 			helpMessage={helpMessage}
 			onClick={onClick}
-			className={cn('transition-transform', !isOpen && 'rotate-180', className)}
+			className={cn(
+				'h-10 w-10 shrink-0 rounded-md border border-border-primary',
+				'transition-transform',
+				!isOpen && 'rotate-180',
+				className
+			)}
 		/>
 	);
 };

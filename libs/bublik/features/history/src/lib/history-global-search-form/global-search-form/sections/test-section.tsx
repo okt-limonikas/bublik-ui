@@ -26,16 +26,16 @@ export const TestSection = (props: TestSectionProps) => {
 		<fieldset className="flex flex-col rounded-2xl border border-border-primary bg-white px-4 py-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:py-5">
 			<FormSectionHeader name="Test">
 				<IconButton
-					name="Bin"
-					size={18}
-					helpMessage="Clear test section"
-					onClick={props.onResetTestSectionClick}
-				/>
-				<IconButton
 					name="Refresh"
 					size={18}
 					helpMessage="Reset test section to defaults"
 					onClick={props.onResetTestSectionDefaultClick}
+				/>
+				<IconButton
+					name="Bin"
+					size={18}
+					helpMessage="Clear test section"
+					onClick={props.onResetTestSectionClick}
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
@@ -55,7 +55,7 @@ export const TestSection = (props: TestSectionProps) => {
 						control={control}
 					/>
 				</div>
-				<div className="flex items-start gap-2">
+				<div className="flex gap-2">
 					<div className="flex-1">
 						<BadgeField
 							name="parameters"
@@ -65,7 +65,6 @@ export const TestSection = (props: TestSectionProps) => {
 						/>
 					</div>
 					<ExpressionToggleButton
-						className="mt-[7px]"
 						label="parameter expression"
 						isOpen={isParametersExpressionVisible}
 						onClick={() =>
