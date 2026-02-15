@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 export * from './lib/badge-input';
+export * from './lib/badge-query-input';
 export * from './lib/checkbox';
 export * from './lib/radio';
 export * from './lib/input';

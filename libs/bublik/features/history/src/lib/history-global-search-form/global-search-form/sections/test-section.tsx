@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-import { TextField, BadgeField } from '@/shared/tailwind-ui';
+import { TextField, BadgeField, BadgeQueryInput } from '@/shared/tailwind-ui';
 
 import {
 	ExpressionToggleButton,
@@ -80,6 +80,7 @@ export const TestSection = (props: TestSectionProps) => {
 						control={control}
 					/>
 				) : null}
+				<BadgeQueryInput />
 			</div>
 		</fieldset>
 	);
