@@ -15,7 +15,7 @@ export const TestSection = (props: TestSectionProps) => {
 	const { control } = useFormContext<HistoryGlobalSearchFormValues>();
 
 	return (
-		<fieldset className="flex flex-col">
+		<fieldset className="history-search-section flex flex-col rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
 			<FormSectionHeader name="Test">
 				<IconButton
 					name="Bin"
@@ -25,25 +25,21 @@ export const TestSection = (props: TestSectionProps) => {
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
-				<div className="flex items-center gap-4">
-					<div className="flex-1">
-						<TextField
-							name="testName"
-							label="Test name"
-							type="text"
-							placeholder="default_buff"
-							control={control}
-						/>
-					</div>
-					<div className="flex-1">
-						<TextField
-							name="hash"
-							label="Hash"
-							type="text"
-							placeholder="3c447d65a665c0eee17a0a20827e9"
-							control={control}
-						/>
-					</div>
+				<div className="grid gap-4 md:grid-cols-2">
+					<TextField
+						name="testName"
+						label="Test name"
+						type="text"
+						placeholder="default_buff"
+						control={control}
+					/>
+					<TextField
+						name="hash"
+						label="Hash"
+						type="text"
+						placeholder="3c447d65a665c0eee17a0a20827e9"
+						control={control}
+					/>
 				</div>
 				<BadgeField
 					name="parameters"

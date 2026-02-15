@@ -14,33 +14,27 @@ export const VerdictSection = () => {
 	const verdictLookup = watch('verdictLookup');
 
 	return (
-		<fieldset>
+		<fieldset className="history-search-section rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
 			<FormSectionHeader name="Verdict" />
-			<div className="mb-6 grid grid-cols-4 gap-4">
-				<div className="span-1">
-					<RadioField
-						name="verdictLookup"
-						value={VERDICT_TYPE.String}
-						label="String"
-						control={control}
-					/>
-				</div>
-				<div className="span-1">
-					<RadioField
-						name="verdictLookup"
-						value={VERDICT_TYPE.Regex}
-						label="Regex"
-						control={control}
-					/>
-				</div>
-				<div className="span-1">
-					<RadioField
-						name="verdictLookup"
-						value={VERDICT_TYPE.None}
-						label="None"
-						control={control}
-					/>
-				</div>
+			<div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<RadioField
+					name="verdictLookup"
+					value={VERDICT_TYPE.String}
+					label="String"
+					control={control}
+				/>
+				<RadioField
+					name="verdictLookup"
+					value={VERDICT_TYPE.Regex}
+					label="Regex"
+					control={control}
+				/>
+				<RadioField
+					name="verdictLookup"
+					value={VERDICT_TYPE.None}
+					label="None"
+					control={control}
+				/>
 			</div>
 			<div className="flex flex-col gap-4">
 				<BadgeField

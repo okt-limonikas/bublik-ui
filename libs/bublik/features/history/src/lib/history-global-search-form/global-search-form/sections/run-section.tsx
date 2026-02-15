@@ -28,7 +28,7 @@ export const RunSection = (props: RunSectionProps) => {
 	) as string | undefined;
 
 	return (
-		<fieldset>
+		<fieldset className="history-search-section rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
 			<FormSectionHeader name="Run" error={runPropsError}>
 				<IconButton
 					name="Bin"
@@ -38,18 +38,14 @@ export const RunSection = (props: RunSectionProps) => {
 				/>
 			</FormSectionHeader>
 			<div className="flex flex-col gap-4">
-				<div className={'flex gap-4 items-center'}>
-					<div className="flex-1">
-						<AriaDateRangeField label="Dates" name="dates" control={control} />
-					</div>
-					<div className="flex-1">
-						<TextField
-							name="runIds"
-							label="Run ID"
-							placeholder="1"
-							control={control}
-						/>
-					</div>
+				<div className="grid items-center gap-4 md:grid-cols-2">
+					<AriaDateRangeField label="Dates" name="dates" control={control} />
+					<TextField
+						name="runIds"
+						label="Run ID"
+						placeholder="1"
+						control={control}
+					/>
 				</div>
 				<BadgeField
 					name="labels"
@@ -59,7 +55,7 @@ export const RunSection = (props: RunSectionProps) => {
 				/>
 				<TextField
 					name="labelExpr"
-					label="Label expressions"
+					label="Label Expression"
 					placeholder={'label1 & label2'}
 					control={control}
 				/>
@@ -100,27 +96,23 @@ export const RunSection = (props: RunSectionProps) => {
 					control={control}
 				/>
 			</div>
-			<div className="mt-4 grid grid-cols-4 gap-4">
-				<div className="span-1">
-					<CheckboxField
-						iconName="InformationCircleForbidden"
-						iconSize={16}
-						name="runProperties"
-						value={RUN_PROPERTIES.Compromised}
-						label="Compromised"
-						control={control}
-					/>
-				</div>
-				<div className="span-1">
-					<CheckboxField
-						iconName="InformationCircleCheckmark"
-						iconSize={16}
-						name="runProperties"
-						value={RUN_PROPERTIES.NotCompromised}
-						label="Not compromised"
-						control={control}
-					/>
-				</div>
+			<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<CheckboxField
+					iconName="InformationCircleForbidden"
+					iconSize={16}
+					name="runProperties"
+					value={RUN_PROPERTIES.Compromised}
+					label="Compromised"
+					control={control}
+				/>
+				<CheckboxField
+					iconName="InformationCircleCheckmark"
+					iconSize={16}
+					name="runProperties"
+					value={RUN_PROPERTIES.NotCompromised}
+					label="Not compromised"
+					control={control}
+				/>
 			</div>
 		</fieldset>
 	);

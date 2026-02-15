@@ -36,8 +36,8 @@ export const ResultSection = (props: ResultSectionProps) => {
 		| undefined;
 
 	return (
-		<fieldset>
-			<div className="mb-4">
+		<fieldset className="history-search-section rounded-2xl px-4 py-4 motion-safe:animate-history-section-in md:px-5 md:py-5">
+			<div className="mb-5">
 				<FormSectionHeader
 					name="Result"
 					error={resultSectionError}
@@ -51,42 +51,36 @@ export const ResultSection = (props: ResultSectionProps) => {
 					/>
 				</FormSectionHeader>
 				<FormSectionSubheader name="Result type classification" />
-				<div className="grid grid-cols-4 gap-4 items-center">
-					<div className="span-1">
-						<CheckboxField
-							iconName="TriangleExclamationMark"
-							iconSize={16}
-							name="resultProperties"
-							value={RESULT_PROPERTIES.Unexpected}
-							label="Unexpected"
-							control={control}
-						/>
-					</div>
-					<div className="span-1">
-						<CheckboxField
-							iconName="TriangleQuestionMark"
-							iconSize={16}
-							name="resultProperties"
-							value={RESULT_PROPERTIES.Expected}
-							label="Expected"
-							control={control}
-						/>
-					</div>
-					<div className="span-1">
-						<CheckboxField
-							iconName="TriangleQuestionMark"
-							iconSize={16}
-							name="resultProperties"
-							value={RESULT_PROPERTIES.NotRun}
-							label="Not run"
-							control={control}
-						/>
-					</div>
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+					<CheckboxField
+						iconName="TriangleExclamationMark"
+						iconSize={16}
+						name="resultProperties"
+						value={RESULT_PROPERTIES.Unexpected}
+						label="Unexpected"
+						control={control}
+					/>
+					<CheckboxField
+						iconName="TriangleQuestionMark"
+						iconSize={16}
+						name="resultProperties"
+						value={RESULT_PROPERTIES.Expected}
+						label="Expected"
+						control={control}
+					/>
+					<CheckboxField
+						iconName="TriangleQuestionMark"
+						iconSize={16}
+						name="resultProperties"
+						value={RESULT_PROPERTIES.NotRun}
+						label="Not run"
+						control={control}
+					/>
 				</div>
 			</div>
 			<div>
 				<FormSectionSubheader name="Obtained result" />
-				<div className="grid-cols-4 grid gap-4">
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					<CheckboxField
 						iconName="BoxCheckmark"
 						iconSize={16}

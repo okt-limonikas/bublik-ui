@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { FormProvider } from 'react-hook-form';
 
-import { ButtonTw, Icon } from '@/shared/tailwind-ui';
+import { ButtonTw, Icon, cn } from '@/shared/tailwind-ui';
 
 import {
 	HistoryGlobalSearchFormValues,
@@ -44,14 +44,14 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 
 	return (
 		<div
-			className="w-[768px] h-full overflow-auto styled-scrollbar"
+			className="history-search-shell h-full w-screen max-w-[48rem] overflow-auto styled-scrollbar"
 			ref={scrollableRef}
 		>
 			<FormProvider {...form.methods}>
 				<form
 					onSubmit={form.methods.handleSubmit(onSubmit)}
 					onKeyDown={form.handleKeyDown}
-					className="flex flex-col justify-between h-full gap-2 [&>*]:px-6"
+					className="flex h-full flex-col gap-4 pt-4 pb-2 [&>*]:px-4 md:[&>*]:px-6"
 				>
 					<MainFormHeader onCloseButtonClick={onCloseButtonClick} />
 					<TestSection onResetTestSectionResetClick={form.resetTestSection} />
@@ -74,14 +74,18 @@ type MainFormHeaderProps = {
 
 const MainFormHeader = (props: MainFormHeaderProps) => {
 	return (
-		<div className="mb-2 mt-7">
-			<FormHeader name="Global Search">
+		<div className="mt-2 mb-1">
+			<FormHeader
+				name="Global Search"
+				description="Combine test, run, result, and verdict filters to narrow down history."
+			>
 				<button
-					className="p-[5.5px] bg-transparent hover:bg-primary-wash hover:text-primary text-text-menu rounded transition-colors"
+					type="button"
+					className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/60 text-text-menu transition-colors hover:bg-primary-wash hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
 					aria-label="Close"
 					onClick={props.onCloseButtonClick}
 				>
-					<Icon name="Cross" size={11} />
+					<Icon name="Cross" size={12} />
 				</button>
 			</FormHeader>
 		</div>
@@ -96,31 +100,34 @@ type StickySubmitProps = {
 const StickySubmit = (props: StickySubmitProps) => {
 	return (
 		<div
-			className="sticky bottom-0 flex items-center w-full gap-4 py-4 mt-2 bg-white"
-			style={
-				props.isScrollable
-					? { boxShadow: 'rgba(0, 0, 0, 0.1) 0px 0px 15px 0px' }
-					: undefined
-			}
+			className={cn(
+				'sticky bottom-0 z-20 mt-auto w-full border-t border-history-divider bg-white/95 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85',
+				props.isScrollable && 'history-search-sticky'
+			)}
 		>
-			<ButtonTw
-				size="md"
-				rounded="lg"
-				variant="primary"
-				type="submit"
-				className="justify-center w-full"
-			>
-				Submit
-			</ButtonTw>
-			<ButtonTw
-				type="button"
-				variant="outline"
-				size="md"
-				className="justify-center w-full"
-				onClick={props.onResetClick}
-			>
-				Reset
-			</ButtonTw>
+			<div className="flex flex-col gap-3 sm:flex-row">
+				<ButtonTw
+					size="md"
+					rounded="lg"
+					variant="primary"
+					type="submit"
+					className="justify-center w-full"
+				>
+					Apply Filters
+				</ButtonTw>
+				<ButtonTw
+					type="button"
+					variant="outline"
+					size="md"
+					className="justify-center w-full"
+					onClick={props.onResetClick}
+				>
+					Reset
+				</ButtonTw>
+			</div>
+			<div className="mt-2 text-[0.6875rem] leading-4 text-text-menu">
+				Tip: press Ctrl + Enter to submit
+			</div>
 		</div>
 	);
 };
