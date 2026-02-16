@@ -1,21 +1,24 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+import { useEffect } from 'react';
 import { z } from 'zod';
-import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PopoverClose, PopoverPortal } from '@radix-ui/react-popover';
+import { useForm } from 'react-hook-form';
 
 import { bublikAPI } from '@/services/bublik-api';
 import {
 	ButtonTw,
 	cn,
 	Icon,
+	MarkdownEditorField,
+	MarkdownPreview,
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
-	textAreaStyles,
 	toast,
 	Tooltip
 } from '@/shared/tailwind-ui';
-import { de } from 'date-fns/locale';
 
 const RunCommentFormSchema = z.object({
 	comment: z.string()
@@ -28,54 +31,83 @@ interface RunCommentFormContainerProps {
 
 function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 	const { runId, defaultValues } = props;
-	const form = useForm({
-		defaultValues: defaultValues,
+	const originalComment = defaultValues.comment;
+	const originalCommentTrimmed = originalComment.trim();
+	const form = useForm<z.infer<typeof RunCommentFormSchema>>({
+		defaultValues: { comment: originalComment },
 		resolver: zodResolver(RunCommentFormSchema)
 	});
 	const [updateRunComment] = bublikAPI.useUpdateRunCommentMutation();
 	const [createRunComment] = bublikAPI.useCreateRunCommentMutation();
 	const [deleteRunComment] = bublikAPI.useDeleteRunCommentMutation();
+	const commentValue = form.watch('comment') ?? '';
+	const nextCommentTrimmed = commentValue.trim();
+	const hasExistingComment = originalCommentTrimmed !== '';
+	const isSubmitDisabled = nextCommentTrimmed === '';
+
+	useEffect(() => {
+		form.reset({ comment: originalComment });
+	}, [form, originalComment]);
 
 	async function onSubmit(data: z.infer<typeof RunCommentFormSchema>) {
+		const nextComment = data.comment.trim();
 		let promise: Promise<unknown>;
 
-		if (data.comment === '') {
-			promise = deleteRunComment({ runId });
-
-			toast.promise(promise, {
-				loading: 'Deleting comment...',
-				success: 'Comment deleted successfully',
-				error: 'Failed to delete comment'
-			});
-
-			await promise;
+		if (nextComment === '') {
 			return;
 		}
 
-		if (defaultValues.comment === '') {
-			promise = createRunComment({ runId, comment: data.comment });
-		} else {
-			promise = updateRunComment({ runId, comment: data.comment });
-		}
+		if (originalCommentTrimmed === '') {
+			promise = createRunComment({ runId, comment: nextComment });
 
-		toast.promise(promise, {
-			loading: 'Updating comment...',
-			success: 'Comment updated successfully',
-			error: 'Failed to update comment'
-		});
+			toast.promise(promise, {
+				loading: 'Creating comment...',
+				success: 'Comment created successfully',
+				error: 'Failed to create comment'
+			});
+		} else {
+			promise = updateRunComment({ runId, comment: nextComment });
+
+			toast.promise(promise, {
+				loading: 'Updating comment...',
+				success: 'Comment updated successfully',
+				error: 'Failed to update comment'
+			});
+		}
 
 		await promise;
 	}
 
+	async function onDelete() {
+		if (!hasExistingComment) {
+			return;
+		}
+
+		const promise = deleteRunComment({ runId });
+
+		toast.promise(promise, {
+			loading: 'Deleting comment...',
+			success: 'Comment deleted successfully',
+			error: 'Failed to delete comment'
+		});
+
+		await promise;
+		form.reset({ comment: '' });
+	}
+
 	return (
 		<Popover>
-			<div className="flex items-center gap-2">
-				<span className="text-text-menu text-[0.6875rem] font-medium leading-[0.875rem] mr-20">
+			<div className="flex items-start gap-2">
+				<span className="text-text-menu text-[0.6875rem] font-medium leading-[0.875rem] min-w-20">
 					Comment
 				</span>
-				<pre className="text-[0.6875rem] font-medium leading-[0.875rem]">
-					{defaultValues.comment || '—'}
-				</pre>
+				<div className="max-w-[min(48rem,calc(100vw-12rem))] max-h-16 overflow-y-auto">
+					<MarkdownPreview
+						markdown={originalComment}
+						size="compact"
+						emptyState="—"
+					/>
+				</div>
 				<Tooltip content="Edit Run Comment">
 					<PopoverTrigger asChild>
 						<ButtonTw variant="secondary" size="xss" className="size-6">
@@ -89,7 +121,7 @@ function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 			<PopoverPortal container={document.body}>
 				<PopoverContent
 					className={cn(
-						'relative p-4 bg-white flex flex-col gap-4 rounded-md w-96 shadow-popover'
+						'relative p-4 bg-white flex flex-col gap-3 rounded-md w-[min(48rem,calc(100vw-2rem))] shadow-popover'
 					)}
 					align="start"
 					sideOffset={8}
@@ -104,47 +136,30 @@ function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 					</div>
 
 					<form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
-						<Controller
-							control={form.control}
-							name="comment"
-							render={(f) => {
-								return (
-									<div className="flex gap-4 items-center">
-										<div className="flex flex-col gap-2 w-full">
-											<textarea
-												value={f.field.value}
-												onChange={f.field.onChange}
-												onBlur={f.field.onBlur}
-												placeholder="Run comment..."
-												className={cn(
-													textAreaStyles({
-														variant: f.fieldState.error ? 'error' : 'primary'
-													}),
-													'resize-y sm:text-[0.75rem] font-medium leading-[0.875rem]',
-													'min-h-20 min-w-80'
-												)}
-											/>
-											<span
-												className={cn(
-													'text-[0.75rem] font-normal text-bg-error'
-												)}
-											>
-												{f.fieldState.error?.message}
-											</span>
+						<div className="flex flex-col gap-2">
+							<MarkdownEditorField
+								name="comment"
+								control={form.control}
+								placeholder="Run comment..."
+								previewPlaceholder="Run comment preview..."
+							/>
 
-											<ButtonTw type="submit" size="xs">
-												{form.watch('comment') === '' &&
-												defaultValues.comment !== ''
-													? 'Delete'
-													: defaultValues.comment === ''
-													? 'Create'
-													: 'Update'}
-											</ButtonTw>
-										</div>
-									</div>
-								);
-							}}
-						/>
+							<div className="flex items-center justify-between pt-1">
+								<ButtonTw
+									type="button"
+									size="xs"
+									variant="destruction-secondary"
+									onClick={onDelete}
+									disabled={!hasExistingComment}
+								>
+									Delete
+								</ButtonTw>
+
+								<ButtonTw type="submit" size="xs" disabled={isSubmitDisabled}>
+									{originalCommentTrimmed === '' ? 'Create' : 'Update'}
+								</ButtonTw>
+							</div>
+						</div>
 					</form>
 				</PopoverContent>
 			</PopoverPortal>
