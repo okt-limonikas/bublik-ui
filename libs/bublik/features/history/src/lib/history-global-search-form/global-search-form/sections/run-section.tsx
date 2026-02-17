@@ -55,12 +55,17 @@ export const RunSection = (props: RunSectionProps) => {
 			<div className="flex flex-col gap-4">
 				<div className="grid items-center gap-4 md:grid-cols-2">
 					<AriaDateRangeField label="Dates" name="dates" control={control} />
-					<TextField
-						name="runIds"
-						label="Run ID"
-						placeholder="1"
-						control={control}
-					/>
+					<div className="flex gap-2">
+						<div className="flex-1">
+							<TextField
+								name="runIds"
+								label="Run ID"
+								placeholder="1"
+								control={control}
+							/>
+						</div>
+						<div className="size-10" />
+					</div>
 				</div>
 				<div className="flex gap-2">
 					<div className="flex-1">

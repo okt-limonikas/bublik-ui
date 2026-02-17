@@ -51,26 +51,30 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 				<form
 					onSubmit={form.methods.handleSubmit(onSubmit)}
 					onKeyDown={form.handleKeyDown}
-					className="flex h-full flex-col gap-8 px-4 pt-4 pb-2 md:px-6"
+					className="flex h-full flex-col gap-6 pt-2 pb-2"
 				>
 					<MainFormHeader onCloseButtonClick={onCloseButtonClick} />
-					<TestSection
-						onResetTestSectionClick={form.resetTestSection}
-						onResetTestSectionDefaultClick={form.resetTestSectionToDefault}
-					/>
-					<RunSection
-						onResetRunSectionClick={form.resetRunSection}
-						onResetRunSectionDefaultClick={form.resetRunSectionToDefault}
-					/>
-					<ResultSection
-						onResetResultSectionClick={form.resetResultSection}
-						onResetResultSectionDefaultClick={form.resetResultSectionToDefault}
-					/>
-					<VerdictSection />
-					<StickySubmit
-						onResetClick={form.resetForm}
-						isScrollable={isVisible}
-					/>
+					<div className="flex h-full flex-col gap-6 px-4 md:px-6">
+						<TestSection
+							onResetTestSectionClick={form.resetTestSection}
+							onResetTestSectionDefaultClick={form.resetTestSectionToDefault}
+						/>
+						<RunSection
+							onResetRunSectionClick={form.resetRunSection}
+							onResetRunSectionDefaultClick={form.resetRunSectionToDefault}
+						/>
+						<ResultSection
+							onResetResultSectionClick={form.resetResultSection}
+							onResetResultSectionDefaultClick={
+								form.resetResultSectionToDefault
+							}
+						/>
+						<VerdictSection />
+						<StickySubmit
+							onResetClick={form.resetForm}
+							isScrollable={isVisible}
+						/>
+					</div>
 				</form>
 			</FormProvider>
 		</div>
@@ -83,20 +87,11 @@ type MainFormHeaderProps = {
 
 const MainFormHeader = (props: MainFormHeaderProps) => {
 	return (
-		<div className="mt-2 mb-1">
+		<div className="py-2 pb-4 px-10 border-b border-border-primary">
 			<FormHeader
 				name="Global Search"
 				description="Combine test, run, result, and verdict filters to narrow down history."
-			>
-				<button
-					type="button"
-					className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/60 text-text-menu transition-colors hover:bg-primary-wash hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-					aria-label="Close"
-					onClick={props.onCloseButtonClick}
-				>
-					<Icon name="Cross" size={12} />
-				</button>
-			</FormHeader>
+			/>
 		</div>
 	);
 };
@@ -122,7 +117,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 					type="submit"
 					className="justify-center w-full"
 				>
-					Apply Filters
+					Apply Search
 				</ButtonTw>
 				<ButtonTw
 					type="button"
@@ -131,10 +126,11 @@ const StickySubmit = (props: StickySubmitProps) => {
 					className="justify-center w-full"
 					onClick={props.onResetClick}
 				>
-					Reset
+					<Icon name="Refresh" className="mr-1.5 size-5" />
+					<span>Reset</span>
 				</ButtonTw>
 			</div>
-			<div className="mt-2 text-[0.6875rem] leading-4 text-text-menu">
+			<div className="mt-2 text-[0.75rem] leading-4 text-text-menu">
 				Tip: press Ctrl + Enter to submit
 			</div>
 		</div>

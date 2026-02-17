@@ -17,9 +17,11 @@ const FormSectionRoot = forwardRef<HTMLFieldSetElement, FormSectionProps>(
 			<fieldset
 				ref={ref}
 				className={cn(
-					'relative rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4',
-					'transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in',
-					'md:px-5 md:pt-6 md:pb-5',
+					'relative rounded-2xl border border-border-primary bg-white px-4 pt-5',
+					'shadow-[0_1px_2px_rgba(34,60,80,0.06)]',
+					'transition-[border-color,box-shadow,transform] hover:border-primary/60 focus-within:border-primary focus-within:shadow-text-field motion-safe:animate-fade-in',
+					'md:px-5 md:py-3',
+					'shadow-sm',
 					className
 				)}
 				{...props}

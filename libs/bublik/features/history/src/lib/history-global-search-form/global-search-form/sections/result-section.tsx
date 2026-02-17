@@ -36,9 +36,9 @@ export const ResultSection = (props: ResultSectionProps) => {
 		<FormSection>
 			<div className="mb-5">
 				<FormSection.Header
+					className="mb-0"
 					name="Result"
 					error={resultSectionError}
-					style={{ marginBottom: 0 }}
 				>
 					<FormSection.ResetToDefaultButton
 						helpMessage="Reset result section to defaults"
