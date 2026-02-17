@@ -5,11 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import { CheckboxField } from '@/shared/tailwind-ui';
 import { RESULT_PROPERTIES, RESULT_TYPE } from '@/shared/types';
 
-import {
-	FormSectionHeader,
-	IconButton,
-	FormSectionSubheader
-} from '../components';
+import { FormSection, FormSectionSubheader } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type ResultSectionProps = {
@@ -37,26 +33,22 @@ export const ResultSection = (props: ResultSectionProps) => {
 		| undefined;
 
 	return (
-		<fieldset className="relative rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
+		<FormSection>
 			<div className="mb-5">
-				<FormSectionHeader
+				<FormSection.Header
 					name="Result"
 					error={resultSectionError}
 					style={{ marginBottom: 0 }}
 				>
-					<IconButton
-						name="Refresh"
-						size={18}
+					<FormSection.ResetToDefaultButton
 						helpMessage="Reset result section to defaults"
 						onClick={props.onResetResultSectionDefaultClick}
 					/>
-					<IconButton
-						name="Bin"
-						size={18}
+					<FormSection.ResetButton
 						helpMessage="Clear result section"
 						onClick={props.onResetResultSectionClick}
 					/>
-				</FormSectionHeader>
+				</FormSection.Header>
 				<FormSectionSubheader name="Result type classification" />
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					<CheckboxField
@@ -148,6 +140,6 @@ export const ResultSection = (props: ResultSectionProps) => {
 					/>
 				</div>
 			</div>
-		</fieldset>
+		</FormSection>
 	);
 };

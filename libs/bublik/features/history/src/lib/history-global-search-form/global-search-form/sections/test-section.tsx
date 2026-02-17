@@ -5,11 +5,7 @@ import { useFormContext } from 'react-hook-form';
 
 import { TextField, BadgeField } from '@/shared/tailwind-ui';
 
-import {
-	ExpressionToggleButton,
-	FormSectionHeader,
-	IconButton
-} from '../components';
+import { ExpressionToggleButton, FormSection } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type TestSectionProps = {
@@ -23,21 +19,17 @@ export const TestSection = (props: TestSectionProps) => {
 		useState(() => Boolean(watch('testArgExpr')));
 
 	return (
-		<fieldset className="relative flex flex-col rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
-			<FormSectionHeader name="Test">
-				<IconButton
-					name="Refresh"
-					size={18}
+		<FormSection className="flex flex-col">
+			<FormSection.Header name="Test">
+				<FormSection.ResetToDefaultButton
 					helpMessage="Reset test section to defaults"
 					onClick={props.onResetTestSectionDefaultClick}
 				/>
-				<IconButton
-					name="Bin"
-					size={18}
+				<FormSection.ResetButton
 					helpMessage="Clear test section"
 					onClick={props.onResetTestSectionClick}
 				/>
-			</FormSectionHeader>
+			</FormSection.Header>
 			<div className="flex flex-col gap-4">
 				<div className="grid gap-4 md:grid-cols-2">
 					<TextField
@@ -81,6 +73,6 @@ export const TestSection = (props: TestSectionProps) => {
 					/>
 				) : null}
 			</div>
-		</fieldset>
+		</FormSection>
 	);
 };

@@ -11,11 +11,7 @@ import {
 } from '@/shared/tailwind-ui';
 import { RUN_PROPERTIES } from '@/shared/types';
 
-import {
-	ExpressionToggleButton,
-	FormSectionHeader,
-	IconButton
-} from '../components';
+import { ExpressionToggleButton, FormSection } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type RunSectionProps = {
@@ -45,21 +41,17 @@ export const RunSection = (props: RunSectionProps) => {
 	) as string | undefined;
 
 	return (
-		<fieldset className="relative rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
-			<FormSectionHeader name="Run" error={runPropsError}>
-				<IconButton
-					name="Refresh"
-					size={18}
+		<FormSection>
+			<FormSection.Header name="Run" error={runPropsError}>
+				<FormSection.ResetToDefaultButton
 					helpMessage="Reset run section to defaults"
 					onClick={props.onResetRunSectionDefaultClick}
 				/>
-				<IconButton
-					name="Bin"
-					size={18}
+				<FormSection.ResetButton
 					helpMessage="Clear run section"
 					onClick={props.onResetRunSectionClick}
 				/>
-			</FormSectionHeader>
+			</FormSection.Header>
 			<div className="flex flex-col gap-4">
 				<div className="grid items-center gap-4 md:grid-cols-2">
 					<AriaDateRangeField label="Dates" name="dates" control={control} />
@@ -185,6 +177,6 @@ export const RunSection = (props: RunSectionProps) => {
 					control={control}
 				/>
 			</div>
-		</fieldset>
+		</FormSection>
 	);
 };

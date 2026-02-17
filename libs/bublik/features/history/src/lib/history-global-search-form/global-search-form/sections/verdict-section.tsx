@@ -6,11 +6,7 @@ import { useFormContext } from 'react-hook-form';
 import { VERDICT_TYPE } from '@/shared/types';
 import { BadgeField, TextField, cn } from '@/shared/tailwind-ui';
 
-import {
-	ExpressionToggleButton,
-	FormSectionHeader,
-	IconButton
-} from '../components';
+import { ExpressionToggleButton, FormSection, IconButton } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export const VerdictSection = () => {
@@ -64,8 +60,8 @@ export const VerdictSection = () => {
 	);
 
 	return (
-		<fieldset className="relative rounded-2xl border border-border-primary bg-white px-4 pt-6 pb-4 transition-colors hover:border-primary focus-within:border-primary motion-safe:animate-fade-in md:px-5 md:pt-6 md:pb-5">
-			<FormSectionHeader name="Verdict" />
+		<FormSection>
+			<FormSection.Header name="Verdict" />
 			<div className="flex flex-col gap-4">
 				<div className="flex gap-2">
 					<div className="flex-1">
@@ -101,6 +97,6 @@ export const VerdictSection = () => {
 					/>
 				) : null}
 			</div>
-		</fieldset>
+		</FormSection>
 	);
 };

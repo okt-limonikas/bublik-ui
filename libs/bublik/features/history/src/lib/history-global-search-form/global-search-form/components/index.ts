@@ -6,3 +6,4 @@ export * from './icon-button';
 export * from './scroll-container';
 export * from './section-header';
 export * from './section-subheader';
+export * from './form-section/form-section';
