@@ -34,6 +34,7 @@ export const ResultSection = (props: ResultSectionProps) => {
 
 	return (
 		<FormSection>
+			<FormSection.Bar className="bg-bg-warning" />
 			<div className="mb-5">
 				<FormSection.Header
 					className="mb-0"

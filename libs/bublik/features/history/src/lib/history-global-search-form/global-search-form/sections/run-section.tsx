@@ -42,6 +42,7 @@ export const RunSection = (props: RunSectionProps) => {
 
 	return (
 		<FormSection>
+			<FormSection.Bar className="bg-bg-ok" />
 			<FormSection.Header name="Run" error={runPropsError}>
 				<FormSection.ResetToDefaultButton
 					helpMessage="Reset run section to defaults"

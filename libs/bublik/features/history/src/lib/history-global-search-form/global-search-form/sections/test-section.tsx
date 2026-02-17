@@ -20,6 +20,7 @@ export const TestSection = (props: TestSectionProps) => {
 
 	return (
 		<FormSection className="flex flex-col">
+			<FormSection.Bar className="bg-primary" />
 			<FormSection.Header name="Test">
 				<FormSection.ResetToDefaultButton
 					helpMessage="Reset test section to defaults"
@@ -37,6 +38,7 @@ export const TestSection = (props: TestSectionProps) => {
 						label="Test Name"
 						type="text"
 						placeholder="default_buff"
+						showEndOnMount
 						control={control}
 					/>
 					<TextField

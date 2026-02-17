@@ -61,6 +61,7 @@ export const VerdictSection = () => {
 
 	return (
 		<FormSection>
+			<FormSection.Bar className="bg-bg-compromised" />
 			<FormSection.Header name="Verdict" />
 			<div className="flex flex-col gap-4">
 				<div className="flex gap-2">
