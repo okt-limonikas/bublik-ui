@@ -105,7 +105,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 	return (
 		<div
 			className={cn(
-				'sticky bottom-0 z-20 mt-auto -mx-4 border-t border-border-primary bg-white/95 px-4 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85 md:-mx-6 md:px-6',
+				'sticky bottom-0 z-20 mt-auto -mx-4 border-t border-border-primary bg-white px-4 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-white/85 md:-mx-6 md:px-6',
 				props.isScrollable && 'shadow-sticky'
 			)}
 		>
@@ -126,7 +126,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 					className="justify-center w-full"
 					onClick={props.onResetClick}
 				>
-					<Icon name="Refresh" className="mr-1.5 size-5" />
+					<Icon name="Refresh" className="mr-1.5 size-5 -scale-x-90" />
 					<span>Reset</span>
 				</ButtonTw>
 			</div>

@@ -65,6 +65,7 @@ const FormSectionResetToDefaultButton = ({
 			size={18}
 			helpMessage={helpMessage}
 			onClick={onClick}
+			className="-scale-x-100"
 		/>
 	);
 };
@@ -84,6 +85,7 @@ const FormSectionResetButton = ({
 			size={18}
 			helpMessage={helpMessage}
 			onClick={onClick}
+			className="hover:text-text-unexpected hover:bg-red-100"
 		/>
 	);
 };
