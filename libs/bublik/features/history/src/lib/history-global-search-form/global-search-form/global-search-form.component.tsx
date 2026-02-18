@@ -3,7 +3,7 @@
 import { FormProvider } from 'react-hook-form';
 
 import { useIsScrollbarVisible } from '@/shared/hooks';
-import { ButtonTw, Icon, cn } from '@/shared/tailwind-ui';
+import { ButtonTw, DialogClose, Icon, cn } from '@/shared/tailwind-ui';
 
 import {
 	HistoryGlobalSearchFormValues,
@@ -91,7 +91,14 @@ const MainFormHeader = (props: MainFormHeaderProps) => {
 			<FormHeader
 				name="Global Search"
 				description="Combine test, run, result, and verdict filters to narrow down history."
-			/>
+			>
+				<DialogClose
+					onClick={props.onCloseButtonClick}
+					className="rounded hover:bg-primary-wash p-2 hover:text-primary text-text-menu"
+				>
+					<Icon name="Cross" className="size-4" />
+				</DialogClose>
+			</FormHeader>
 		</div>
 	);
 };
