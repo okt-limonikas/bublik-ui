@@ -131,16 +131,10 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
     */
 
 		const handleBadgeEdit = useCallback(
-			(editedBadge: BadgeItem, newValue: string) => {
-				const copyArr = badges.slice();
-
-				const indexOfItem = copyArr.findIndex(
-					(badge) => badge.id === editedBadge.id
-				);
-
-				copyArr[indexOfItem] = { ...copyArr[indexOfItem], value: newValue };
-
-				onBadgesChange?.(copyArr.filter((badge) => badge.value));
+			(badgeToEdit: BadgeItem) => {
+				setValue(badgeToEdit.value);
+				onBadgesChange?.(badges.filter((badge) => badge.id !== badgeToEdit.id));
+				queueMicrotask(() => inputRef.current?.focus());
 			},
 			[onBadgesChange, badges]
 		);
