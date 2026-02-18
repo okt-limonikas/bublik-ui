@@ -112,7 +112,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 	return (
 		<div
 			className={cn(
-				'sticky bottom-0 z-20 mt-auto -mx-4 border-t border-border-primary bg-white px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6',
+				'sticky bottom-0 z-20 mt-auto -mx-4 bg-white px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6',
 				props.isScrollable && 'shadow-sticky'
 			)}
 		>

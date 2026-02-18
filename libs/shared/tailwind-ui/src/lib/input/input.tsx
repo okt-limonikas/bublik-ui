@@ -28,7 +28,7 @@ const inputStyles = cva({
 		'focus:shadow-text-field',
 		'active:shadow-none',
 		'focus:ring-transparent',
-		'placeholder:text-text-menu',
+		'placeholder:text-text-menu placeholder:font-normal',
 		'leading-[1.5rem] font-medium text-[0.875rem]'
 	]
 });

@@ -22,7 +22,7 @@ const FormSectionRoot = forwardRef<HTMLFieldSetElement, FormSectionProps>(
 			<fieldset
 				ref={ref}
 				className={cn(
-					'relative shrink-0 overflow-hidden rounded-2xl border border-border-primary bg-white px-4 pt-5',
+					'relative shrink-0 rounded-2xl border border-border-primary bg-white px-4 pt-5',
 					'shadow-[0_1px_2px_rgba(34,60,80,0.06)]',
 					'transition-[border-color,box-shadow,transform] hover:border-primary/60 focus-within:border-primary focus-within:shadow-text-field motion-safe:animate-fade-in',
 					'md:px-5 md:py-3',
@@ -94,7 +94,10 @@ function FormSectionBar(props: ComponentPropsWithoutRef<'div'>) {
 	const { className, ...rest } = props;
 	return (
 		<div
-			className={cn('absolute w-2 left-0 top-0 h-full', className)}
+			className={cn(
+				'absolute w-3 -translate-y-px h-[calc(100%+2px)] rounded-l-2xl -translate-x-px left-0 top-0',
+				className
+			)}
 			{...rest}
 		/>
 	);
