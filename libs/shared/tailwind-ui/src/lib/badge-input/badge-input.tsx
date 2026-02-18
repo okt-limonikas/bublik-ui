@@ -26,6 +26,7 @@ import { cn } from '../utils';
 
 export interface BadgeInputProps {
 	label?: string;
+	labelTrailingContent?: ReactNode;
 	onBadgesChange?: (badges: BadgeItem[]) => void;
 	badges?: BadgeItem[];
 	placeholder?: string;
@@ -39,6 +40,7 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 	(
 		{
 			label,
+			labelTrailingContent,
 			onBadgesChange,
 			badges = [],
 			placeholder,
@@ -178,6 +180,11 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 						>
 							{label}
 						</InputLabel>
+					) : null}
+					{labelTrailingContent ? (
+						<div className="absolute -top-3 right-2 flex items-center bg-white px-1">
+							{labelTrailingContent}
+						</div>
 					) : null}
 					{icon ? (
 						<div className="grid pl-2 place-items-center text-primary">

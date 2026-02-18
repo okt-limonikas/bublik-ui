@@ -6,7 +6,7 @@ import { useFormContext } from 'react-hook-form';
 import { VERDICT_TYPE } from '@/shared/types';
 import { BadgeField, TextField, cn } from '@/shared/tailwind-ui';
 
-import { ExpressionToggleButton, FormSection, IconButton } from '../components';
+import { ExpressionToggleButton, FormSection } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export const VerdictSection = () => {
@@ -27,35 +27,52 @@ export const VerdictSection = () => {
 
 	const lookupToggleClassName = (lookup: VERDICT_TYPE) =>
 		cn(
-			'h-7 w-7 border rounded-md',
+			'rounded px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.02em] leading-[0.75rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20',
 			verdictLookup === lookup
-				? 'border-primary bg-primary-wash text-primary'
-				: 'border-transparent text-text-menu hover:bg-primary-wash hover:text-primary'
+				? 'bg-primary-wash text-primary'
+				: 'text-text-menu hover:bg-primary-wash hover:text-primary'
 		);
 
+	const lookupOptions = [
+		{
+			lookup: VERDICT_TYPE.String,
+			label: 'String',
+			helpLabel: 'Lookup as string'
+		},
+		{
+			lookup: VERDICT_TYPE.Regex,
+			label: 'Regex',
+			helpLabel: 'Lookup as regex'
+		},
+		{
+			lookup: VERDICT_TYPE.None,
+			label: 'None',
+			helpLabel: 'Disable verdict lookup'
+		}
+	] as const;
+
 	const lookupButtons = (
-		<div className="flex items-center gap-0.5">
-			<IconButton
-				name="TextWrap"
-				size={14}
-				helpMessage="Lookup as string"
-				onClick={() => setVerdictLookup(VERDICT_TYPE.String)}
-				className={lookupToggleClassName(VERDICT_TYPE.String)}
-			/>
-			<IconButton
-				name="Filter"
-				size={14}
-				helpMessage="Lookup as regex"
-				onClick={() => setVerdictLookup(VERDICT_TYPE.Regex)}
-				className={lookupToggleClassName(VERDICT_TYPE.Regex)}
-			/>
-			<IconButton
-				name="CrossSimple"
-				size={14}
-				helpMessage="Disable verdict lookup"
-				onClick={() => setVerdictLookup(VERDICT_TYPE.None)}
-				className={lookupToggleClassName(VERDICT_TYPE.None)}
-			/>
+		<div
+			className="inline-flex items-center gap-0.5 rounded border border-border-primary bg-white p-0.5"
+			role="radiogroup"
+			aria-label="Verdict lookup type"
+		>
+			{lookupOptions.map((option) => (
+				<button
+					key={option.lookup}
+					type="button"
+					role="radio"
+					aria-checked={verdictLookup === option.lookup}
+					aria-label={option.helpLabel}
+					onClick={(event) => {
+						event.stopPropagation();
+						setVerdictLookup(option.lookup);
+					}}
+					className={lookupToggleClassName(option.lookup)}
+				>
+					{option.label}
+				</button>
+			))}
 		</div>
 	);
 
@@ -78,7 +95,7 @@ export const VerdictSection = () => {
 							}
 							disabled={verdictLookup === VERDICT_TYPE.None}
 							control={control}
-							trailingContent={lookupButtons}
+							labelTrailingContent={lookupButtons}
 						/>
 					</div>
 					<ExpressionToggleButton
