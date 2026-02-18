@@ -35,6 +35,11 @@ export const selectSearchState = createSelector(
 	(state) => state.searchForm
 );
 
+export const selectHasSearchFormDraft = createSelector(
+	selectHistorySliceState,
+	(state) => state.hasSearchFormDraft
+);
+
 export const selectIsGlobalSearchFormOpen = createSelector(
 	selectHistorySliceState,
 	(state) => state.isGlobalSearchFormOpen
@@ -66,7 +71,12 @@ export const selectAggregationGlobalFilter = createSelector(
 export const selectHistoryForm = createSelector(
 	selectSearchState,
 	selectGlobalFilter,
-	(searchState, globalFilter) => getCombinedForm(searchState, globalFilter)
+	selectHasSearchFormDraft,
+	(searchState, globalFilter, hasSearchFormDraft) => {
+		if (hasSearchFormDraft) return historySearchStateToForm(searchState);
+
+		return getCombinedForm(searchState, globalFilter);
+	}
 );
 
 const getCombinedForm = (

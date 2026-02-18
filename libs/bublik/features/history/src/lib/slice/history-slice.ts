@@ -62,6 +62,7 @@ export const DEFAULT_SEARCH_FORM_STATE: HistorySliceState['searchForm'] = {
 
 const initialState: HistorySliceState = {
 	isGlobalSearchFormOpen: false,
+	hasSearchFormDraft: false,
 	globalFilter: DEFAULT_GLOBAL_FILTER,
 	searchForm: DEFAULT_SEARCH_FORM_STATE
 };
@@ -125,21 +126,31 @@ const historySlice = createSlice({
 				finishDate: state.searchForm.finishDate,
 				testName: state.searchForm.testName
 			};
+			state.hasSearchFormDraft = false;
 		},
 		toggleIsGlobalSearchOpen: (state, action: PayloadAction<boolean>) => {
 			state.isGlobalSearchFormOpen = action.payload;
+		},
+		updateSearchFormDraft: (
+			state,
+			action: PayloadAction<HistorySliceState['searchForm']>
+		) => {
+			Object.assign(state.searchForm, action.payload);
+			state.hasSearchFormDraft = true;
 		},
 		updateSearchForm: (
 			state,
 			action: PayloadAction<HistorySliceState['searchForm']>
 		) => {
 			Object.assign(state.searchForm, action.payload);
+			state.hasSearchFormDraft = false;
 		},
 		initSearchForm: (
 			state,
 			action: PayloadAction<HistorySliceState['searchForm']>
 		) => {
 			Object.assign(state.searchForm, action.payload);
+			state.hasSearchFormDraft = false;
 		}
 	}
 });

@@ -25,6 +25,7 @@ export type HistoryGlobalFilter = {
 
 export type HistorySliceState = {
 	isGlobalSearchFormOpen: boolean;
+	hasSearchFormDraft: boolean;
 	globalFilter: HistoryGlobalFilter;
 	searchForm: HistorySearchFormState;
 };

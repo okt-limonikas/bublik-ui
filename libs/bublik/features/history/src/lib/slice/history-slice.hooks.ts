@@ -80,7 +80,7 @@ export const useHistoryFormSearchState = () => {
 
 	const handleFormChange = useCallback(
 		(form: HistoryGlobalSearchFormValues) => {
-			actions.updateSearchForm(formToSearchState(form));
+			actions.updateSearchFormDraft(formToSearchState(form));
 		},
 		[actions]
 	);
