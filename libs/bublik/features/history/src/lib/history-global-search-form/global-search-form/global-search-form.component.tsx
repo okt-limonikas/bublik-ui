@@ -89,7 +89,7 @@ type MainFormHeaderProps = {
 
 const MainFormHeader = (props: MainFormHeaderProps) => {
 	return (
-		<div className="py-2 pb-4 px-10 border-b border-border-primary">
+		<div className="py-2 pb-4 px-11 border-b border-border-primary">
 			<FormHeader
 				name="Global Search"
 				description="Combine test, run, result, and verdict filters to narrow down history."
