@@ -9,7 +9,7 @@ import { toast } from '../../../utils';
 import { useCopyToClipboard } from '@/shared/hooks';
 
 const ACTION_BUTTON_CLASS_NAME =
-	'flex items-center border-l border-l-border-primary px-2.5 py-1.5 text-[0.6875rem] font-semibold leading-[0.875rem] hover:text-primary';
+	'flex items-center px-2.5 py-1.5 text-[0.6875rem] font-semibold leading-[0.875rem] hover:text-primary';
 
 export interface EditPopoverContentProps {
 	onDeleteClick: () => void;
@@ -21,7 +21,7 @@ const EditPopoverContent = (props: EditPopoverContentProps) => {
 	const { onDeleteClick, onEditClick, onCopyClick } = props;
 
 	return (
-		<div className="flex items-center rounded bg-white shadow-tooltip">
+		<div className="flex items-center [&>:not(:first-child)]:border-l border-l-border-primary rounded bg-white shadow-tooltip">
 			<button
 				className={ACTION_BUTTON_CLASS_NAME}
 				onClick={onDeleteClick}
