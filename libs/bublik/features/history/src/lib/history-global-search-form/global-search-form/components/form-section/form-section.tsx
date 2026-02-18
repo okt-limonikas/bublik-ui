@@ -7,17 +7,17 @@ import {
 	forwardRef
 } from 'react';
 
-import { cn } from '@/shared/tailwind-ui';
+import { cn, Icon } from '@/shared/tailwind-ui';
 
 import { FormSectionHeader, FormSectionHeaderProps } from '../section-header';
 import { IconButton } from '../icon-button';
 
-export interface FormSectionProps extends ComponentProps<'fieldset'> {
+interface FormSectionProps extends ComponentProps<'fieldset'> {
 	children: ReactNode;
 }
 
 const FormSectionRoot = forwardRef<HTMLFieldSetElement, FormSectionProps>(
-	({ children, className, ...props }, ref) => {
+	function FormSectionRoot({ children, className, ...props }, ref) {
 		return (
 			<fieldset
 				ref={ref}
@@ -43,22 +43,22 @@ interface FormSectionHeaderComponentProps extends FormSectionHeaderProps {
 	children?: ReactNode;
 }
 
-const FormSectionHeaderComponent = ({
+function FormSectionHeaderComponent({
 	children,
 	...props
-}: FormSectionHeaderComponentProps) => {
+}: FormSectionHeaderComponentProps) {
 	return <FormSectionHeader {...props}>{children}</FormSectionHeader>;
-};
+}
 
 interface FormSectionResetToDefaultButtonProps {
 	onClick: () => void;
 	helpMessage?: string;
 }
 
-const FormSectionResetToDefaultButton = ({
+function FormSectionResetToDefaultButton({
 	onClick,
 	helpMessage = 'Reset to defaults'
-}: FormSectionResetToDefaultButtonProps) => {
+}: FormSectionResetToDefaultButtonProps) {
 	return (
 		<IconButton
 			name="Refresh"
@@ -68,17 +68,17 @@ const FormSectionResetToDefaultButton = ({
 			className="-scale-x-100"
 		/>
 	);
-};
+}
 
 interface FormSectionResetButtonProps {
 	onClick: () => void;
 	helpMessage?: string;
 }
 
-const FormSectionResetButton = ({
+function FormSectionResetButton({
 	onClick,
 	helpMessage = 'Clear section'
-}: FormSectionResetButtonProps) => {
+}: FormSectionResetButtonProps) {
 	return (
 		<IconButton
 			name="Bin"
@@ -88,9 +88,9 @@ const FormSectionResetButton = ({
 			className="hover:text-text-unexpected hover:bg-red-100"
 		/>
 	);
-};
+}
 
-const FormSectionBar = (props: ComponentPropsWithoutRef<'div'>) => {
+function FormSectionBar(props: ComponentPropsWithoutRef<'div'>) {
 	const { className, ...rest } = props;
 	return (
 		<div
@@ -98,11 +98,71 @@ const FormSectionBar = (props: ComponentPropsWithoutRef<'div'>) => {
 			{...rest}
 		/>
 	);
-};
+}
 
-export const FormSection = Object.assign(FormSectionRoot, {
+function FormSectionErrorRoot(props: ComponentPropsWithoutRef<'div'>) {
+	const { className, ...rest } = props;
+
+	return (
+		<div
+			className={cn(
+				'bg-bg-fillError rounded-lg py-2 px-4 flex items-center gap-2',
+				className
+			)}
+			{...rest}
+		/>
+	);
+}
+
+function FormSectionErrorTitle(props: ComponentPropsWithoutRef<'div'>) {
+	const { className, ...rest } = props;
+
+	return <div className={cn('font-semibold text-sm', className)} {...rest} />;
+}
+
+function FormSectionErrorSubtitle(props: ComponentPropsWithoutRef<'div'>) {
+	const { className, ...rest } = props;
+
+	return <div className={cn('text-[0.75rem]', className)} {...rest} />;
+}
+
+function FormSectionErrorIcon() {
+	return (
+		<div className="text-text-unexpected shrink-0">
+			<Icon name="TriangleExclamationMark" size={22} />
+		</div>
+	);
+}
+
+const FormSectionError = Object.assign(FormSectionErrorRoot, {
+	Title: FormSectionErrorTitle,
+	Subtitle: FormSectionErrorSubtitle,
+	Icon: FormSectionErrorIcon
+});
+
+interface FormErrorProps {
+	title?: string;
+	subtitle: string;
+}
+
+function FormError(props: FormErrorProps) {
+	const { title, subtitle } = props;
+
+	return (
+		<FormSectionErrorRoot>
+			<FormSectionErrorIcon />
+			{title && <FormSectionErrorTitle>{title}</FormSectionErrorTitle>}
+			<FormSectionErrorSubtitle>{subtitle}</FormSectionErrorSubtitle>
+		</FormSectionErrorRoot>
+	);
+}
+
+const FormSection = Object.assign(FormSectionRoot, {
 	Header: FormSectionHeaderComponent,
 	ResetToDefaultButton: FormSectionResetToDefaultButton,
 	ResetButton: FormSectionResetButton,
 	Bar: FormSectionBar
 });
+
+export { FormSection, FormSectionError, FormError };
+export type { FormSectionProps };

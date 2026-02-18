@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useFormContext } from 'react-hook-form';
 
 import { CheckboxField } from '@/shared/tailwind-ui';
 import { RESULT_PROPERTIES, RESULT_TYPE } from '@/shared/types';
 
-import { FormSection, FormSectionSubheader } from '../components';
+import { FormSection, FormSectionSubheader, FormError } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type ResultSectionProps = {
@@ -14,33 +14,19 @@ export type ResultSectionProps = {
 };
 
 export const ResultSection = (props: ResultSectionProps) => {
-	const { control, formState, getFieldState } =
+	const { control, formState } =
 		useFormContext<HistoryGlobalSearchFormValues>();
 
-	const resultPropsError =
-		formState.errors.resultProperties &&
-		getFieldState('resultProperties').isTouched
-			? formState.errors.resultProperties.message
-			: undefined;
-
-	const resultsError =
-		formState.errors.results && getFieldState('results').isTouched
-			? formState.errors.results.message
-			: undefined;
-
-	const resultSectionError = (resultPropsError || resultsError || undefined) as
+	const resultPropsError = formState.errors.resultProperties?.message as
 		| string
 		| undefined;
+	const resultsError = formState.errors.results?.message as string | undefined;
 
 	return (
 		<FormSection>
 			<FormSection.Bar className="bg-bg-warning" />
 			<div className="mb-5">
-				<FormSection.Header
-					className="mb-0"
-					name="Result"
-					error={resultSectionError}
-				>
+				<FormSection.Header className="mb-0" name="Result">
 					<FormSection.ResetToDefaultButton
 						helpMessage="Reset result section to defaults"
 						onClick={props.onResetResultSectionDefaultClick}
@@ -51,6 +37,11 @@ export const ResultSection = (props: ResultSectionProps) => {
 					/>
 				</FormSection.Header>
 				<FormSectionSubheader name="Result type classification" />
+				{resultPropsError ? (
+					<div className="mb-3">
+						<FormError subtitle={resultPropsError} />
+					</div>
+				) : null}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					<CheckboxField
 						iconName="TriangleExclamationMark"
@@ -82,6 +73,11 @@ export const ResultSection = (props: ResultSectionProps) => {
 			</div>
 			<div>
 				<FormSectionSubheader name="Obtained result" />
+				{resultsError ? (
+					<div className="mb-3">
+						<FormError subtitle={resultsError} />
+					</div>
+				) : null}
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					<CheckboxField
 						iconName="BoxCheckmark"

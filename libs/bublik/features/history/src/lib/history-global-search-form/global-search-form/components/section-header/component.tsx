@@ -1,16 +1,15 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { ComponentPropsWithRef, forwardRef } from 'react';
 
 export interface FormSectionHeaderProps extends ComponentPropsWithRef<'div'> {
 	name: string;
-	error?: string;
 }
 
 export const FormSectionHeader = forwardRef<
 	HTMLDivElement,
 	FormSectionHeaderProps
->(({ name, error, children, ...props }, ref) => {
+>(({ name, children, ...props }, ref) => {
 	return (
 		<div className="mb-4" {...props}>
 			<div className="flex items-center justify-between gap-2 pl-2" ref={ref}>
@@ -23,11 +22,6 @@ export const FormSectionHeader = forwardRef<
 					</div>
 				) : null}
 			</div>
-			{error && (
-				<span className="inline-flex pt-1 text-[0.75rem] font-medium leading-[1rem] text-text-unexpected">
-					{error}
-				</span>
-			)}
 		</div>
 	);
 });

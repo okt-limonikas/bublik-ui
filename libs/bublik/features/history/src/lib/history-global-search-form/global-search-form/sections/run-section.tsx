@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
@@ -11,7 +11,7 @@ import {
 } from '@/shared/tailwind-ui';
 import { RUN_PROPERTIES } from '@/shared/types';
 
-import { ExpressionToggleButton, FormSection } from '../components';
+import { ExpressionToggleButton, FormSection, FormError } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type RunSectionProps = {
@@ -20,7 +20,7 @@ export type RunSectionProps = {
 };
 
 export const RunSection = (props: RunSectionProps) => {
-	const { control, formState, getFieldState, watch } =
+	const { control, formState, watch } =
 		useFormContext<HistoryGlobalSearchFormValues>();
 	const [isLabelExpressionVisible, setIsLabelExpressionVisible] = useState(() =>
 		Boolean(watch('labelExpr'))
@@ -34,16 +34,14 @@ export const RunSection = (props: RunSectionProps) => {
 		Boolean(watch('tagExpr'))
 	);
 
-	const runPropsError = (
-		formState.errors.runProperties && getFieldState('runProperties').isTouched
-			? formState.errors.runProperties.message
-			: undefined
-	) as string | undefined;
+	const runPropsError = formState.errors.runProperties?.message as
+		| string
+		| undefined;
 
 	return (
 		<FormSection>
 			<FormSection.Bar className="bg-bg-ok" />
-			<FormSection.Header name="Run" error={runPropsError}>
+			<FormSection.Header name="Run">
 				<FormSection.ResetToDefaultButton
 					helpMessage="Reset run section to defaults"
 					onClick={props.onResetRunSectionDefaultClick}
@@ -166,6 +164,11 @@ export const RunSection = (props: RunSectionProps) => {
 				) : null}
 			</div>
 			<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+				{runPropsError ? (
+					<div className="col-span-2">
+						<FormError subtitle={runPropsError} />
+					</div>
+				) : null}
 				<CheckboxField
 					iconName="InformationCircleForbidden"
 					iconSize={16}
