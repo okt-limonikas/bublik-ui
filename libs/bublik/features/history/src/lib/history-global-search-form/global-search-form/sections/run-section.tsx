@@ -11,7 +11,12 @@ import {
 } from '@/shared/tailwind-ui';
 import { RUN_PROPERTIES } from '@/shared/types';
 
-import { ExpressionToggleButton, FormSection, FormError } from '../components';
+import {
+	ExpressionToggleButton,
+	FieldResetButton,
+	FormSection,
+	FormError
+} from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type RunSectionProps = {
@@ -20,7 +25,7 @@ export type RunSectionProps = {
 };
 
 export const RunSection = (props: RunSectionProps) => {
-	const { control, formState, watch } =
+	const { control, formState, watch, setValue } =
 		useFormContext<HistoryGlobalSearchFormValues>();
 	const [isLabelExpressionVisible, setIsLabelExpressionVisible] = useState(() =>
 		Boolean(watch('labelExpr'))
@@ -73,6 +78,18 @@ export const RunSection = (props: RunSectionProps) => {
 							label="Labels"
 							placeholder="label"
 							control={control}
+							labelTrailingContent={
+								<FieldResetButton
+									helpMessage="Clear labels"
+									onClick={(event) => {
+										event.stopPropagation();
+										setValue('labels', [], {
+											shouldDirty: true,
+											shouldTouch: true
+										});
+									}}
+								/>
+							}
 						/>
 					</div>
 					<ExpressionToggleButton
@@ -96,6 +113,18 @@ export const RunSection = (props: RunSectionProps) => {
 							label="Branches"
 							placeholder="master"
 							control={control}
+							labelTrailingContent={
+								<FieldResetButton
+									helpMessage="Clear branches"
+									onClick={(event) => {
+										event.stopPropagation();
+										setValue('branches', [], {
+											shouldDirty: true,
+											shouldTouch: true
+										});
+									}}
+								/>
+							}
 						/>
 					</div>
 					<ExpressionToggleButton
@@ -121,6 +150,18 @@ export const RunSection = (props: RunSectionProps) => {
 							label="Revisions"
 							placeholder="8af383125f20cc5ecdb8393bf"
 							control={control}
+							labelTrailingContent={
+								<FieldResetButton
+									helpMessage="Clear revisions"
+									onClick={(event) => {
+										event.stopPropagation();
+										setValue('revisions', [], {
+											shouldDirty: true,
+											shouldTouch: true
+										});
+									}}
+								/>
+							}
 						/>
 					</div>
 					<ExpressionToggleButton
@@ -146,6 +187,18 @@ export const RunSection = (props: RunSectionProps) => {
 							name="runData"
 							placeholder="medford"
 							control={control}
+							labelTrailingContent={
+								<FieldResetButton
+									helpMessage="Clear tags"
+									onClick={(event) => {
+										event.stopPropagation();
+										setValue('runData', [], {
+											shouldDirty: true,
+											shouldTouch: true
+										});
+									}}
+								/>
+							}
 						/>
 					</div>
 					<ExpressionToggleButton

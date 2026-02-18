@@ -5,7 +5,11 @@ import { useFormContext } from 'react-hook-form';
 
 import { TextField, BadgeField } from '@/shared/tailwind-ui';
 
-import { ExpressionToggleButton, FormSection } from '../components';
+import {
+	ExpressionToggleButton,
+	FieldResetButton,
+	FormSection
+} from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
 export type TestSectionProps = {
@@ -14,7 +18,8 @@ export type TestSectionProps = {
 };
 
 export const TestSection = (props: TestSectionProps) => {
-	const { control, watch } = useFormContext<HistoryGlobalSearchFormValues>();
+	const { control, watch, setValue } =
+		useFormContext<HistoryGlobalSearchFormValues>();
 	const [isParametersExpressionVisible, setIsParametersExpressionVisible] =
 		useState(() => Boolean(watch('testArgExpr')));
 
@@ -56,6 +61,18 @@ export const TestSection = (props: TestSectionProps) => {
 							label="Parameters"
 							placeholder="time_limit:30"
 							control={control}
+							labelTrailingContent={
+								<FieldResetButton
+									helpMessage="Clear parameters"
+									onClick={(event) => {
+										event.stopPropagation();
+										setValue('parameters', [], {
+											shouldDirty: true,
+											shouldTouch: true
+										});
+									}}
+								/>
+							}
 						/>
 					</div>
 					<ExpressionToggleButton

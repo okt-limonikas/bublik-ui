@@ -69,7 +69,9 @@ export const GlobalSearchForm = (props: GlobalSearchFormProps) => {
 								form.resetResultSectionToDefault
 							}
 						/>
-						<VerdictSection />
+						<VerdictSection
+							onResetVerdictSectionClick={form.resetVerdictSection}
+						/>
 						<StickySubmit
 							onResetClick={form.resetForm}
 							isScrollable={isVisible}

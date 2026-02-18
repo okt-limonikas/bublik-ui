@@ -6,10 +6,18 @@ import { useFormContext } from 'react-hook-form';
 import { VERDICT_TYPE } from '@/shared/types';
 import { BadgeField, TextField, cn } from '@/shared/tailwind-ui';
 
-import { ExpressionToggleButton, FormSection } from '../components';
+import {
+	ExpressionToggleButton,
+	FieldResetButton,
+	FormSection
+} from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
 
-export const VerdictSection = () => {
+export type VerdictSectionProps = {
+	onResetVerdictSectionClick: () => void;
+};
+
+export const VerdictSection = (props: VerdictSectionProps) => {
 	const { control, watch, setValue } =
 		useFormContext<HistoryGlobalSearchFormValues>();
 	const [isVerdictExpressionVisible, setIsVerdictExpressionVisible] = useState(
@@ -76,6 +84,19 @@ export const VerdictSection = () => {
 		</div>
 	);
 
+	const lookupControls = (
+		<div className="inline-flex items-center gap-1">
+			{lookupButtons}
+			<FieldResetButton
+				helpMessage="Clear verdict filters"
+				onClick={(event) => {
+					event.stopPropagation();
+					props.onResetVerdictSectionClick();
+				}}
+			/>
+		</div>
+	);
+
 	return (
 		<FormSection>
 			<FormSection.Bar className="bg-bg-compromised" />
@@ -95,7 +116,7 @@ export const VerdictSection = () => {
 							}
 							disabled={verdictLookup === VERDICT_TYPE.None}
 							control={control}
-							labelTrailingContent={lookupButtons}
+							labelTrailingContent={lookupControls}
 						/>
 					</div>
 					<ExpressionToggleButton
