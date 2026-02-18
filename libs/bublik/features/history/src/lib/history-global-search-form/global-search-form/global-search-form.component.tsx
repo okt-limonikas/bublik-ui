@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { FormProvider } from 'react-hook-form';
 
+import { useIsScrollbarVisible } from '@/shared/hooks';
 import { ButtonTw, Icon, cn } from '@/shared/tailwind-ui';
 
 import {
@@ -19,7 +20,6 @@ import {
 	ResultSection,
 	VerdictSection
 } from './sections';
-import { useIsScrollbarVisible } from '@/shared/hooks';
 
 export interface GlobalSearchFormProps {
 	initialValues?: HistoryGlobalSearchFormValues;
@@ -131,7 +131,7 @@ const StickySubmit = (props: StickySubmitProps) => {
 				</ButtonTw>
 			</div>
 			<div className="mt-2 text-[0.75rem] leading-4 text-text-menu">
-				Tip: press Ctrl + Enter to submit
+				Tip: press Ctrl/Cmd + Enter to submit
 			</div>
 		</div>
 	);

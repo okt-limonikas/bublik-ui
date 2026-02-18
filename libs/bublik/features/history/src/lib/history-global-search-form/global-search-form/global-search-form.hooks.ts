@@ -155,7 +155,12 @@ export const useCtrlEnterSubmit = (config: UseCtrlEnterSubmitConfig) => {
 
 	useEffect(() => {
 		const handleSubmitShortcut = (e: globalThis.KeyboardEvent) => {
-			if (e.key === 'Enter' && e.ctrlKey) methods.handleSubmit(onSubmit)();
+			if (e.key !== 'Enter') return;
+			if (!e.ctrlKey && !e.metaKey) return;
+			if (e.isComposing || e.repeat) return;
+
+			e.preventDefault();
+			methods.handleSubmit(onSubmit)();
 		};
 
 		document?.addEventListener('keydown', handleSubmitShortcut);
