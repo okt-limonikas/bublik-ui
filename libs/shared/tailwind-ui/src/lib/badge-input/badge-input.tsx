@@ -32,11 +32,23 @@ export interface BadgeInputProps {
 	disabled?: boolean;
 	icon?: ReactNode;
 	name?: string;
+	keyValueDisplayDelimiter?: string;
+	keyValueSubmitDelimiter?: string;
 }
 
 export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 	(
-		{ label, onBadgesChange, badges = [], placeholder, icon, disabled, name },
+		{
+			label,
+			onBadgesChange,
+			badges = [],
+			placeholder,
+			icon,
+			disabled,
+			name,
+			keyValueDisplayDelimiter,
+			keyValueSubmitDelimiter
+		},
 		ref
 	) => {
 		const [value, setValue] = useState('');
@@ -61,14 +73,21 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 			) {
 				e.preventDefault();
 
-				const parsedBadges: BadgeItem[] = parseBadgeString(input).map(
-					(value) => ({
-						id: nanoid(4),
-						value,
-						originalValue: value,
-						isExpression: false
-					})
-				);
+				const parsedConfig = {
+					separator: ',',
+					displayDelimiter: keyValueDisplayDelimiter ?? ':',
+					submitDelimiter: keyValueSubmitDelimiter ?? '='
+				};
+
+				const parsedBadges: BadgeItem[] = parseBadgeString(
+					input,
+					parsedConfig
+				).map((value) => ({
+					id: nanoid(4),
+					value,
+					originalValue: value,
+					isExpression: false
+				}));
 				const newBadgesValue = [...badges, ...parsedBadges];
 
 				setValue('');
@@ -182,7 +201,14 @@ export const BadgeInput = forwardRef<HTMLDivElement, BadgeInputProps>(
 					) : null}
 
 					<div className="flex flex-wrap flex-grow h-full">
-						{!disabled ? <BadgeList label={label} badges={badges} /> : null}
+						{!disabled ? (
+							<BadgeList
+								label={label}
+								badges={badges}
+								keyValueDisplayDelimiter={keyValueDisplayDelimiter}
+								keyValueSubmitDelimiter={keyValueSubmitDelimiter}
+							/>
+						) : null}
 						<input
 							className="flex w-full outline-none disabled:bg-bg-body pr-2 pl-4 py-2 cursor-[inherit] bg-transparent placeholder:text-text-menu border-none text-text-secondary leading-[1.5rem] font-medium text-[0.875rem] focus:ring-transparent"
 							value={value}

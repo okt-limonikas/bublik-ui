@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useFormContext } from 'react-hook-form';
 
+import { config } from '@/bublik/config';
 import { TextField, BadgeField } from '@/shared/tailwind-ui';
 
 import { FormSectionHeader, IconButton } from '../components';
@@ -50,6 +51,8 @@ export const TestSection = (props: TestSectionProps) => {
 					label="Parameters"
 					placeholder="time_limit:30"
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name={'testArgExpr'}

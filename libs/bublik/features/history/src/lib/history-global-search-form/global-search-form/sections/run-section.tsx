@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useFormContext } from 'react-hook-form';
 
+import { config } from '@/bublik/config';
 import {
 	TextField,
 	BadgeField,
@@ -56,6 +57,8 @@ export const RunSection = (props: RunSectionProps) => {
 					label="Labels"
 					placeholder="label"
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name="labelExpr"
@@ -68,6 +71,8 @@ export const RunSection = (props: RunSectionProps) => {
 					label="Branches"
 					placeholder="master"
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name={'branchExpr'}
@@ -80,6 +85,8 @@ export const RunSection = (props: RunSectionProps) => {
 					label="Revisions"
 					placeholder="8af383125f20cc5ecdb8393bf"
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name={'revisionExpr'}
@@ -92,6 +99,8 @@ export const RunSection = (props: RunSectionProps) => {
 					name="runData"
 					placeholder="medford"
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name="tagExpr"
