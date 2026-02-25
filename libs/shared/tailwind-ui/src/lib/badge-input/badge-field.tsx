@@ -10,6 +10,8 @@ export type BadgeFieldProps<T extends FieldValues> = {
 	label: string;
 	placeholder: BadgeInputProps['placeholder'];
 	disabled?: BadgeInputProps['disabled'];
+	keyValueDisplayDelimiter?: BadgeInputProps['keyValueDisplayDelimiter'];
+	keyValueSubmitDelimiter?: BadgeInputProps['keyValueSubmitDelimiter'];
 };
 
 export const BadgeField = <T extends FieldValues>(

@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useFormContext } from 'react-hook-form';
 
+import { config } from '@/bublik/config';
 import { VERDICT_TYPE } from '@/shared/types';
 import { RadioField, BadgeField, TextField } from '@/shared/tailwind-ui';
 
@@ -55,6 +56,8 @@ export const VerdictSection = () => {
 					}
 					disabled={watch('verdictLookup') === VERDICT_TYPE.None}
 					control={control}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
 				/>
 				<TextField
 					name={'verdictExpr'}
