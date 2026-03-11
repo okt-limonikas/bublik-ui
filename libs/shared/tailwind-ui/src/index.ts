@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+export * from './lib/breadcrumb/breadcrumb';
 export * from './lib/badge-input';
 export * from './lib/checkbox';
 export * from './lib/radio';

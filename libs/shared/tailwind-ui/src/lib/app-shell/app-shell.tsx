@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import {
+	CSSProperties,
 	PropsWithChildren,
 	ReactNode,
 	useCallback,
@@ -11,6 +12,10 @@ import { useLocalStorage, useKey } from '@/shared/hooks';
 import { isFocusInInput } from '@/shared/utils';
 
 import { SidebarProvider, useSidebar } from './context';
+import {
+	APP_SIDEBAR_COLLAPSED_WIDTH,
+	APP_SIDEBAR_WIDTH
+} from './sidebar.constants';
 import { cn } from '../utils';
 
 const SidebarStory = () => {
@@ -18,10 +23,10 @@ const SidebarStory = () => {
 
 	return (
 		<div
-			className={cn(
-				'sticky top-0 z-20 h-screen bg-white',
-				isSidebarOpen ? 'w-[245px]' : 'w-[49px]'
-			)}
+			className="sticky top-0 z-20 h-screen bg-white/80 backdrop-blur-sm transition-[width] duration-300 ease-out"
+			style={{
+				width: isSidebarOpen ? APP_SIDEBAR_WIDTH : APP_SIDEBAR_COLLAPSED_WIDTH
+			}}
 		/>
 	);
 };
@@ -53,6 +58,11 @@ export const AppShell = ({
 	);
 
 	const isSidebarVisible = !hideSidebar;
+	const sidebarWidth = isSidebarVisible
+		? isSidebarOpen
+			? APP_SIDEBAR_WIDTH
+			: APP_SIDEBAR_COLLAPSED_WIDTH
+		: '0px';
 
 	const toggleSidebar = useCallback(() => {
 		if (!isSidebarVisible) return;
@@ -72,13 +82,22 @@ export const AppShell = ({
 	);
 
 	return (
-		<div className="relative flex h-full" data-testid="tw-app-shell">
+		<div
+			className="relative flex h-full"
+			data-testid="tw-app-shell"
+			style={{ '--app-shell-sidebar-width': sidebarWidth } as CSSProperties}
+		>
 			<SidebarProvider
 				isSidebarOpen={isSidebarVisible ? isSidebarOpen : false}
+				setSidebarOpen={setIsSidebarOpen}
 				toggleSidebar={toggleSidebar}
 			>
 				{isSidebarVisible ? (
-					<div className="sticky top-0 z-20 h-screen h-svh" id="sidebar">
+					<div
+						className="sticky top-0 z-20 h-screen h-svh shrink-0 transition-[width] duration-300 ease-out"
+						id="sidebar"
+						style={{ width: sidebarWidth }}
+					>
 						{sidebar}
 					</div>
 				) : null}

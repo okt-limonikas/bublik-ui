@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { PropsWithChildren, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { AppShell, ErrorBoundary, Spinner } from '@/shared/tailwind-ui';
 import { HIDE_SIDEBAR_QUERY_KEY } from '@/bublik/features/projects';
 import { Sidebar } from '@/bublik/features/sidebar';
+
+import { AppBreadcrumbs } from './app-breadcrumbs';
 
 const parseHideSidebarQuery = (value: string | null) => {
 	if (!value) return null;
@@ -28,7 +30,14 @@ export const Layout = (props: PropsWithChildren) => {
 		<AppShell sidebar={<Sidebar />} hideSidebar={hideSidebar}>
 			<ErrorBoundary>
 				<Suspense fallback={<Spinner className="h-screen" />}>
-					{props.children}
+					<div className="flex min-h-full flex-col">
+						{hideSidebar ? null : (
+							<div className="px-4 pb-3 pt-4 md:px-6">
+								<AppBreadcrumbs />
+							</div>
+						)}
+						<div className="min-h-0 flex-1">{props.children}</div>
+					</div>
 				</Suspense>
 			</ErrorBoundary>
 		</AppShell>

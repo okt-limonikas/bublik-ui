@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { createContext, FC, ReactNode, useContext } from 'react';
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+import { createContext, FC, ReactNode, useCallback, useContext } from 'react';
 
 export interface SidebarContext {
-	isSidebarOpen?: boolean;
-	toggleSidebar?: () => void;
+	isSidebarOpen: boolean;
+	isSidebarCollapsed: boolean;
+	sidebarState: 'expanded' | 'collapsed';
+	toggleSidebar: () => void;
+	setSidebarOpen: (open: boolean) => void;
 }
 
 export const SidebarContext = createContext<SidebarContext | null>(null);
@@ -20,18 +23,46 @@ export const useSidebar = () => {
 	return context;
 };
 
-export interface SidebarProviderProps extends SidebarContext {
+export interface SidebarProviderProps {
+	isSidebarOpen?: boolean;
+	toggleSidebar?: () => void;
+	setSidebarOpen?: (open: boolean) => void;
 	children?: ReactNode;
 }
 
 export const SidebarProvider: FC<SidebarProviderProps> = ({
 	isSidebarOpen = true,
+	setSidebarOpen,
 	// eslint-disable-next-line @typescript-eslint/no-empty-function
 	toggleSidebar = () => {},
 	children
 }) => {
+	const handleSetSidebarOpen = useCallback(
+		(open: boolean) => {
+			setSidebarOpen?.(open);
+		},
+		[setSidebarOpen]
+	);
+
+	const handleToggleSidebar = useCallback(() => {
+		if (setSidebarOpen) {
+			setSidebarOpen(!isSidebarOpen);
+			return;
+		}
+
+		toggleSidebar();
+	}, [isSidebarOpen, setSidebarOpen, toggleSidebar]);
+
 	return (
-		<SidebarContext.Provider value={{ isSidebarOpen, toggleSidebar }}>
+		<SidebarContext.Provider
+			value={{
+				isSidebarOpen,
+				isSidebarCollapsed: !isSidebarOpen,
+				sidebarState: isSidebarOpen ? 'expanded' : 'collapsed',
+				toggleSidebar: handleToggleSidebar,
+				setSidebarOpen: handleSetSidebarOpen
+			}}
+		>
 			{children}
 		</SidebarContext.Provider>
 	);

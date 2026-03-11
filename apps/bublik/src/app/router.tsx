@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { lazy, useEffect, useState, Suspense } from 'react';
 import {
 	Outlet,
+	To,
 	createBrowserRouter,
 	RouterProvider,
 	useLocation
@@ -77,6 +78,23 @@ const RunReportPage = lazy(() =>
 		default: module.RunReportPage
 	}))
 );
+
+type BreadcrumbItem = {
+	label: string;
+	to?: To;
+};
+
+type BreadcrumbResolver =
+	| BreadcrumbItem[]
+	| ((params: Record<string, string | undefined>) => BreadcrumbItem[]);
+
+const breadcrumb = (breadcrumbs: BreadcrumbResolver) => ({ breadcrumbs });
+
+const formatEntityLabel = (prefix: string, value?: string) => {
+	if (!value) return prefix;
+
+	return `${prefix} ${value.slice(0, 8)}`;
+};
 
 function BublikCommand() {
 	const [open, setOpen] = useState(false);
@@ -210,32 +228,61 @@ const router = createBrowserRouter(
 					ErrorBoundary: () => <ErrorBoundary />,
 					children: [
 						{ path: '/', element: <RedirectToDashboard /> },
-						{ path: '/dashboard', element: <DashboardPageV2 /> },
+						{
+							path: '/dashboard',
+							element: <DashboardPageV2 />,
+							handle: breadcrumb([{ label: 'Dashboard' }])
+						},
 						{
 							path: '/tools/packet-viewer',
 							element: (
 								<LazyRoute>
 									<NetPacketAnalyzerPage />
 								</LazyRoute>
-							)
+							),
+							handle: breadcrumb([
+								{ label: 'Tools' },
+								{ label: 'Packet Viewer' }
+							])
 						},
 						{
 							path: '/history',
-							element: <HistoryPageV2 />
+							element: <HistoryPageV2 />,
+							handle: breadcrumb([{ label: 'History' }])
 						},
 						{
 							path: '/history/v2',
-							element: <HistoryPageV2 />
+							element: <HistoryPageV2 />,
+							handle: breadcrumb([{ label: 'History' }])
 						},
 						{ path: '/log/:runId/:old', element: <RedirectToLogPage /> },
-						{ path: '/log/:runId', element: <LogPage /> },
+						{
+							path: '/log/:runId',
+							element: <LogPage />,
+							handle: breadcrumb((params) => [
+								{ label: 'Runs', to: '/runs' },
+								{
+									label: formatEntityLabel('Run', params.runId),
+									to: `/runs/${params.runId}`
+								},
+								{ label: 'Log' }
+							])
+						},
 						{
 							path: '/runs/:runId/report',
 							element: (
 								<LazyRoute>
 									<RunReportPage />
 								</LazyRoute>
-							)
+							),
+							handle: breadcrumb((params) => [
+								{ label: 'Runs', to: '/runs' },
+								{
+									label: formatEntityLabel('Run', params.runId),
+									to: `/runs/${params.runId}`
+								},
+								{ label: 'Report' }
+							])
 						},
 						{
 							path: '/runs/:runId/results/:resultId/measurements',
@@ -243,21 +290,50 @@ const router = createBrowserRouter(
 								<LazyRoute>
 									<MeasurementsPage />
 								</LazyRoute>
-							)
+							),
+							handle: breadcrumb((params) => [
+								{ label: 'Runs', to: '/runs' },
+								{
+									label: formatEntityLabel('Run', params.runId),
+									to: `/runs/${params.runId}`
+								},
+								{ label: formatEntityLabel('Result', params.resultId) },
+								{ label: 'Measurements' }
+							])
 						},
 						{
 							path: '/runs',
-							element: <RunsPage />
+							element: <RunsPage />,
+							handle: breadcrumb([{ label: 'Runs' }])
 						},
-						{ path: '/compare', element: <RunDiffPage /> },
-						{ path: '/multiple', element: <RunMultiplePage /> },
+						{
+							path: '/compare',
+							element: <RunDiffPage />,
+							handle: breadcrumb([
+								{ label: 'Runs', to: '/runs' },
+								{ label: 'Compare' }
+							])
+						},
+						{
+							path: '/multiple',
+							element: <RunMultiplePage />,
+							handle: breadcrumb([
+								{ label: 'Runs', to: '/runs' },
+								{ label: 'Multiple' }
+							])
+						},
 						{
 							path: '/runs/:runId',
-							element: <RunPage />
+							element: <RunPage />,
+							handle: breadcrumb((params) => [
+								{ label: 'Runs', to: '/runs' },
+								{ label: formatEntityLabel('Run', params.runId) }
+							])
 						},
 						{
 							path: '/admin',
 							element: <DevelopersLayout />,
+							handle: breadcrumb([{ label: 'Admin' }]),
 							children: [
 								{
 									path: 'import',
@@ -265,16 +341,31 @@ const router = createBrowserRouter(
 										<LazyRoute>
 											<ImportPage />
 										</LazyRoute>
-									)
+									),
+									handle: breadcrumb([
+										{ label: 'Admin', to: '/admin/import' },
+										{ label: 'Import' }
+									])
 								},
-								{ path: 'flower', element: <FlowerFeature /> },
+								{
+									path: 'flower',
+									element: <FlowerFeature />,
+									handle: breadcrumb([
+										{ label: 'Admin', to: '/admin/import' },
+										{ label: 'Flower' }
+									])
+								},
 								{
 									path: 'users',
 									element: (
 										<LazyRoute>
 											<AdminUsersPage />
 										</LazyRoute>
-									)
+									),
+									handle: breadcrumb([
+										{ label: 'Admin', to: '/admin/import' },
+										{ label: 'Users' }
+									])
 								},
 								{
 									path: 'config',
@@ -282,16 +373,37 @@ const router = createBrowserRouter(
 										<LazyRoute>
 											<ConfigsPage />
 										</LazyRoute>
-									)
+									),
+									handle: breadcrumb([
+										{ label: 'Admin', to: '/admin/import' },
+										{ label: 'Configs' }
+									])
 								},
-								{ element: <NoMatchFeature /> }
+								{
+									element: <NoMatchFeature />,
+									handle: breadcrumb([{ label: 'Not Found' }])
+								}
 							]
 						},
 						{
 							path: '/help',
-							children: [{ path: 'faq', element: <HelpPage /> }]
+							handle: breadcrumb([{ label: 'Help' }]),
+							children: [
+								{
+									path: 'faq',
+									element: <HelpPage />,
+									handle: breadcrumb([
+										{ label: 'Help', to: '/help/faq' },
+										{ label: 'FAQ' }
+									])
+								}
+							]
 						},
-						{ path: '*', element: <NoMatchFeature /> }
+						{
+							path: '*',
+							element: <NoMatchFeature />,
+							handle: breadcrumb([{ label: 'Not Found' }])
+						}
 					]
 				}
 			]

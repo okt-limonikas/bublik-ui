@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { Icon } from '@/shared/tailwind-ui';
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+import { ReactNode } from 'react';
+
+import { Icon, cn, useSidebar } from '@/shared/tailwind-ui';
 import { config } from '@/bublik/config';
 
 import { SettingsModal } from '@/bublik/features/settings';
@@ -67,17 +69,52 @@ const getNavSections = () => {
 
 const links = getNavSections();
 
-export const BottomNavigation = () => {
+function SectionLabel({ children }: { children: ReactNode }) {
+	const { isSidebarOpen } = useSidebar();
+
 	return (
-		<ul className="flex flex-col gap-3">
-			<li>
+		<div
+			className={cn(
+				'px-3 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-text-menu transition-all duration-200',
+				isSidebarOpen
+					? 'translate-y-0 opacity-100'
+					: 'pointer-events-none -translate-y-1 opacity-0'
+			)}
+		>
+			{children}
+		</div>
+	);
+}
+
+export const BottomNavigation = () => {
+	const [adminLink, helpLink] = links;
+
+	return (
+		<nav aria-label="Secondary navigation" className="flex flex-col gap-5">
+			<section className="flex flex-col gap-2">
+				<SectionLabel>Preferences</SectionLabel>
 				<SettingsModal />
-			</li>
-			{links.map((item) => (
-				<li key={item.label}>
-					<NavLink {...item} />
-				</li>
-			))}
-		</ul>
+			</section>
+			{adminLink ? (
+				<section className="flex flex-col gap-2">
+					<SectionLabel>Administration</SectionLabel>
+					<ul className="flex flex-col gap-1.5">
+						<li>
+							<NavLink {...adminLink} />
+						</li>
+					</ul>
+				</section>
+			) : null}
+			{helpLink ? (
+				<section className="flex flex-col gap-2">
+					<SectionLabel>Support</SectionLabel>
+					<ul className="flex flex-col gap-1.5">
+						<li>
+							<NavLink {...helpLink} />
+						</li>
+					</ul>
+				</section>
+			) : null}
+		</nav>
 	);
 };

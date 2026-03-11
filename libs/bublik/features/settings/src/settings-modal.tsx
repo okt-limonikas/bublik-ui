@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { BooleanParam, useQueryParam, withDefault } from 'use-query-params';
 import { Icon, ProfilePicture, toast, useSidebar } from '@/shared/tailwind-ui';
 import {
@@ -38,16 +40,33 @@ export function SettingsModal() {
 			<DialogTrigger asChild>
 				<button
 					className={cn(
-						'h-10 w-full justify-start gap-3 rounded-lg pr-2.5 text-text-menu shadow-none transition-all duration-200',
-						'flex rounded-[0.625rem] items-center hover:text-primary transition-[margin-bottom] group relative',
-						isSidebarOpen ? 'pl-4' : 'pl-2.5',
-						open && 'bg-primary-wash text-primary'
+						'group relative flex min-h-[46px] w-full items-center overflow-hidden rounded-xl border transition-all duration-200 ease-out',
+						'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+						open
+							? 'border-[rgba(98,126,251,0.18)] bg-primary-wash text-primary shadow-[0_10px_24px_rgba(98,126,251,0.12)]'
+							: 'border-transparent text-text-secondary hover:border-[rgba(148,163,184,0.14)] hover:bg-primary-wash hover:text-text-primary',
+						isSidebarOpen ? 'pl-3 pr-2' : 'justify-center px-0'
 					)}
+					type="button"
 				>
-					<div className="size-7 grid place-items-center">
-						<Icon name="SettingsSliders" size={24} className="shrink-0" />
+					{open && isSidebarOpen ? (
+						<div className="absolute left-1.5 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-primary" />
+					) : null}
+					<div
+						className={cn(
+							'grid size-10 shrink-0 place-items-center rounded-xl transition-all duration-200',
+							open
+								? 'bg-white text-primary shadow-[0_4px_16px_rgba(98,126,251,0.18)]'
+								: 'text-text-menu group-hover:text-primary'
+						)}
+					>
+						<Icon name="SettingsSliders" size={22} className="shrink-0" />
 					</div>
-					<span className="truncate text-[1.125rem] font-medium">Settings</span>
+					{isSidebarOpen ? (
+						<span className="truncate text-[0.95rem] font-medium tracking-[-0.01em]">
+							Settings
+						</span>
+					) : null}
 				</button>
 			</DialogTrigger>
 			<DialogPortal>
