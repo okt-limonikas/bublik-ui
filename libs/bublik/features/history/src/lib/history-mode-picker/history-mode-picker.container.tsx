@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { Spinner } from '@/shared/tailwind-ui';
@@ -33,7 +33,16 @@ export const HistoryPageModePickerContainer = () => {
 	const [searchParams] = useSearchParams();
 	const mode = searchParams.get('mode');
 
-	useUnmount(() => actions.resetGlobalFilter());
+	useEffect(() => {
+		if (mode === 'linear' || mode === 'aggregation') return;
+
+		actions.resetAppliedSearchState();
+	}, [actions, mode]);
+
+	useUnmount(() => {
+		actions.resetGlobalFilter();
+		actions.resetAppliedSearchState();
+	});
 	useSyncHistoryQueryToState();
 
 	if (mode === 'linear') return <HistoryLinearContainer />;

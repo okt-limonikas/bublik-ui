@@ -27,6 +27,7 @@ export type HistorySliceState = {
 	isGlobalSearchFormOpen: boolean;
 	globalFilter: HistoryGlobalFilter;
 	searchForm: HistorySearchFormState;
+	appliedSearchState: HistorySearchFormState | null;
 };
 
 export type HistorySearchFormState = HistoryStateSearch;

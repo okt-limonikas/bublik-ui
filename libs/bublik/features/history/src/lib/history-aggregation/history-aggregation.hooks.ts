@@ -7,34 +7,39 @@ import { OnChangeFn } from '@tanstack/react-table';
 import { HistoryAggregationGlobalFilter } from './history-aggregation.types';
 
 import { isFunction } from '@/shared/utils';
-import { selectAggregationGlobalFilter, useHistoryActions } from '../slice';
+import {
+	selectAggregationGlobalFilter,
+	selectSearchState,
+	useHistoryActions
+} from '../slice';
+import { applyGlobalFilterToSearchState } from '../slice/history-slice.utils';
 
 export const useAggregationGlobalFilter = () => {
 	const actions = useHistoryActions();
 	const globalFilter = useSelector(selectAggregationGlobalFilter);
+	const searchState = useSelector(selectSearchState);
 
 	const handleGlobalFilterChange: OnChangeFn<HistoryAggregationGlobalFilter> =
 		useCallback(
 			(updaterOrValue) => {
-				if (isFunction(updaterOrValue)) {
-					const newValue = updaterOrValue(globalFilter);
+				const nextGlobalFilter = isFunction(updaterOrValue)
+					? updaterOrValue(globalFilter)
+					: updaterOrValue;
 
-					actions.updateAggregationGlobalFilter({
-						verdicts: newValue.verdicts,
-						isNotExpected: newValue.isNotExpected,
-						resultType: newValue.resultType,
-						parameters: newValue.parameters
-					});
-				} else {
-					actions.updateAggregationGlobalFilter({
-						verdicts: updaterOrValue.verdicts,
-						isNotExpected: updaterOrValue.isNotExpected,
-						resultType: updaterOrValue.resultType,
-						parameters: updaterOrValue.parameters
-					});
-				}
+				actions.updateSearchForm(
+					applyGlobalFilterToSearchState(searchState, {
+						...globalFilter,
+						...nextGlobalFilter
+					})
+				);
+				actions.updateAggregationGlobalFilter({
+					verdicts: nextGlobalFilter.verdicts,
+					isNotExpected: nextGlobalFilter.isNotExpected,
+					resultType: nextGlobalFilter.resultType,
+					parameters: nextGlobalFilter.parameters
+				});
 			},
-			[actions, globalFilter]
+			[actions, globalFilter, searchState]
 		);
 
 	return { globalFilter, handleGlobalFilterChange };

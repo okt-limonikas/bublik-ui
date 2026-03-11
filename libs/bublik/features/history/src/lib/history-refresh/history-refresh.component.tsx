@@ -7,9 +7,13 @@ import { ButtonTw, Icon } from '@/shared/tailwind-ui';
 
 interface RefreshButtonProps {
 	onRefreshClick?: () => void;
+	hasPendingChanges?: boolean;
 }
 
-export const HistoryRefresh: FC<RefreshButtonProps> = ({ onRefreshClick }) => {
+export const HistoryRefresh: FC<RefreshButtonProps> = ({
+	onRefreshClick,
+	hasPendingChanges = false
+}) => {
 	const controls = useAnimation();
 
 	const handleClick = async () => {
@@ -27,7 +31,12 @@ export const HistoryRefresh: FC<RefreshButtonProps> = ({ onRefreshClick }) => {
 	};
 
 	return (
-		<ButtonTw variant="primary" size="md" rounded="lg" onClick={handleClick}>
+		<ButtonTw
+			variant={hasPendingChanges ? 'primary' : 'outline'}
+			size="md"
+			rounded="lg"
+			onClick={handleClick}
+		>
 			<motion.div animate={controls} className="mr-2">
 				<Icon name="Refresh" />
 			</motion.div>

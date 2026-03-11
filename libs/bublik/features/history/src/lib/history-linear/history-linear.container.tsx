@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useGetHistoryLinearQuery } from '@/services/bublik-api';
@@ -17,6 +17,7 @@ import {
 } from './history-linear.component';
 import { HistoryEmpty } from '../history-empty';
 import { HistoryError } from '../history-error';
+import { queryToHistorySearchState } from '../slice/history-slice.utils';
 
 export const HistoryLinearContainer = () => {
 	const actions = useHistoryActions();
@@ -30,6 +31,15 @@ export const HistoryLinearContainer = () => {
 		query,
 		{ skip: state?.fromRun || !query.testName }
 	);
+
+	useEffect(() => {
+		if (state?.fromRun || !query.testName || isFetching || error || !data) {
+			actions.resetAppliedSearchState();
+			return;
+		}
+
+		actions.setAppliedSearchState(queryToHistorySearchState(query));
+	}, [actions, data, error, isFetching, query, state?.fromRun]);
 
 	useHistoryLinearTitle({ testName: query.testName });
 

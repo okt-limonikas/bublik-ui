@@ -9,36 +9,37 @@ import { isFunction } from '@/shared/utils';
 import { useTabTitleWithPrefix } from '@/bublik/features/projects';
 
 import { HistoryLinearGlobalFilter } from './history-linear.types';
-import { selectLinearGlobalFilter, useHistoryActions } from '../slice';
+import {
+	selectLinearGlobalFilter,
+	selectSearchState,
+	useHistoryActions
+} from '../slice';
+import { applyGlobalFilterToSearchState } from '../slice/history-slice.utils';
 
 export const useHistoryLinearGlobalFilter = () => {
 	const actions = useHistoryActions();
 	const globalFilter = useSelector(selectLinearGlobalFilter);
+	const searchState = useSelector(selectSearchState);
 
 	const handleGlobalFilterChange: OnChangeFn<HistoryLinearGlobalFilter> =
 		useCallback(
 			(updaterOrValue) => {
-				if (isFunction(updaterOrValue)) {
-					const newValue = updaterOrValue(globalFilter);
+				const nextGlobalFilter = isFunction(updaterOrValue)
+					? updaterOrValue(globalFilter)
+					: updaterOrValue;
 
-					actions.updateLinearGlobalFilter({
-						tags: newValue.tags,
-						verdicts: newValue.verdicts,
-						isNotExpected: newValue.isNotExpected,
-						resultType: newValue.resultType,
-						parameters: newValue.parameters
-					});
-				} else {
-					actions.updateLinearGlobalFilter({
-						tags: updaterOrValue.tags,
-						verdicts: updaterOrValue.verdicts,
-						isNotExpected: updaterOrValue.isNotExpected,
-						resultType: updaterOrValue.resultType,
-						parameters: updaterOrValue.parameters
-					});
-				}
+				actions.updateSearchForm(
+					applyGlobalFilterToSearchState(searchState, nextGlobalFilter)
+				);
+				actions.updateLinearGlobalFilter({
+					tags: nextGlobalFilter.tags,
+					verdicts: nextGlobalFilter.verdicts,
+					isNotExpected: nextGlobalFilter.isNotExpected,
+					resultType: nextGlobalFilter.resultType,
+					parameters: nextGlobalFilter.parameters
+				});
 			},
-			[actions, globalFilter]
+			[actions, globalFilter, searchState]
 		);
 
 	return { globalFilter, handleGlobalFilterChange };

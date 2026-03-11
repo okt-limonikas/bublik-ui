@@ -90,7 +90,8 @@ export const useHistoryFormSearchState = () => {
 
 	const handleGlobalSearchSubmit = useCallback(
 		(form: HistoryGlobalSearchFormValues) => {
-			const params = historySearchStateToQuery(formToSearchState(form));
+			const nextState = formToSearchState(form);
+			const params = historySearchStateToQuery(nextState);
 			const newSearchParams = new URLSearchParams(params);
 
 			newSearchParams.set('mode', mode);
@@ -104,6 +105,7 @@ export const useHistoryFormSearchState = () => {
 			}
 
 			setSearchParams(newSearchParams, { replace: true });
+			actions.updateSearchForm(nextState);
 			actions.resetGlobalFilter();
 			dispatch(bublikAPI.util.invalidateTags([BUBLIK_TAG.HistoryData]));
 		},

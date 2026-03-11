@@ -19,9 +19,11 @@ import { useCopyToClipboard } from '@/shared/hooks';
 import {
 	useHistoryActions,
 	HistoryGlobalFilter,
-	selectGlobalFilter
+	selectGlobalFilter,
+	selectSearchState
 } from '../slice';
 import { useHistoryRefresh } from '../hooks';
+import { applyGlobalFilterToSearchState } from '../slice/history-slice.utils';
 
 export interface HistoryContextMenuProps {
 	children: ReactNode;
@@ -40,6 +42,7 @@ export const HistoryContextMenuContainer = (props: HistoryContextMenuProps) => {
 	const { filterKey, label, badges, children } = props;
 	const actions = useHistoryActions();
 	const globalFilter = useSelector(selectGlobalFilter);
+	const searchState = useSelector(selectSearchState);
 	const [, copy] = useCopyToClipboard();
 
 	const refresh = useHistoryRefresh();
@@ -47,11 +50,18 @@ export const HistoryContextMenuContainer = (props: HistoryContextMenuProps) => {
 	const applyGlobalFilter = (
 		updatedGlobalFilter: Partial<HistoryGlobalFilter>
 	) => {
-		actions.updateLinearGlobalFilter({
+		const nextGlobalFilter = {
 			...globalFilter,
 			...updatedGlobalFilter
-		});
-		refresh({ ...globalFilter, ...updatedGlobalFilter });
+		};
+		const nextSearchState = applyGlobalFilterToSearchState(
+			searchState,
+			nextGlobalFilter
+		);
+
+		actions.updateLinearGlobalFilter(nextGlobalFilter);
+		actions.updateSearchForm(nextSearchState);
+		refresh(nextSearchState);
 	};
 
 	const handleResultType = () => {

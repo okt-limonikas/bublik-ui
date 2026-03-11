@@ -63,7 +63,8 @@ export const DEFAULT_SEARCH_FORM_STATE: HistorySliceState['searchForm'] = {
 const initialState: HistorySliceState = {
 	isGlobalSearchFormOpen: false,
 	globalFilter: DEFAULT_GLOBAL_FILTER,
-	searchForm: DEFAULT_SEARCH_FORM_STATE
+	searchForm: DEFAULT_SEARCH_FORM_STATE,
+	appliedSearchState: null
 };
 
 const historySlice = createSlice({
@@ -140,6 +141,15 @@ const historySlice = createSlice({
 			action: PayloadAction<HistorySliceState['searchForm']>
 		) => {
 			Object.assign(state.searchForm, action.payload);
+		},
+		setAppliedSearchState: (
+			state,
+			action: PayloadAction<HistorySliceState['appliedSearchState']>
+		) => {
+			state.appliedSearchState = action.payload;
+		},
+		resetAppliedSearchState: (state) => {
+			state.appliedSearchState = null;
 		}
 	}
 });

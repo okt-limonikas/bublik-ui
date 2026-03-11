@@ -6,18 +6,25 @@ import {
 	API_DATE_FORMAT,
 	config,
 	DEFAULT_HISTORY_END_DATE,
-	DEFAULT_HISTORY_START_DATE
+	DEFAULT_HISTORY_START_DATE,
+	DEFAULT_RESULT_PROPERTIES,
+	DEFAULT_RESULT_TYPES,
+	DEFAULT_RUN_PROPERTIES
 } from '@/bublik/config';
 import {
 	HistoryAPIBackendQuery,
 	HistoryAPIQuery,
+	RESULT_PROPERTIES,
 	VERDICT_TYPE
 } from '@/shared/types';
 import { BadgeItem } from '@/shared/tailwind-ui';
 import { formatTimeToAPI } from '@/shared/utils';
 
 import { HistoryGlobalSearchFormValues } from '../history-global-search-form';
-import { HistorySearchFormState } from './history-slice.types';
+import {
+	HistoryGlobalFilter,
+	HistorySearchFormState
+} from './history-slice.types';
 
 export const parseArray = (str?: string) => {
 	if (!str) return [];
@@ -219,5 +226,172 @@ export const formToSearchState = (
 		/* Verdict section */
 		verdictLookup: form.verdictLookup,
 		verdict: badgeItemToArray(form.verdict)
+	};
+};
+
+export const getEffectiveHistorySearchForm = (
+	searchState: HistorySearchFormState,
+	globalFilter: HistoryGlobalFilter
+): HistoryGlobalSearchFormValues => {
+	const formFromSearchState = historySearchStateToForm(searchState);
+
+	const parameters = arrayToBadgeItem(
+		Array.from(
+			new Set([
+				...badgeItemToArray(formFromSearchState.parameters),
+				...globalFilter.parameters
+			])
+		)
+	);
+
+	const verdict = arrayToBadgeItem(
+		Array.from(
+			new Set([
+				...badgeItemToArray(formFromSearchState.verdict),
+				...globalFilter.verdicts
+			])
+		)
+	);
+
+	const runData = arrayToBadgeItem(
+		Array.from(
+			new Set([
+				...badgeItemToArray(formFromSearchState.runData),
+				...globalFilter.tags
+			])
+		)
+	);
+
+	const results = globalFilter.resultType
+		? [globalFilter.resultType]
+		: formFromSearchState.results.length
+			? formFromSearchState.results
+			: DEFAULT_RESULT_TYPES;
+
+	const resultProperties =
+		globalFilter.isNotExpected !== null
+			? globalFilter.isNotExpected
+				? [RESULT_PROPERTIES.Unexpected]
+				: [RESULT_PROPERTIES.Expected]
+			: formFromSearchState.resultProperties.length
+				? formFromSearchState.resultProperties
+				: DEFAULT_RESULT_PROPERTIES;
+
+	const runProperties = formFromSearchState.runProperties.length
+		? formFromSearchState.runProperties
+		: DEFAULT_RUN_PROPERTIES;
+
+	return {
+		...formFromSearchState,
+		parameters,
+		verdict,
+		runData,
+		results,
+		resultProperties,
+		runProperties
+	};
+};
+
+export const applyGlobalFilterToSearchState = (
+	searchState: HistorySearchFormState,
+	globalFilter: HistoryGlobalFilter
+): HistorySearchFormState => {
+	const nextResults =
+		globalFilter.resultType !== null
+			? [globalFilter.resultType]
+			: searchState.results.length
+				? searchState.results
+				: DEFAULT_RESULT_TYPES;
+
+	const nextResultProperties =
+		globalFilter.isNotExpected !== null
+			? globalFilter.isNotExpected
+				? [RESULT_PROPERTIES.Unexpected]
+				: [RESULT_PROPERTIES.Expected]
+			: searchState.resultProperties.length
+				? searchState.resultProperties
+				: DEFAULT_RESULT_PROPERTIES;
+
+	return {
+		...searchState,
+		parameters: globalFilter.parameters,
+		runData: globalFilter.tags,
+		verdict: globalFilter.verdicts,
+		results: nextResults,
+		resultProperties: nextResultProperties
+	};
+};
+
+type ComparableHistorySearchForm = {
+	testName: string;
+	hash: string;
+	parameters: string[];
+	startDate: string;
+	finishDate: string;
+	runData: string[];
+	runIds: string[];
+	tagExpr: string;
+	branches: string[];
+	revisions: string[];
+	runProperties: string[];
+	resultProperties: string[];
+	results: string[];
+	verdict: string[];
+	branchExpr: string;
+	verdictExpr: string;
+	revisionExpr: string;
+	testArgExpr: string;
+	labels: string[];
+	labelExpr: string;
+	verdictLookup: VERDICT_TYPE;
+};
+
+const normalizeStringArray = (values: string[]): string[] => {
+	return values
+		.map((value) => value.trim())
+		.filter(Boolean)
+		.sort((left, right) => left.localeCompare(right));
+};
+
+const normalizeBadgeItemArray = (items: BadgeItem[]): string[] => {
+	return normalizeStringArray(badgeItemToArray(items));
+};
+
+const normalizeDelimitedString = (value: string): string[] => {
+	return normalizeStringArray(value.split(config.queryDelimiter));
+};
+
+export const getComparableHistorySearchForm = (
+	searchState: HistorySearchFormState,
+	globalFilter: HistoryGlobalFilter
+): ComparableHistorySearchForm => {
+	const form = getEffectiveHistorySearchForm(searchState, globalFilter);
+	const dates = form.dates ?? {
+		startDate: DEFAULT_HISTORY_START_DATE,
+		endDate: DEFAULT_HISTORY_END_DATE
+	};
+
+	return {
+		testName: form.testName.trim(),
+		hash: form.hash.trim(),
+		parameters: normalizeBadgeItemArray(form.parameters),
+		startDate: formatTimeToAPI(dates.startDate),
+		finishDate: formatTimeToAPI(dates.endDate),
+		runData: normalizeBadgeItemArray(form.runData),
+		runIds: normalizeDelimitedString(form.runIds),
+		tagExpr: form.tagExpr.trim(),
+		branches: normalizeBadgeItemArray(form.branches),
+		revisions: normalizeBadgeItemArray(form.revisions),
+		runProperties: normalizeStringArray(form.runProperties),
+		resultProperties: normalizeStringArray(form.resultProperties),
+		results: normalizeStringArray(form.results),
+		verdict: normalizeBadgeItemArray(form.verdict),
+		branchExpr: form.branchExpr.trim(),
+		verdictExpr: form.verdictExpr.trim(),
+		revisionExpr: form.revisionExpr.trim(),
+		testArgExpr: form.testArgExpr.trim(),
+		labels: normalizeBadgeItemArray(form.labels),
+		labelExpr: form.labelExpr.trim(),
+		verdictLookup: form.verdictLookup
 	};
 };

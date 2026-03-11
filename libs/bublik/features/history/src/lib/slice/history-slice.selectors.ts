@@ -3,23 +3,12 @@
 import { createSelector } from '@reduxjs/toolkit';
 
 import { HISTORY_SLICE_NAME } from './history-slice';
+import { AppStateWithHistorySlice } from './history-slice.types';
 import {
-	AppStateWithHistorySlice,
-	HistoryGlobalFilter,
-	HistorySearchFormState
-} from './history-slice.types';
-import { RESULT_PROPERTIES } from '@/shared/types';
-import {
-	arrayToBadgeItem,
-	badgeItemToArray,
+	getComparableHistorySearchForm,
 	historySearchStateToForm
 } from './history-slice.utils';
-import { HistoryGlobalSearchFormValues } from '../history-global-search-form';
-import {
-	DEFAULT_RESULT_PROPERTIES,
-	DEFAULT_RESULT_TYPES,
-	DEFAULT_RUN_PROPERTIES
-} from '@/bublik/config';
+import { DEFAULT_GLOBAL_FILTER } from './history-slice';
 
 const selectHistorySliceState = (state: AppStateWithHistorySlice) => {
 	return state[HISTORY_SLICE_NAME];
@@ -33,6 +22,11 @@ export const selectGlobalFilter = createSelector(
 export const selectSearchState = createSelector(
 	selectHistorySliceState,
 	(state) => state.searchForm
+);
+
+export const selectAppliedSearchState = createSelector(
+	selectHistorySliceState,
+	(state) => state.appliedSearchState
 );
 
 export const selectIsGlobalSearchFormOpen = createSelector(
@@ -65,69 +59,22 @@ export const selectAggregationGlobalFilter = createSelector(
 
 export const selectHistoryForm = createSelector(
 	selectSearchState,
-	selectGlobalFilter,
-	(searchState, globalFilter) => getCombinedForm(searchState, globalFilter)
+	(searchState) => historySearchStateToForm(searchState)
 );
 
-const getCombinedForm = (
-	searchState: HistorySearchFormState,
-	globalFilter: HistoryGlobalFilter
-): HistoryGlobalSearchFormValues => {
-	const formFromSearchState = historySearchStateToForm(searchState);
+export const selectHasPendingHistorySearchChanges = createSelector(
+	selectSearchState,
+	selectAppliedSearchState,
+	(searchState, appliedSearchState) => {
+		if (!appliedSearchState) return true;
 
-	const parameters = arrayToBadgeItem(
-		Array.from(
-			new Set([
-				...badgeItemToArray(formFromSearchState.parameters),
-				...globalFilter.parameters
-			])
-		)
-	);
-
-	const verdict = arrayToBadgeItem(
-		Array.from(
-			new Set([
-				...badgeItemToArray(formFromSearchState.verdict),
-				...globalFilter.verdicts
-			])
-		)
-	);
-
-	const runData = arrayToBadgeItem(
-		Array.from(
-			new Set([
-				...badgeItemToArray(formFromSearchState.runData),
-				...globalFilter.tags
-			])
-		)
-	);
-
-	const results = globalFilter.resultType
-		? [globalFilter.resultType]
-		: formFromSearchState.results.length
-		? formFromSearchState.results
-		: DEFAULT_RESULT_TYPES;
-
-	const resultProperties =
-		globalFilter.isNotExpected !== null
-			? globalFilter.isNotExpected
-				? [RESULT_PROPERTIES.Unexpected]
-				: [RESULT_PROPERTIES.Expected]
-			: formFromSearchState.resultProperties.length
-			? formFromSearchState.resultProperties
-			: DEFAULT_RESULT_PROPERTIES;
-
-	const runProperties = formFromSearchState.runProperties.length
-		? formFromSearchState.runProperties
-		: DEFAULT_RUN_PROPERTIES;
-
-	return {
-		...formFromSearchState,
-		parameters,
-		verdict,
-		runData,
-		results,
-		resultProperties,
-		runProperties
-	};
-};
+		return (
+			JSON.stringify(
+				getComparableHistorySearchForm(searchState, DEFAULT_GLOBAL_FILTER)
+			) !==
+			JSON.stringify(
+				getComparableHistorySearchForm(appliedSearchState, DEFAULT_GLOBAL_FILTER)
+			)
+		);
+	}
+);

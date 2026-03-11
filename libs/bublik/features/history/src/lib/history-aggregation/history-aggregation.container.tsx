@@ -15,6 +15,7 @@ import { useHistoryActions } from '../slice';
 import { HistoryError } from '../history-error';
 import { useLocation } from 'react-router-dom';
 import { useTabTitleWithPrefix } from '@/bublik/features/projects';
+import { queryToHistorySearchState } from '../slice/history-slice.utils';
 
 export const HistoryAggregationContainer = () => {
 	const actions = useHistoryActions();
@@ -30,6 +31,15 @@ export const HistoryAggregationContainer = () => {
 		query,
 		{ skip: state?.fromRun || !query.testName }
 	);
+
+	useEffect(() => {
+		if (state?.fromRun || !query.testName || isFetching || error || !data) {
+			actions.resetAppliedSearchState();
+			return;
+		}
+
+		actions.setAppliedSearchState(queryToHistorySearchState(query));
+	}, [actions, data, error, isFetching, query, state?.fromRun]);
 
 	const handleOpenFormClick = useCallback(
 		() => actions.toggleIsGlobalSearchOpen(true),
