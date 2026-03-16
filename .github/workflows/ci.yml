@@ -29,7 +29,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Code Linting
         run: pnpm run lint
@@ -51,7 +51,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Code Testing
         run: pnpm run test
@@ -73,7 +73,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Check code formatting
         run: pnpm run format:check
@@ -95,7 +95,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Check Bublik UI
         run: pnpm run build
@@ -117,7 +117,84 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Check JSON App
         run: pnpm run bublik-json:build
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
+      BASE_URL: http://127.0.0.1:42000/v2/
+    steps:
+      - name: Checkout bublik-ui
+        uses: actions/checkout@v6
+
+      - name: Checkout bublik-docker
+        uses: actions/checkout@v6
+        with:
+          repository: ts-factory/bublik-docker
+          path: ../bublik-docker
+
+      - name: Setup .env and start services
+        run: |
+          cd ../bublik-docker
+          cp .env.example .env
+          echo "BUBLIK_DOCKER_DATA_DIR=./data" >> .env
+          mkdir -p data/logs/logs
+          docker compose -f docker-compose.yml -f docker-compose.db.yml up -d
+          echo "Waiting for services to be healthy..."
+          HEALTHY=0
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:42000/api/v2/ 2>/dev/null | grep -q 200; then
+              echo "Services are ready"
+              HEALTHY=1
+              break
+            fi
+            echo "  attempt $i/60... waiting"
+            sleep 2
+          done
+          if [ "$HEALTHY" -ne 1 ]; then
+            echo "ERROR: Services did not become healthy in time"
+            docker compose -f docker-compose.yml -f docker-compose.db.yml logs --tail=100
+            exit 1
+          fi
+
+      - name: Generate fixtures
+        run: |
+          cd ../bublik-docker
+          mkdir -p data/logs/logs
+          python3 scripts/e2e/raw_logs_fixture.py generate-manifest
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run e2e tests
+        env:
+          BUBLIK_E2E_RUN_OVERVIEW: ../bublik-docker/.e2e/e2e-manifest.json
+        run: pnpm run bublik:e2e
+
+      - name: Upload Playwright artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            dist/.playwright/apps/bublik
+            playwright-report
+            test-results
+          if-no-files-found: ignore
