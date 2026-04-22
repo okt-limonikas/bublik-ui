@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { CSSProperties } from 'react';
+import { type MouseEvent, CSSProperties, useEffect, useState } from 'react';
 
 import { cn, useSidebar } from '@/shared/tailwind-ui';
 import { useIsScrollbarVisible } from '@/shared/hooks';
@@ -33,11 +33,38 @@ const getSidebarStyles = (isOpen?: boolean) => {
 export const Sidebar = () => {
 	const { isSidebarOpen } = useSidebar();
 	const [ref, isVisible] = useIsScrollbarVisible<HTMLDivElement>();
+	const [isCollapsedSidebarHovered, setIsCollapsedSidebarHovered] = useState(false);
+	const [hoveredTooltipKey, setHoveredTooltipKey] = useState<string | null>(null);
+
+	const handleMouseMove = (event: MouseEvent<HTMLElement>) => {
+		if (isSidebarOpen) return;
+
+		const hoveredItem = (event.target as HTMLElement | null)?.closest(
+			'[data-sidebar-tooltip-key]'
+		);
+
+		setHoveredTooltipKey(hoveredItem?.getAttribute('data-sidebar-tooltip-key'));
+	};
+
+	useEffect(() => {
+		if (isSidebarOpen) {
+			setIsCollapsedSidebarHovered(false);
+			setHoveredTooltipKey(null);
+		}
+	}, [isSidebarOpen]);
 
 	return (
 		<nav
 			className="flex flex-col h-full overflow-hidden bg-white no-bg-scrollbar"
 			style={getSidebarStyles(isSidebarOpen)}
+			onMouseEnter={() => {
+				if (!isSidebarOpen) setIsCollapsedSidebarHovered(true);
+			}}
+			onMouseLeave={() => {
+				setIsCollapsedSidebarHovered(false);
+				setHoveredTooltipKey(null);
+			}}
+			onMouseMove={handleMouseMove}
 		>
 			<div
 				className={cn(
@@ -51,7 +78,11 @@ export const Sidebar = () => {
 				className="h-full pt-12 pb-[7px] overflow-y-auto px-[7px] styled-scrollbar"
 				ref={ref}
 			>
-				<MainNavigation />
+				<MainNavigation
+					isCollapsedSidebarHovered={isCollapsedSidebarHovered}
+					hoveredTooltipKey={hoveredTooltipKey}
+					setHoveredTooltipKey={setHoveredTooltipKey}
+				/>
 			</div>
 			<div
 				className={cn(
@@ -59,7 +90,11 @@ export const Sidebar = () => {
 					isVisible ? 'border-t-border-primary' : 'border-t-transparent'
 				)}
 			>
-				<BottomNavigation />
+				<BottomNavigation
+					isCollapsedSidebarHovered={isCollapsedSidebarHovered}
+					hoveredTooltipKey={hoveredTooltipKey}
+					setHoveredTooltipKey={setHoveredTooltipKey}
+				/>
 			</div>
 		</nav>
 	);

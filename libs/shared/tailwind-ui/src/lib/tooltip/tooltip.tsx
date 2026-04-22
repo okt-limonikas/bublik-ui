@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+import { type ReactNode } from 'react';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
 
-import { cva } from '../utils';
+import { cn, cva } from '../utils';
 
 const tooltipContentStyles = cva({
 	base: [
@@ -28,12 +29,14 @@ const tooltipContentStyles = cva({
 export type TooltipTypesValue = 'primary' | 'secondary';
 
 export type TooltipProps = RadixTooltip.TooltipProps & {
-	content: string | number;
+	content: ReactNode;
 	disabled?: boolean;
+	showArrow?: boolean;
 	side?: RadixTooltip.TooltipContentProps['side'];
 	sideOffset?: RadixTooltip.TooltipContentProps['sideOffset'];
 	align?: RadixTooltip.TooltipContentProps['align'];
 	alignOffset?: RadixTooltip.TooltipContentProps['alignOffset'];
+	contentClassName?: string;
 };
 
 export const Tooltip = (props: TooltipProps) => {
@@ -41,10 +44,12 @@ export const Tooltip = (props: TooltipProps) => {
 		open,
 		disabled,
 		content,
+		showArrow = true,
 		side,
 		sideOffset,
 		align,
 		alignOffset,
+		contentClassName,
 		children,
 		...restProps
 	} = props;
@@ -54,14 +59,14 @@ export const Tooltip = (props: TooltipProps) => {
 			<RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
 			<RadixTooltip.Portal>
 				<RadixTooltip.Content
-					className={tooltipContentStyles()}
+					className={cn(tooltipContentStyles(), contentClassName)}
 					side={side}
 					sideOffset={sideOffset}
 					align={align}
 					alignOffset={alignOffset}
 				>
 					{content}
-					<RadixTooltip.Arrow className="fill-white" />
+					{showArrow ? <RadixTooltip.Arrow className="fill-white" /> : null}
 				</RadixTooltip.Content>
 			</RadixTooltip.Portal>
 		</RadixTooltip.Root>

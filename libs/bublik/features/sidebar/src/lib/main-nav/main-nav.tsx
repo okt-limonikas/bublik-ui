@@ -4,7 +4,7 @@ import { LogPageMode, MeasurementsMode } from '@/shared/types';
 import { Icon } from '@/shared/tailwind-ui';
 import { ProjectPickerContainer } from '@/bublik/features/projects';
 
-import { NavLink, SidebarItem } from '../nav-link';
+import { NavLink, NavLinkTooltipState, SidebarItem } from '../nav-link';
 import {
 	MultipleRunsDialog,
 	CompareRunsDialog,
@@ -253,12 +253,12 @@ const mainMenu: SidebarItem[] = [
 	}
 ];
 
-function MainNavigation() {
+function MainNavigation(props: NavLinkTooltipState) {
 	return (
 		<ul className="flex flex-col gap-3">
 			<ProjectPickerContainer />
 			{mainMenu.map((item) => (
-				<NavLink key={item.label} {...item} />
+				<NavLink key={item.label} {...item} {...props} />
 			))}
 		</ul>
 	);

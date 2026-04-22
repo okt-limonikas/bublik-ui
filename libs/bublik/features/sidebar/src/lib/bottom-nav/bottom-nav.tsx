@@ -7,7 +7,7 @@ import { useGetServerFeaturesQuery } from '@/services/bublik-api';
 
 import { SettingsModal } from '@/bublik/features/settings';
 
-import { NavLink, SidebarItem } from '../nav-link';
+import { NavLink, NavLinkTooltipState, SidebarItem } from '../nav-link';
 
 interface GetNavSectionsArgs {
 	isAdmin: boolean;
@@ -86,7 +86,7 @@ const getNavSections = ({
 	return [devSection, ...bottomNav];
 };
 
-export const BottomNavigation = () => {
+export const BottomNavigation = (props: NavLinkTooltipState) => {
 	const { isAdmin } = useAuth();
 	const { data: features } = useGetServerFeaturesQuery();
 
@@ -102,7 +102,7 @@ export const BottomNavigation = () => {
 			</li>
 			{links.map((item) => (
 				<li key={item.label}>
-					<NavLink {...item} />
+					<NavLink {...item} {...props} disableTooltip />
 				</li>
 			))}
 		</ul>

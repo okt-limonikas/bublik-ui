@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { ReactNode, useEffect, useRef, useState } from 'react';
-import { type LinkProps, useSearchParams } from 'react-router-dom';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type LinkProps } from 'react-router-dom';
 
 import {
 	Icon,
@@ -102,16 +102,59 @@ export type NavLinkExternal = NavLinkCommon & {
 export type NavLinkProps = NavLinkInternal | NavLinkExternal;
 export type AccordionLinkProps = NavLinkInternal | NavLinkExternal;
 
+export interface NavLinkTooltipState {
+	isCollapsedSidebarHovered: boolean;
+	hoveredTooltipKey: string | null;
+	setHoveredTooltipKey: (key: string | null) => void;
+	isTooltipVisible?: boolean;
+	disableTooltip?: boolean;
+}
+
+const COLLAPSED_TOOLTIP_OFFSET = 12;
+
 export const isExternalLink = (
 	props: NavLinkProps | AccordionLinkProps
 ): props is NavLinkExternal => {
 	return 'href' in props;
 };
 
-export const NavLink = (props: NavLinkProps) => {
+const getCollapsedTooltipState = ({
+	isSidebarOpen,
+	isCollapsedSidebarHovered,
+	hoveredTooltipKey,
+	isTooltipVisible = true,
+	tooltipKey
+}: Pick<NavLinkTooltipState, 'isCollapsedSidebarHovered' | 'hoveredTooltipKey'> & {
+	isSidebarOpen?: boolean;
+	isTooltipVisible?: boolean;
+	tooltipKey: string;
+}) => {
+	const shouldShowCollapsedTooltips =
+		!isSidebarOpen && isCollapsedSidebarHovered && isTooltipVisible;
+	const isHighlightedTooltip = hoveredTooltipKey === tooltipKey;
+
+	return {
+		shouldShowCollapsedTooltips,
+		sideOffset: shouldShowCollapsedTooltips ? COLLAPSED_TOOLTIP_OFFSET : 15,
+		contentClassName: shouldShowCollapsedTooltips
+			? isHighlightedTooltip
+				? 'opacity-100 translate-x-0 transition-[opacity,transform] duration-200 ease-out'
+				: 'opacity-75 translate-x-2 transition-[opacity,transform] duration-200 ease-out'
+			: undefined
+	};
+};
+
+export const NavLink = (props: NavLinkProps & NavLinkTooltipState) => {
 	const { label, icon, subitems = [], whenMatched, dialogContent } = props;
+	const {
+		isCollapsedSidebarHovered,
+		hoveredTooltipKey,
+		setHoveredTooltipKey,
+		disableTooltip
+	} = props;
 
 	const { isSidebarOpen } = useSidebar();
+	const tooltipKey = useId();
 	const { isActive, to } = useNavLink(
 		isExternalLink(props) ? undefined : props
 	);
@@ -138,12 +181,25 @@ export const NavLink = (props: NavLinkProps) => {
 	}, [isActive, isSidebarOpen]);
 
 	const shouldShowDialog = whenMatched && !isActive && !matchedOneTime.current;
+	const { shouldShowCollapsedTooltips, sideOffset, contentClassName } =
+		getCollapsedTooltipState({
+			isSidebarOpen,
+			isCollapsedSidebarHovered,
+			hoveredTooltipKey,
+			isTooltipVisible: !disableTooltip,
+			tooltipKey
+		});
 
 	const handleClick = (e: React.MouseEvent) => {
 		if (shouldShowDialog) {
 			e.preventDefault();
 			setIsDialogOpen(true);
 		}
+	};
+
+	const handleMouseEnter = () => setHoveredTooltipKey(tooltipKey);
+	const handleMouseLeave = () => {
+		if (hoveredTooltipKey === tooltipKey) setHoveredTooltipKey(null);
 	};
 
 	const renderLink = () => {
@@ -184,7 +240,11 @@ export const NavLink = (props: NavLinkProps) => {
 					content={label}
 					side="right"
 					delayDuration={isSidebarOpen ? 1400 : 700}
-					sideOffset={15}
+					sideOffset={sideOffset}
+					open={shouldShowCollapsedTooltips ? true : undefined}
+					disabled={disableTooltip}
+					showArrow={false}
+					contentClassName={contentClassName}
 				>
 					<div
 						className={cn(
@@ -195,6 +255,9 @@ export const NavLink = (props: NavLinkProps) => {
 							'transition-[margin-bottom] group relative',
 							isSubmenuOpen ? 'mb-3.5' : 'delay-200 mb-0'
 						)}
+						data-sidebar-tooltip-key={disableTooltip ? undefined : tooltipKey}
+						onMouseEnter={handleMouseEnter}
+						onMouseLeave={handleMouseLeave}
 					>
 						{renderLink()}
 						{dialogContent && isSidebarOpen ? (
@@ -235,7 +298,15 @@ export const NavLink = (props: NavLinkProps) => {
 					>
 						<ul className="flex flex-col gap-3">
 							{subitems.map((item) => (
-								<AccordionLink key={item.label} {...item} />
+								<AccordionLink
+									key={item.label}
+									{...item}
+									isCollapsedSidebarHovered={isCollapsedSidebarHovered}
+									hoveredTooltipKey={hoveredTooltipKey}
+									setHoveredTooltipKey={setHoveredTooltipKey}
+									isTooltipVisible={Boolean(isSubmenuOpen)}
+									disableTooltip={disableTooltip}
+								/>
 							))}
 						</ul>
 					</div>
@@ -275,10 +346,18 @@ const accordionLinkStyles = cva({
 |--------------------------------------------------
 */
 
-const AccordionLink = (props: AccordionLinkProps) => {
+const AccordionLink = (props: AccordionLinkProps & NavLinkTooltipState) => {
 	const { label, icon, whenMatched, dialogContent } = props;
+	const {
+		isCollapsedSidebarHovered,
+		hoveredTooltipKey,
+		setHoveredTooltipKey,
+		isTooltipVisible,
+		disableTooltip
+	} = props;
 
 	const { isSidebarOpen } = useSidebar();
+	const tooltipKey = useId();
 	const { to, isActive, isPathMatch } = useAccordionLink(
 		isExternalLink(props) ? undefined : props
 	);
@@ -291,12 +370,25 @@ const AccordionLink = (props: AccordionLinkProps) => {
 
 	const shouldShowDialog =
 		whenMatched && !isActive && !matchedOneTime.current && !isPathMatch;
+	const { shouldShowCollapsedTooltips, sideOffset, contentClassName } =
+		getCollapsedTooltipState({
+			isSidebarOpen,
+			isCollapsedSidebarHovered,
+			hoveredTooltipKey,
+			isTooltipVisible: isTooltipVisible && !disableTooltip,
+			tooltipKey
+		});
 
 	const handleClick = (e: React.MouseEvent) => {
 		if (shouldShowDialog) {
 			e.preventDefault();
 			setIsDialogOpen(true);
 		}
+	};
+
+	const handleMouseEnter = () => setHoveredTooltipKey(tooltipKey);
+	const handleMouseLeave = () => {
+		if (hoveredTooltipKey === tooltipKey) setHoveredTooltipKey(null);
 	};
 
 	if (shouldShowDialog) {
@@ -306,7 +398,11 @@ const AccordionLink = (props: AccordionLinkProps) => {
 					content={label}
 					side="right"
 					delayDuration={isSidebarOpen ? 1400 : 700}
-					sideOffset={15}
+					sideOffset={sideOffset}
+					open={shouldShowCollapsedTooltips ? true : undefined}
+					disabled={disableTooltip}
+					showArrow={false}
+					contentClassName={contentClassName}
 				>
 					{isExternalLink(props) ? (
 						<a
@@ -316,6 +412,9 @@ const AccordionLink = (props: AccordionLinkProps) => {
 							className={accordionLinkStyles({ isActive, isSidebarOpen })}
 							style={paddingTransition}
 							onClick={handleClick}
+							data-sidebar-tooltip-key={disableTooltip ? undefined : tooltipKey}
+							onMouseEnter={handleMouseEnter}
+							onMouseLeave={handleMouseLeave}
 						>
 							<div className="grid place-items-center">{icon}</div>
 							<span className="truncate text-[0.875rem] leading-[1.5rem]">
@@ -328,6 +427,9 @@ const AccordionLink = (props: AccordionLinkProps) => {
 							className={accordionLinkStyles({ isActive, isSidebarOpen })}
 							style={paddingTransition}
 							onClick={handleClick}
+							data-sidebar-tooltip-key={disableTooltip ? undefined : tooltipKey}
+							onMouseEnter={handleMouseEnter}
+							onMouseLeave={handleMouseLeave}
 						>
 							<div className="grid place-items-center">{icon}</div>
 							<span className="truncate text-[0.875rem] leading-[1.5rem]">
@@ -367,7 +469,11 @@ const AccordionLink = (props: AccordionLinkProps) => {
 				content={label}
 				side="right"
 				delayDuration={isSidebarOpen ? 1400 : 700}
-				sideOffset={15}
+				sideOffset={sideOffset}
+				open={shouldShowCollapsedTooltips ? true : undefined}
+				disabled={disableTooltip}
+				showArrow={false}
+				contentClassName={contentClassName}
 			>
 				{isExternalLink(props) ? (
 					<a
@@ -376,6 +482,9 @@ const AccordionLink = (props: AccordionLinkProps) => {
 						rel="noopener noreferrer"
 						className={accordionLinkStyles({ isActive, isSidebarOpen })}
 						style={paddingTransition}
+						data-sidebar-tooltip-key={disableTooltip ? undefined : tooltipKey}
+						onMouseEnter={handleMouseEnter}
+						onMouseLeave={handleMouseLeave}
 					>
 						<div className="grid place-items-center">{icon}</div>
 						<span className="truncate text-[0.875rem] leading-[1.5rem]">
@@ -391,6 +500,9 @@ const AccordionLink = (props: AccordionLinkProps) => {
 							className: 'group'
 						})}
 						style={paddingTransition}
+						data-sidebar-tooltip-key={disableTooltip ? undefined : tooltipKey}
+						onMouseEnter={handleMouseEnter}
+						onMouseLeave={handleMouseLeave}
 					>
 						<div className="flex items-center gap-3.5">
 							<div className="grid place-items-center">{icon}</div>
