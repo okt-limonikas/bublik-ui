@@ -171,7 +171,7 @@ exports[`ImportEventTableComponent > should render successfully 1`] = `
     >
       <div
         class="grid"
-        style="grid-template-columns: 24px min-content 0.1fr 0.1fr 0.1fr 1fr 1fr min-content;"
+        style="grid-template-columns: 24px min-content 0.1fr 0.15fr 0.1fr 0.08fr 0.08fr 1fr 1fr min-content;"
       >
         <div
           class="tracking-wider sticky top-0 mb-1 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white p-0"
@@ -188,35 +188,37 @@ exports[`ImportEventTableComponent > should render successfully 1`] = `
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
         >
-          Date
+          Status
         </div>
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
         >
-          <span
-            class="pl-2"
-          >
-            Facility
-          </span>
+          Started At
         </div>
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
         >
-          <span
-            class="pl-2"
-          >
-            Severity
-          </span>
+          Runtime
         </div>
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
         >
-          Message
+          Job ID
         </div>
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
         >
-          URL
+          Run ID
+        </div>
+        <div
+          class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
+        >
+          Run Source URL
+        </div>
+        <div
+          class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"
+        >
+          Error
         </div>
         <div
           class="tracking-wider sticky top-0 mb-1 px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] bg-white"

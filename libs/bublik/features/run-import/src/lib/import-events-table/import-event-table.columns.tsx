@@ -5,31 +5,21 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { z } from 'zod';
 import { RocketIcon } from '@radix-ui/react-icons';
 
-import { Facility, LogEventWithChildren, Severity } from '@/shared/types';
+import { ImportTaskRow } from '@/shared/types';
 import { config } from '@/bublik/config';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { useImportRunsMutation } from '@/services/bublik-api';
-import {
-	Badge,
-	ButtonTw,
-	cn,
-	Icon,
-	toast,
-	Tooltip
-} from '@/shared/tailwind-ui';
+import { ButtonTw, cn, Icon, toast, Tooltip } from '@/shared/tailwind-ui';
 import { formatTimeToDot } from '@/shared/utils';
 import { routes } from '@/router';
 
-import { SEVERITY_MAP } from '../utils';
-import { getSeverityBgColor } from './import-event-table-utils';
 import { useImportLog } from './import-log.component';
-import { FacilityBadge } from './import-event-table.component';
 
 export function getBgByStatus(status: string): string {
 	const statusMap: Record<string, string> = {
 		SUCCESS: 'bg-bg-ok',
 		FAILURE: 'bg-bg-error',
-		STARTED: 'bg-bg-running',
+		RUNNING: 'bg-bg-running',
 		RECEIVED: 'bg-gray-400'
 	};
 
@@ -43,14 +33,14 @@ export function getIconByStatus(status: string) {
 	> = {
 		SUCCESS: (props) => <Icon name="InformationCircleCheckmark" {...props} />,
 		FAILURE: (props) => <Icon name="InformationCircleCrossMark" {...props} />,
-		STARTED: (props) => <Icon name="Play" {...props} />,
+		RUNNING: (props) => <Icon name="Play" {...props} />,
 		RECEIVED: (props) => <Icon name="Download" {...props} />
 	};
 
 	return statusMap[status];
 }
 
-const columnHelper = createColumnHelper<LogEventWithChildren>();
+const columnHelper = createColumnHelper<ImportTaskRow>();
 
 interface ActionCellProps {
 	taskId?: string | null;
@@ -90,7 +80,7 @@ function ActionsCell(props: ActionCellProps) {
 				variant="secondary"
 				size="xss"
 				className="justify-start"
-				onClick={toggle(taskId, status === 'STARTED')}
+				onClick={toggle(taskId, status === 'RUNNING')}
 			>
 				<Icon name="Paper" size={20} className="mr-1.5" />
 				<span>Log</span>
@@ -112,6 +102,19 @@ function ActionsCell(props: ActionCellProps) {
 			</ButtonTw>
 		</div>
 	);
+}
+
+function formatRuntime(seconds: number): string {
+	const hrs = Math.floor(seconds / 3600);
+	const mins = Math.floor((seconds % 3600) / 60);
+	const secs = (seconds % 60).toFixed(2);
+
+	const parts = [];
+	if (hrs > 0) parts.push(`${hrs}h`);
+	if (mins > 0) parts.push(`${mins}m`);
+	parts.push(`${secs}s`);
+
+	return parts.join(' ');
 }
 
 export const columns = [
@@ -144,68 +147,60 @@ export const columns = [
 		cell: (cell) => (
 			<ActionsCell
 				taskId={cell.getValue()}
-				runId={cell.row.original.run_id}
+				runId={cell.row.original.run_id ?? undefined}
 				status={cell.row.original.status}
 			/>
 		),
 		meta: { width: 'min-content' }
 	}),
-	columnHelper.accessor('timestamp', {
-		header: 'Date',
+	columnHelper.accessor('status', {
+		header: 'Status',
 		cell: (cell) => {
-			const date = cell.getValue();
-
-			if (!date) return null;
-
-			return formatTimeToDot(date);
-		},
-		meta: { width: '0.1fr' }
-	}),
-	columnHelper.accessor('facility', {
-		header: () => <span className="pl-2">Facility</span>,
-		cell: (cell) => {
-			const facility = cell.getValue();
-
-			return <FacilityBadge facility={facility} />;
-		},
-		meta: { width: '0.1fr' }
-	}),
-	columnHelper.accessor('severity', {
-		header: () => <span className="pl-2">Severity</span>,
-		cell: (cell) => {
-			const value = cell.getValue();
-
-			if (!value) return null;
-
+			const status = cell.getValue();
 			return (
-				<Badge className={getSeverityBgColor(value)}>
-					{SEVERITY_MAP.has(value)
-						? SEVERITY_MAP.get(value)?.toUpperCase()
-						: value.toUpperCase()}
-				</Badge>
+				<span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100">
+					{status}
+				</span>
 			);
 		},
 		meta: { width: '0.1fr' }
 	}),
-	columnHelper.accessor('error_msg', {
-		header: 'Message',
+	columnHelper.accessor('started_at', {
+		header: 'Started At',
+		cell: (cell) => {
+			const date = cell.getValue();
+			if (!date) return null;
+			return formatTimeToDot(date);
+		},
+		meta: { width: '0.15fr' }
+	}),
+	columnHelper.accessor('runtime', {
+		header: 'Runtime',
 		cell: (cell) => {
 			const value = cell.getValue();
-
-			if (!value) return null;
-
-			return <span className="whitespace-pre-wrap font-mono">{value}</span>;
+			if (value == null) return null;
+			return <span>{formatRuntime(value)}</span>;
 		},
-		meta: { width: '1fr' }
+		meta: { width: '0.1fr' }
 	}),
-	columnHelper.accessor('uri', {
-		id: 'URI',
-		header: 'URL',
+	columnHelper.accessor('job_id', {
+		header: 'Job ID',
+		cell: (cell) => cell.getValue(),
+		meta: { width: '0.08fr' }
+	}),
+	columnHelper.accessor('run_id', {
+		header: 'Run ID',
+		cell: (cell) => {
+			const value = cell.getValue();
+			return value ?? '-';
+		},
+		meta: { width: '0.08fr' }
+	}),
+	columnHelper.accessor('run_source_url', {
+		header: 'Run Source URL',
 		cell: (cell) => {
 			const url = cell.getValue();
-
 			if (!z.string().url().safeParse(url).success) return null;
-
 			return (
 				<a
 					href={url}
@@ -219,12 +214,23 @@ export const columns = [
 		},
 		meta: { width: '1fr' }
 	}),
+	columnHelper.accessor('error_msg', {
+		header: 'Error',
+		cell: (cell) => {
+			const value = cell.getValue();
+			if (!value) return null;
+			return (
+				<span className="whitespace-pre-wrap font-mono text-xs text-red-600">
+					{value}
+				</span>
+			);
+		},
+		meta: { width: '1fr' }
+	}),
 	columnHelper.display({
 		id: 'expand',
 		cell: ({ row }) => {
-			const isError =
-				row.original.severity === Severity.ERROR &&
-				row.original.facility === Facility.ImportRuns;
+			const isError = row.original.status === 'FAILURE';
 
 			// eslint-disable-next-line react-hooks/rules-of-hooks
 			const [importRuns] = useImportRunsMutation();
@@ -237,7 +243,11 @@ export const columns = [
 							size="xss"
 							onClick={async () => {
 								const promise = importRuns([
-									{ force: true, url: row.original.uri, range: null }
+									{
+										force: true,
+										url: row.original.run_source_url,
+										range: null
+									}
 								]);
 
 								toast.promise(promise, {
