@@ -133,6 +133,7 @@ export const {
 	useGetHistoryAggregationQuery,
 	// Runs
 	useGetRunsTablePageQuery,
+	useGetRunsChartsQuery,
 	useGetResultInfoQuery,
 	// Measurements
 	useGetMeasurementsQuery,
