@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
 interface SampleTest {
@@ -62,6 +62,18 @@ function resolveManifestPath(): string {
 	}
 	const cwd = process.cwd();
 	return path.resolve(cwd, '..', '..', '.e2e', 'e2e-manifest.json');
+}
+
+export function persistManifest(manifest: E2eManifest): void {
+	const manifestPath = resolveManifestPath();
+	const dir = path.dirname(manifestPath);
+
+	if (!existsSync(dir)) {
+		mkdirSync(dir, { recursive: true });
+	}
+
+	writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+	_manifest = manifest;
 }
 
 export function readManifest(): E2eManifest | null {
