@@ -32,11 +32,11 @@ import {
 } from './runs-progress.types';
 import { getNodeStats, getStatsTotal } from './runs-progress.utils';
 
-const ROW_HEIGHT = 46;
-const HEADER_HEIGHT = 158;
+const ROW_HEIGHT = 34;
+const HEADER_HEIGHT = 140;
 const LEFT_COLUMN_WIDTH = 360;
-const MIN_RUN_COLUMN_WIDTH = 340;
-const METRIC_COLUMN_WIDTH = 92;
+const MIN_RUN_COLUMN_WIDTH = 320;
+const METRIC_COLUMN_WIDTH = 82;
 
 type RunsProgressColumnId =
 	| 'total'
@@ -57,7 +57,12 @@ type RunsProgressColumn = {
 };
 
 const RESULT_COLUMNS: RunsProgressColumn[] = [
-	{ id: 'total', label: 'Total', shortLabel: 'Total', trendDirection: 'neutral' },
+	{
+		id: 'total',
+		label: 'Total',
+		shortLabel: 'Total',
+		trendDirection: 'neutral'
+	},
 	{
 		id: 'passedExpected',
 		label: 'Passed expected',
@@ -100,7 +105,12 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 		shortLabel: 'Abnormal',
 		trendDirection: 'lower-is-better'
 	},
-	{ id: 'trend', label: 'Overall trend', shortLabel: 'Trend', trendDirection: 'neutral' }
+	{
+		id: 'trend',
+		label: 'Overall trend',
+		shortLabel: 'Trend',
+		trendDirection: 'neutral'
+	}
 ];
 
 const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
@@ -149,9 +159,9 @@ function RunsProgress(props: RunsProgressProps) {
 	const { runs, rows, filters, isFetching } = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-	const [visibleColumnIds, setVisibleColumnIds] = useState<RunsProgressColumnId[]>(
-		DEFAULT_VISIBLE_COLUMNS
-	);
+	const [visibleColumnIds, setVisibleColumnIds] = useState<
+		RunsProgressColumnId[]
+	>(DEFAULT_VISIBLE_COLUMNS);
 
 	const visibleRows = useMemo(
 		() => getVisibleRows(rows, expandedRows),
@@ -159,7 +169,8 @@ function RunsProgress(props: RunsProgressProps) {
 	);
 	const expandableRowIds = useMemo(() => getExpandableRowIds(rows), [rows]);
 	const visibleColumns = useMemo(
-		() => RESULT_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
+		() =>
+			RESULT_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
 		[visibleColumnIds]
 	);
 	const runColumnWidth = Math.max(
@@ -207,27 +218,20 @@ function RunsProgress(props: RunsProgressProps) {
 		setExpandedRows({});
 	}
 
-	function handleWheel(event: WheelEvent<HTMLDivElement>) {
-		const element = parentRef.current;
-
-		if (!element) return;
-		if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
-		if (element.scrollWidth <= element.clientWidth) return;
-
-		element.scrollLeft += event.deltaY;
-		event.preventDefault();
-	}
-
 	return (
 		<main className={cn('bg-white rounded-md', isFetching && 'opacity-40')}>
 			<CardHeader label="Runs Progress">
-				<div className="flex items-center gap-4">
+				<div className="flex items-center gap-3">
 					<Legend />
 					<div className="flex items-center gap-2">
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
 							Open all levels
 						</ButtonTw>
-						<ButtonTw variant="secondary" size="xss" onClick={handleCollapseAll}>
+						<ButtonTw
+							variant="secondary"
+							size="xss"
+							onClick={handleCollapseAll}
+						>
 							Collapse
 						</ButtonTw>
 					</div>
@@ -237,28 +241,24 @@ function RunsProgress(props: RunsProgressProps) {
 					/>
 				</div>
 			</CardHeader>
-			<FilterSummary filters={filters} />
 			<div
 				ref={parentRef}
-				onWheel={handleWheel}
-				className="relative h-[calc(100vh-140px)] overflow-auto overscroll-contain border-t border-border-primary"
+				className="relative h-[calc(100vh-140px)] overflow-auto overscroll-contain"
 			>
 				<div
 					className="relative"
 					style={{ width: totalWidth, height: totalHeight }}
 				>
 					<div
-						className="sticky top-0 z-30 bg-white border-b border-border-primary"
+						className="sticky top-0 z-30 bg-white border-b border-border-primary text-left text-[0.6875rem] font-semibold leading-[0.875rem]"
 						style={{ width: totalWidth, height: HEADER_HEIGHT }}
 					>
 						<div
-							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-2 bg-white px-4 py-3 border-r border-border-primary"
+							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-1 bg-white px-2 py-2 border-r border-border-primary"
 							style={{ width: LEFT_COLUMN_WIDTH }}
 						>
-							<span className="text-[0.6875rem] font-semibold uppercase text-text-menu">
-								Test procedures
-							</span>
-							<span className="text-xs text-text-secondary">
+							<span className="uppercase text-text-menu">Test procedures</span>
+							<span className="text-[0.6875rem] font-medium text-text-secondary">
 								{visibleRows.length} visible rows across {runs.length} runs
 							</span>
 						</div>
@@ -286,7 +286,7 @@ function RunsProgress(props: RunsProgressProps) {
 						return (
 							<div
 								key={virtualRow.key}
-								className="absolute left-0 border-b border-border-primary"
+								className="absolute left-0 border-b border-border-primary text-[0.75rem] leading-[1.125rem] font-medium [&>*]:hover:bg-gray-50"
 								style={{
 									top: 0,
 									width: totalWidth,
@@ -372,7 +372,10 @@ function ColumnsVisibility({
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 
-	function handleColumnChange(columnId: RunsProgressColumnId, isChecked: boolean) {
+	function handleColumnChange(
+		columnId: RunsProgressColumnId,
+		isChecked: boolean
+	) {
 		if (isChecked) {
 			onVisibleColumnIdsChange(
 				RESULT_COLUMNS.map((column) => column.id).filter(
@@ -396,7 +399,9 @@ function ColumnsVisibility({
 				</ButtonTw>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
-				<DropdownMenuLabel className="text-xs">Result Columns</DropdownMenuLabel>
+				<DropdownMenuLabel className="text-xs">
+					Result Columns
+				</DropdownMenuLabel>
 				<Separator className="h-px my-1 -mx-1" />
 				{RESULT_COLUMNS.map((column) => (
 					<DropdownMenuCheckboxItem
@@ -438,11 +443,10 @@ function FilterSummary({ filters }: { filters: RunsProgressFilterSummary[] }) {
 function Legend() {
 	return (
 		<div className="flex items-center gap-2 text-[0.6875rem] font-medium text-text-secondary">
-			<LegendItem className="bg-bg-ok/15" label="OK" />
-			<LegendItem className="bg-bg-warning/15" label="Skipped" />
-			<LegendItem className="bg-bg-error/15" label="NOK" />
-			<LegendItem className="bg-diff-added" label="Improved" />
-			<LegendItem className="bg-diff-removed" label="Regressed" />
+			<LegendItem className="bg-badge-6" label="Expected" />
+			<LegendItem className="bg-badge-4" label="Unexpected" />
+			<LegendItem className="bg-diff-added" label="Metric improved" />
+			<LegendItem className="bg-diff-removed" label="Metric regressed" />
 		</div>
 	);
 }
@@ -474,7 +478,7 @@ function RunHeaderCell({
 
 	return (
 		<div
-			className="absolute top-0 h-full border-r border-border-primary bg-white px-3 py-2"
+			className="absolute top-0 h-full border-r border-border-primary bg-white px-2 py-1.5"
 			style={style}
 		>
 			<div className="flex items-center justify-between gap-2">
@@ -487,14 +491,14 @@ function RunHeaderCell({
 				</LinkWithProject>
 				<ConclusionBadge status={run.conclusion as RUN_STATUS} />
 			</div>
-			<div className="mt-1 truncate text-[0.6875rem] text-text-secondary">
+			<div className="mt-0.5 truncate text-[0.6875rem] font-medium text-text-secondary">
 				{formatDate(run.start)}
 			</div>
-			<div className="mt-2 max-h-[58px] overflow-hidden">
+			<div className="mt-1 max-h-[54px] overflow-hidden">
 				<BadgeList badges={tags} className="bg-badge-6" />
 			</div>
 			<div
-				className="absolute bottom-0 left-0 right-0 grid border-t border-border-primary bg-primary-wash/40 text-[0.625rem] font-semibold uppercase text-text-menu"
+				className="absolute bottom-0 left-0 right-0 grid border-t border-border-primary bg-white text-[0.625rem] font-semibold uppercase text-text-menu"
 				style={{
 					gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 				}}
@@ -502,7 +506,7 @@ function RunHeaderCell({
 				{columns.map((column) => (
 					<div
 						key={column.id}
-						className="truncate border-r border-border-primary px-2 py-1 last:border-r-0"
+						className="truncate border-r border-border-primary px-1.5 py-1 last:border-r-0"
 					>
 						{column.shortLabel}
 					</div>
@@ -526,7 +530,7 @@ function RowHeaderCell({
 
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center border-r border-border-primary bg-white px-2 text-xs font-medium text-text-primary"
+			className="sticky left-0 z-20 flex h-full items-center border-r border-border-primary bg-white px-2 text-[0.75rem] font-medium text-text-primary"
 			style={{ width: LEFT_COLUMN_WIDTH }}
 		>
 			<div className="flex min-w-0 flex-1 items-center">
@@ -554,16 +558,10 @@ function ResultCell({
 }) {
 	const stats = getNodeStats(cell.node);
 	const previousStats = getNodeStats(cell.previousNode);
-	const hasNok =
-		stats.failed_unexpected || stats.abnormal || stats.passed_unexpected;
-	const hasSkipped = stats.skipped || stats.skipped_unexpected;
-	const cellTrend = getCellTrend(columns, stats, previousStats, cell.trend);
-
 	return (
 		<div
 			className={cn(
-				'absolute top-0 grid h-full items-center border-r border-border-primary text-[0.6875rem] font-medium',
-				getResultCellClassName(cellTrend, Boolean(hasNok), Boolean(hasSkipped))
+				'absolute top-0 grid h-full items-center border-r border-border-primary bg-white text-[0.6875rem] font-medium'
 			)}
 			style={{
 				...style,
@@ -611,8 +609,13 @@ function ResultColumnValue({
 	const delta = getMetricDelta(value, previousValue, column.trendDirection);
 
 	return (
-		<div className="flex min-w-0 items-center justify-end gap-1 border-r border-border-primary px-2 last:border-r-0">
-			<span className={cn('tabular-nums', getMetricTextClassName(column.id))}>
+		<div className="flex min-w-0 items-center justify-end gap-1 border-r border-border-primary px-1.5 last:border-r-0">
+			<span
+				className={cn(
+					'tabular-nums',
+					getMetricValueClassName(column.id, value)
+				)}
+			>
 				{value}
 			</span>
 			<DeltaPill delta={delta} />
@@ -692,46 +695,27 @@ function getMetricValue(
 	}
 }
 
-function getMetricTextClassName(columnId: RunsProgressColumnId): string {
-	if (columnId === 'passedExpected') return 'text-text-expected';
+function getMetricValueClassName(
+	columnId: RunsProgressColumnId,
+	value: number
+): string {
+	const base =
+		'inline-flex min-w-5 justify-center rounded px-1 py-0.5 leading-none';
+
+	if (value === 0) return cn(base, 'text-text-secondary');
+	if (columnId === 'passedExpected')
+		return cn(base, 'bg-badge-6 text-text-primary');
 	if (
 		columnId === 'failedExpected' ||
 		columnId === 'failedUnexpected' ||
 		columnId === 'passedUnexpected' ||
-		columnId === 'abnormal'
+		columnId === 'abnormal' ||
+		columnId === 'skippedUnexpected'
 	) {
-		return 'text-text-unexpected';
+		return cn(base, 'bg-badge-4 text-text-unexpected');
 	}
 
-	return 'text-text-secondary';
-}
-
-function getCellTrend(
-	columns: RunsProgressColumn[],
-	stats: ReturnType<typeof getNodeStats>,
-	previousStats: ReturnType<typeof getNodeStats>,
-	fallback: RunsProgressTrend
-): RunsProgressTrend {
-	let hasImproved = false;
-	let hasRegressed = false;
-
-	columns.forEach((column) => {
-		if (column.id === 'trend') return;
-
-		const delta = getMetricDelta(
-			getMetricValue(column.id, stats),
-			getMetricValue(column.id, previousStats),
-			column.trendDirection
-		);
-
-		if (delta?.status === 'improved') hasImproved = true;
-		if (delta?.status === 'regressed') hasRegressed = true;
-	});
-
-	if (hasRegressed) return 'regressed';
-	if (hasImproved) return 'improved';
-
-	return fallback;
+	return cn(base, 'bg-primary-wash text-text-secondary');
 }
 
 function TrendPill({ trend }: { trend: RunsProgressTrend }) {
@@ -751,19 +735,6 @@ function TrendPill({ trend }: { trend: RunsProgressTrend }) {
 			{labelByTrend[trend]}
 		</span>
 	);
-}
-
-function getResultCellClassName(
-	trend: RunsProgressTrend,
-	hasNok: boolean,
-	hasSkipped: boolean
-): string {
-	if (trend === 'regressed' || trend === 'removed') return 'bg-diff-removed';
-	if (trend === 'improved' || trend === 'added') return 'bg-diff-added';
-	if (hasNok) return 'bg-bg-error/10';
-	if (hasSkipped) return 'bg-bg-warning/10';
-
-	return 'bg-bg-ok/10';
 }
 
 function formatDate(value: string): string {
