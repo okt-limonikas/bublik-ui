@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { NodeEntity, RunData, RunsData, RunStats } from '@/shared/types';
+import { RunData, RunsData, RunStats } from '@/shared/types';
 
 import {
 	RunsProgressFilterSummary,
@@ -19,22 +19,52 @@ const EMPTY_STATS: RunStats = {
 	skipped_unexpected: 0
 };
 
-function getNodeKey(node: RunData): string {
-	const path = node.path.length ? node.path.join('/') : node.test_name;
+type AnnotatedNode = {
+	key: string;
+	parentKey: string | null;
+	node: RunData;
+	depth: number;
+};
 
-	return `${node.type}:${path}`;
-}
+function annotateRunNodes(root: RunData): AnnotatedNode[] {
+	const nodes: AnnotatedNode[] = [];
 
-function flattenRunNodes(root: RunData): RunData[] {
-	const nodes: RunData[] = [];
+	function visit(
+		node: RunData,
+		parentKey: string | null,
+		depth: number,
+		key: string
+	) {
+		nodes.push({ key, parentKey, node, depth });
 
-	function visit(node: RunData) {
-		if (node.type === NodeEntity.Test) nodes.push(node);
+		const childrenByTestId = new Map<number, RunData[]>();
 
-		node.children.forEach(visit);
+		node.children.forEach((child) => {
+			childrenByTestId.set(child.test_id, [
+				...(childrenByTestId.get(child.test_id) ?? []),
+				child
+			]);
+		});
+
+		childrenByTestId.forEach((children) => {
+			children.sort((left, right) => left.exec_seqno - right.exec_seqno);
+		});
+
+		[...node.children]
+			.sort((left, right) => left.exec_seqno - right.exec_seqno)
+			.forEach((child) => {
+				const siblings = childrenByTestId.get(child.test_id) ?? [];
+				const occurrence =
+					siblings.findIndex(
+						(sibling) => sibling.exec_seqno === child.exec_seqno
+					) + 1;
+				const childKey = `${key}/${child.type}:${child.test_id}:${occurrence}`;
+
+				visit(child, key, depth + 1, childKey);
+			});
 	}
 
-	visit(root);
+	visit(root, null, 0, `${root.type}:${root.test_id}:1`);
 
 	return nodes;
 }
@@ -90,32 +120,38 @@ function getNodeTrend(
 }
 
 function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
-	const rowByKey = new Map<string, Omit<RunsProgressRow, 'cells'>>();
+	const rowByKey = new Map<string, RunsProgressRow>();
 	const nodeMaps = runs.map(({ root }) => {
 		const nodeMap = new Map<string, RunData>();
 
-		flattenRunNodes(root).forEach((node) => {
-			const key = getNodeKey(node);
+		annotateRunNodes(root).forEach(({ key, parentKey, node, depth }) => {
 			nodeMap.set(key, node);
 
 			if (!rowByKey.has(key)) {
 				rowByKey.set(key, {
 					id: key,
 					name: node.test_name,
+					type: node.type,
 					path: node.path,
-					depth: Math.max(node.path.length - 1, 0)
+					depth,
+					cells: [],
+					children: []
 				});
+			}
+
+			const row = rowByKey.get(key);
+			const parent = parentKey ? rowByKey.get(parentKey) : null;
+
+			if (row && parent && !parent.children.some((child) => child.id === row.id)) {
+				parent.children.push(row);
 			}
 		});
 
 		return nodeMap;
 	});
 
-	return Array.from(rowByKey.values())
-		.sort((left, right) => left.path.join('/').localeCompare(right.path.join('/')))
-		.map((row) => ({
-			...row,
-			cells: runs.map(({ run }, runIndex) => {
+	rowByKey.forEach((row) => {
+		row.cells = runs.map(({ run }, runIndex) => {
 				const node = nodeMaps[runIndex].get(row.id) ?? null;
 				const previousNode = nodeMaps[runIndex + 1]?.get(row.id) ?? null;
 
@@ -125,8 +161,10 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 					previousNode,
 					trend: getNodeTrend(node, previousNode)
 				};
-			})
-		}));
+			});
+	});
+
+	return Array.from(rowByKey.values()).filter((row) => row.depth === 0);
 }
 
 function sortRunsNewestFirst(runs: RunsData[]): RunsData[] {

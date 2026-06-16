@@ -70,6 +70,27 @@ function createRoot(testStats = baseStats): RunData {
 	};
 }
 
+function createRootWithRepeatedTests(firstExecSeqno: number, secondExecSeqno: number): RunData {
+	const root = createRoot(baseStats);
+
+	root.children = [
+		{
+			...root.children[0],
+			result_id: 2,
+			exec_seqno: firstExecSeqno,
+			stats: { ...baseStats, failed_unexpected: firstExecSeqno === 1 ? 1 : 0 }
+		},
+		{
+			...root.children[0],
+			result_id: 3,
+			exec_seqno: secondExecSeqno,
+			stats: { ...baseStats, failed_unexpected: secondExecSeqno === 1 ? 1 : 0 }
+		}
+	];
+
+	return root;
+}
+
 describe('runs progress utils', () => {
 	it('sorts runs newest first', () => {
 		expect(
@@ -81,7 +102,7 @@ describe('runs progress utils', () => {
 		).toEqual([2, 3, 1]);
 	});
 
-	it('builds matrix rows and classifies improvements against older run', () => {
+	it('builds matrix tree rows and classifies improvements against older run', () => {
 		const rows = buildRunsProgressRows([
 			{
 				run: createRun(2, '2024-01-02T00:00:00Z'),
@@ -94,8 +115,27 @@ describe('runs progress utils', () => {
 		]);
 
 		expect(rows).toHaveLength(1);
-		expect(rows[0].name).toBe('procedure');
-		expect(rows[0].cells[0].trend).toBe('improved');
+		expect(rows[0].name).toBe('root');
+		expect(rows[0].children).toHaveLength(1);
+		expect(rows[0].children[0].name).toBe('procedure');
+		expect(rows[0].children[0].cells[0].trend).toBe('improved');
+	});
+
+	it('matches repeated nodes by test id occurrence sorted by exec seqno', () => {
+		const rows = buildRunsProgressRows([
+			{
+				run: createRun(2, '2024-01-02T00:00:00Z'),
+				root: createRootWithRepeatedTests(2, 1)
+			},
+			{
+				run: createRun(1, '2024-01-01T00:00:00Z'),
+				root: createRootWithRepeatedTests(1, 2)
+			}
+		]);
+
+		expect(rows[0].children).toHaveLength(2);
+		expect(rows[0].children[0].cells[0].node?.exec_seqno).toBe(1);
+		expect(rows[0].children[0].cells[0].previousNode?.exec_seqno).toBe(1);
 	});
 
 	it('summarizes active filters', () => {
