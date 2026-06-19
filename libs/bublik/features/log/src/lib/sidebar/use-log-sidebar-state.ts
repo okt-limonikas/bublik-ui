@@ -108,7 +108,11 @@ export function useLogSidebarState(): UseLogSidebarStateReturn {
 
 			writeSidebarState((sidebarState) => {
 				setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_MODE, mode);
-				setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_LOG, cleanedUrl);
+				setSidebarStateValue(
+					sidebarState,
+					LOG_SIDEBAR_KEYS.LAST_LOG,
+					cleanedUrl
+				);
 
 				if (extractedRunId) {
 					setSidebarStateValue(
