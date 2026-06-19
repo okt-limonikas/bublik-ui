@@ -211,7 +211,11 @@ export function useHistorySidebarState(): UseHistorySidebarStateReturn {
 			const cleanedUrl = stripSidebarParamsFromUrl(url);
 
 			writeSidebarState((sidebarState) => {
-				setSidebarStateValue(sidebarState, HISTORY_SIDEBAR_KEYS.LAST_MODE, mode);
+				setSidebarStateValue(
+					sidebarState,
+					HISTORY_SIDEBAR_KEYS.LAST_MODE,
+					mode
+				);
 
 				switch (mode) {
 					case 'linear':

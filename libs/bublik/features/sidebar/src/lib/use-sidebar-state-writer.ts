@@ -5,9 +5,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { updateSidebarStateSearchParams } from './sidebar-url.utils';
 
-type SidebarStateUpdater = Parameters<
-	typeof updateSidebarStateSearchParams
->[1];
+type SidebarStateUpdater = Parameters<typeof updateSidebarStateSearchParams>[1];
 
 /**
  * Shared writer for the compressed sidebar-state URL param.
@@ -21,7 +19,9 @@ type SidebarStateUpdater = Parameters<
  * Each per-feature sidebar-state hook used to inline this exact scaffold; keep
  * the mechanism here so changes to it happen in one place.
  */
-export function useSidebarStateWriter(): (updater: SidebarStateUpdater) => void {
+export function useSidebarStateWriter(): (
+	updater: SidebarStateUpdater
+) => void {
 	const [, setSearchParams] = useSearchParams();
 	const location = useLocation();
 
