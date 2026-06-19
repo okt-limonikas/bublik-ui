@@ -49,6 +49,9 @@ export interface HistoryGlobalSearchFormValues {
 	labels: BadgeItem[];
 	labelExpr: string;
 	verdictLookup: VERDICT_TYPE;
+	/* Classification section */
+	categories: string[];
+	untriaged: boolean;
 }
 
 export const defaultValues: HistoryGlobalSearchFormValues = {
@@ -74,5 +77,7 @@ export const defaultValues: HistoryGlobalSearchFormValues = {
 	verdictExpr: '',
 	revisionExpr: '',
 	testArgExpr: '',
-	labelExpr: ''
+	labelExpr: '',
+	categories: [],
+	untriaged: false
 };
