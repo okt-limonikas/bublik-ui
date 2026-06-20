@@ -45,6 +45,7 @@ import {
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
+	HoverCard,
 	Icon,
 	Separator,
 	Skeleton,
@@ -65,7 +66,11 @@ import {
 	getStatsTotal,
 	getUnexpectedTotal
 } from './runs-progress.utils';
-import { Sparkline, SparklinePoint } from './runs-progress.sparkline';
+import {
+	Sparkline,
+	SparklineHoverChart,
+	SparklinePoint
+} from './runs-progress.sparkline';
 
 const ROW_HEIGHT = 34;
 const HEADER_STRIP_HEIGHT = 34;
@@ -284,22 +289,26 @@ function RunsProgress(props: RunsProgressProps) {
 	// Active sort keys, newest click last. Each key targets one run's metric column
 	// so the same metric can be sorted independently per run (Shift adds keys).
 	const [sorting, setSorting] = useState<RunsProgressSort[]>([]);
-	// A clicked (pinned) metric stays highlighted across all runs while scrolling,
-	// without needing to keep the pointer over it. Lives at the top level so it
-	// survives virtualized rows mounting/unmounting.
+	// A clicked cell pins a highlight that survives scrolling (and virtualized rows
+	// mounting/unmounting). Tracks the run too, so the clicked run's metric column
+	// can be bracketed top-to-bottom while the same metric in other runs only tints.
 	const [pinnedCell, setPinnedCell] = useState<{
 		rowId: string;
+		runId: number;
 		columnId: RunsProgressColumnId;
 	} | null>(null);
 
 	// Stable so the memoized matrix cells don't re-render when RunsProgress re-renders
 	// on scroll.
 	const handleTogglePin = useCallback(
-		(rowId: string, columnId: RunsProgressColumnId) => {
+		(rowId: string, runId: number, columnId: RunsProgressColumnId) => {
 			setPinnedCell((current) =>
-				current && current.rowId === rowId && current.columnId === columnId
+				current &&
+				current.rowId === rowId &&
+				current.runId === runId &&
+				current.columnId === columnId
 					? null
-					: { rowId, columnId }
+					: { rowId, runId, columnId }
 			);
 		},
 		[]
@@ -387,6 +396,26 @@ function RunsProgress(props: RunsProgressProps) {
 	useEffect(() => {
 		columnVirtualizer.measure();
 	}, [columnVirtualizer, runColumnWidth]);
+
+	// Clicking a point in a row's sparkline scrolls that run's column into view and
+	// pins the cell so the eye lands on it. Prefers the unexpected metric (the usual
+	// reason to jump) and falls back to the first visible column when it is hidden.
+	const handleJumpToCell = useCallback(
+		(rowId: string, runId: number) => {
+			const runIndex = runIndexById.get(runId);
+
+			if (runIndex === undefined) return;
+
+			columnVirtualizer.scrollToIndex(runIndex, { align: 'center' });
+
+			const columnId = visibleColumnIds.includes('unexpected')
+				? 'unexpected'
+				: visibleColumns[0]?.id;
+
+			if (columnId) setPinnedCell({ rowId, runId, columnId });
+		},
+		[columnVirtualizer, runIndexById, visibleColumnIds, visibleColumns]
+	);
 
 	const virtualRows = rowVirtualizer.getVirtualItems();
 	const virtualColumns = columnVirtualizer.getVirtualItems();
@@ -546,15 +575,17 @@ function RunsProgress(props: RunsProgressProps) {
 							<ProgressRow
 								key={virtualRow.key}
 								row={row}
+								runs={runs}
 								columns={visibleColumns}
 								virtualColumns={virtualColumns}
 								showObjective={showObjective}
+								onJumpToCell={handleJumpToCell}
 								isExpanded={isRowExpanded(row, expandedRows)}
 								isGrouped={Boolean(groupKey)}
 								onToggle={handleRowToggle}
-								pinnedColumnId={
-									pinnedCell?.rowId === row.id ? pinnedCell.columnId : null
-								}
+								pinnedColumnId={pinnedCell?.columnId ?? null}
+								pinnedRunId={pinnedCell?.runId ?? null}
+								isPinnedRow={pinnedCell?.rowId === row.id}
 								onTogglePin={handleTogglePin}
 								style={{
 									top: 0,
@@ -573,44 +604,52 @@ function RunsProgress(props: RunsProgressProps) {
 
 function ProgressRow({
 	row,
+	runs,
 	columns,
 	virtualColumns,
 	showObjective,
 	isExpanded,
 	isGrouped,
 	onToggle,
+	onJumpToCell,
 	pinnedColumnId,
+	pinnedRunId,
+	isPinnedRow,
 	onTogglePin,
 	style
 }: {
 	row: RunsProgressRow;
+	runs: RunsProgressRun[];
 	columns: RunsProgressColumn[];
 	virtualColumns: VirtualItem[];
 	showObjective: boolean;
 	isExpanded: boolean;
 	isGrouped: boolean;
 	onToggle: (rowId: string) => void;
+	onJumpToCell: (rowId: string, runId: number) => void;
 	pinnedColumnId: RunsProgressColumnId | null;
-	onTogglePin: (rowId: string, columnId: RunsProgressColumnId) => void;
+	pinnedRunId: number | null;
+	isPinnedRow: boolean;
+	onTogglePin: (
+		rowId: string,
+		runId: number,
+		columnId: RunsProgressColumnId
+	) => void;
 	style: CSSProperties;
 }) {
-	// Which metric is hovered within this row — used to highlight the same metric
-	// across every run column so a single value can be compared run-to-run.
-	const [hoveredColumnId, setHoveredColumnId] =
-		useState<RunsProgressColumnId | null>(null);
-
 	return (
 		<div
 			className="group/row absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
 			style={style}
-			onMouseLeave={() => setHoveredColumnId(null)}
 		>
 			<RowHeaderCell
 				row={row}
+				runs={runs}
 				isExpanded={isExpanded}
 				isGrouped={isGrouped}
 				showObjective={showObjective}
 				onToggle={onToggle}
+				onJumpToCell={onJumpToCell}
 			/>
 			{virtualColumns.map((virtualColumn) => (
 				<ResultCell
@@ -618,9 +657,9 @@ function ProgressRow({
 					cell={row.cells[virtualColumn.index]}
 					columns={columns}
 					rowId={row.id}
-					hoveredColumnId={hoveredColumnId}
 					pinnedColumnId={pinnedColumnId}
-					onHoverColumn={setHoveredColumnId}
+					pinnedRunId={pinnedRunId}
+					isPinnedRow={isPinnedRow}
 					onTogglePin={onTogglePin}
 					width={virtualColumn.size}
 					start={virtualColumn.start}
@@ -630,17 +669,31 @@ function ProgressRow({
 	);
 }
 
-type HighlightState = 'none' | 'hover' | 'pinned';
+// How a cell participates in the pinned-cell highlight.
+type CellHighlight = {
+	// Cross-run tint: this metric in the pinned row (every run column).
+	bg: boolean;
+	// Vertical bracket: the pinned run's metric column, drawn down every row.
+	scope: boolean;
+	// The exact clicked cell — full box at the centre of the bracket.
+	clicked: boolean;
+};
 
-function getHighlightState(
+function getCellHighlight(
 	columnId: RunsProgressColumnId,
-	hoveredColumnId: RunsProgressColumnId | null,
-	pinnedColumnId: RunsProgressColumnId | null
-): HighlightState {
-	if (columnId === pinnedColumnId) return 'pinned';
-	if (columnId === hoveredColumnId) return 'hover';
+	runId: number,
+	pinnedColumnId: RunsProgressColumnId | null,
+	pinnedRunId: number | null,
+	isPinnedRow: boolean
+): CellHighlight {
+	const sameColumn = pinnedColumnId !== null && columnId === pinnedColumnId;
+	const scope = sameColumn && runId === pinnedRunId;
 
-	return 'none';
+	return {
+		bg: sameColumn && isPinnedRow,
+		scope,
+		clicked: scope && isPinnedRow
+	};
 }
 
 type RunsProgressSort = {
@@ -1137,34 +1190,45 @@ function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
 
 const RowHeaderCell = memo(function RowHeaderCell({
 	row,
+	runs,
 	isExpanded,
 	isGrouped,
 	showObjective,
-	onToggle
+	onToggle,
+	onJumpToCell
 }: {
 	row: RunsProgressRow;
+	runs: RunsProgressRun[];
 	isExpanded: boolean;
 	isGrouped: boolean;
 	showObjective: boolean;
 	onToggle: (rowId: string) => void;
+	onJumpToCell: (rowId: string, runId: number) => void;
 }) {
 	const canExpand = row.children.length > 0;
 	const canToggle = canExpand && row.depth > 0;
+	const [isChartOpen, setIsChartOpen] = useState(false);
 
 	// Cells are stored newest-first; keep that order so the sparkline aligns with
-	// the pinned run columns (newest on the left).
+	// the pinned run columns (newest on the left). Cell N aligns with run N.
 	const sparklinePoints = useMemo<SparklinePoint[]>(
 		() =>
-			row.cells.map((cell) => {
+			row.cells.map((cell, index) => {
 				const stats = getNodeStats(cell.node);
+				const unexpected = getUnexpectedTotal(stats);
 
 				return {
 					present: Boolean(cell.node),
 					total: getStatsTotal(stats),
-					nok: getUnexpectedTotal(stats) + stats.abnormal
+					nok: unexpected + stats.abnormal,
+					unexpected,
+					abnormal: stats.abnormal,
+					runId: cell.runId,
+					resultId: cell.node?.result_id ?? null,
+					runStart: runs[index]?.run.start ?? ''
 				};
 			}),
-		[row.cells]
+		[row.cells, runs]
 	);
 
 	return (
@@ -1195,17 +1259,35 @@ const RowHeaderCell = memo(function RowHeaderCell({
 					{row.objective}
 				</div>
 			) : null}
-			<div
-				className="flex shrink-0 items-center justify-center"
-				style={{ width: SPARKLINE_WIDTH }}
-				title={
-					isGrouped
-						? 'Total results trend across runs (grouped order)'
-						: 'Total results trend across runs (newest → oldest)'
+			<HoverCard
+				open={isChartOpen}
+				onOpenChange={setIsChartOpen}
+				openDelay={120}
+				closeDelay={80}
+				side="right"
+				align="center"
+				content={
+					<SparklineHoverChart
+						points={sparklinePoints}
+						onPointClick={(index) => {
+							setIsChartOpen(false);
+							onJumpToCell(row.id, sparklinePoints[index].runId);
+						}}
+					/>
 				}
 			>
-				<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
-			</div>
+				<div
+					className="flex shrink-0 cursor-pointer items-center justify-center"
+					style={{ width: SPARKLINE_WIDTH }}
+					aria-label={
+						isGrouped
+							? 'Total results trend across runs (grouped order)'
+							: 'Total results trend across runs (newest → oldest)'
+					}
+				>
+					<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
+				</div>
+			</HoverCard>
 		</div>
 	);
 });
@@ -1214,9 +1296,9 @@ const ResultCell = memo(function ResultCell({
 	cell,
 	columns,
 	rowId,
-	hoveredColumnId,
 	pinnedColumnId,
-	onHoverColumn,
+	pinnedRunId,
+	isPinnedRow,
 	onTogglePin,
 	width,
 	start
@@ -1224,10 +1306,14 @@ const ResultCell = memo(function ResultCell({
 	cell: RunsProgressRow['cells'][number];
 	columns: RunsProgressColumn[];
 	rowId: string;
-	hoveredColumnId: RunsProgressColumnId | null;
 	pinnedColumnId: RunsProgressColumnId | null;
-	onHoverColumn: (columnId: RunsProgressColumnId | null) => void;
-	onTogglePin: (rowId: string, columnId: RunsProgressColumnId) => void;
+	pinnedRunId: number | null;
+	isPinnedRow: boolean;
+	onTogglePin: (
+		rowId: string,
+		runId: number,
+		columnId: RunsProgressColumnId
+	) => void;
 	width: number;
 	start: number;
 }) {
@@ -1248,10 +1334,11 @@ const ResultCell = memo(function ResultCell({
 		}),
 		[width, start]
 	);
-	// Bound to this row's id once so every value shares one stable pin handler.
+	// Bound to this row+run once so every value shares one stable pin handler.
 	const handlePin = useCallback(
-		(columnId: RunsProgressColumnId) => onTogglePin(rowId, columnId),
-		[onTogglePin, rowId]
+		(columnId: RunsProgressColumnId) =>
+			onTogglePin(rowId, cell.runId, columnId),
+		[onTogglePin, rowId, cell.runId]
 	);
 
 	return (
@@ -1263,24 +1350,31 @@ const ResultCell = memo(function ResultCell({
 			}}
 		>
 			{node ? (
-				columns.map((column) => (
-					<ResultColumnValue
-						key={column.id}
-						column={column}
-						stats={stats}
-						previousStats={previousStats}
-						hasPrevious={hasPrevious}
-						runId={cell.runId}
-						resultId={node.result_id}
-						highlightState={getHighlightState(
-							column.id,
-							hoveredColumnId,
-							pinnedColumnId
-						)}
-						onHover={onHoverColumn}
-						onPin={handlePin}
-					/>
-				))
+				columns.map((column) => {
+					const highlight = getCellHighlight(
+						column.id,
+						cell.runId,
+						pinnedColumnId,
+						pinnedRunId,
+						isPinnedRow
+					);
+
+					return (
+						<ResultColumnValue
+							key={column.id}
+							column={column}
+							stats={stats}
+							previousStats={previousStats}
+							hasPrevious={hasPrevious}
+							runId={cell.runId}
+							resultId={node.result_id}
+							bgHighlight={highlight.bg}
+							scopeHighlight={highlight.scope}
+							isClicked={highlight.clicked}
+							onPin={handlePin}
+						/>
+					);
+				})
 			) : (
 				<span className="col-span-full px-3 text-text-secondary">No data</span>
 			)}
@@ -1295,8 +1389,9 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	hasPrevious,
 	runId,
 	resultId,
-	highlightState,
-	onHover,
+	bgHighlight,
+	scopeHighlight,
+	isClicked,
 	onPin
 }: {
 	column: RunsProgressColumn;
@@ -1305,8 +1400,12 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	hasPrevious: boolean;
 	runId: number;
 	resultId: number;
-	highlightState: HighlightState;
-	onHover: (columnId: RunsProgressColumnId | null) => void;
+	// Cross-run tint in the pinned row.
+	bgHighlight: boolean;
+	// Vertical bracket down the pinned run's metric column.
+	scopeHighlight: boolean;
+	// The exact clicked cell at the centre of the bracket.
+	isClicked: boolean;
 	onPin: (columnId: RunsProgressColumnId) => void;
 }) {
 	// The "open test in run" link is invisible until this metric is hovered, so it
@@ -1318,27 +1417,30 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	const delta = hasPrevious
 		? getMetricDelta(value, previousValue, column.trendDirection)
 		: null;
-	// The "bad" tone only paints when this metric is highlight-free, so the blue
-	// hover/pin highlight always wins (avoids arbitrary-value bg class conflicts).
+	// The "bad" tone steps aside only where the blue pin tint paints, so the
+	// vertical bracket (which only draws borders) keeps its change-aware tone.
 	const toneClassName =
-		highlightState === 'none'
-			? getMetricToneClassName(column, value, previousValue, hasPrevious)
-			: '';
+		bgHighlight || isClicked
+			? ''
+			: getMetricToneClassName(column, value, previousValue, hasPrevious);
 
 	return (
 		<div
-			onMouseEnter={() => {
-				setIsHovered(true);
-				onHover(column.id);
-			}}
+			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 			onClick={() => onPin(column.id)}
 			className={cn(
 				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
 				toneClassName,
-				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
-				highlightState === 'pinned' &&
-					'bg-[rgba(59,130,246,0.24)] shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.6)]'
+				bgHighlight && !isClicked && 'bg-[rgba(59,130,246,0.14)]',
+				isClicked && 'bg-[rgba(59,130,246,0.24)]',
+				// Left + right primary edges form the column bracket; the clicked cell
+				// gets a full box that caps the bracket at its centre.
+				scopeHighlight &&
+					!isClicked &&
+					'shadow-[inset_1px_0_0_0_hsl(var(--colors-primary)),inset_-1px_0_0_0_hsl(var(--colors-primary))]',
+				isClicked &&
+					'shadow-[inset_0_0_0_1.5px_hsl(var(--colors-primary))]'
 			)}
 		>
 			{isHovered && (
@@ -1411,7 +1513,8 @@ function toneTierClassName(magnitude: number, kind: 'bad' | 'good'): string {
 type MetricDeltaStatus = 'improved' | 'regressed' | 'changed';
 
 type MetricDelta = {
-	label: string;
+	amount: number;
+	increased: boolean;
 	title: string;
 	status: MetricDeltaStatus;
 } | null;
@@ -1425,7 +1528,6 @@ function getMetricDelta(
 
 	const diff = value - previousValue;
 	const sign = diff > 0 ? '+' : '';
-	const arrow = diff > 0 ? '▲' : '▼';
 
 	let status: MetricDeltaStatus = 'changed';
 
@@ -1447,7 +1549,8 @@ function getMetricDelta(
 			: `${sign}${diff} (${percent > 0 ? '+' : ''}${percent}%) vs previous run`;
 
 	return {
-		label: `${arrow}${Math.abs(diff)}`,
+		amount: Math.abs(diff),
+		increased: diff > 0,
 		title,
 		status
 	};
@@ -1460,13 +1563,18 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 		<span
 			title={delta.title}
 			className={cn(
-				'mr-auto rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
+				'mr-auto inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
 				delta.status === 'improved' && 'bg-diff-added text-text-expected',
 				delta.status === 'regressed' && 'bg-diff-removed text-text-unexpected',
 				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
 			)}
 		>
-			{delta.label}
+			<Icon
+				name="ArrowLeanUp"
+				size={12}
+				className={delta.increased ? 'rotate-45' : 'rotate-[135deg]'}
+			/>
+			{delta.amount}
 		</span>
 	);
 }
