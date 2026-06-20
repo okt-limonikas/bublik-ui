@@ -269,6 +269,13 @@ function RunsProgress(props: RunsProgressProps) {
 		overscan: 3
 	});
 
+	// The horizontal virtualizer caches its size estimate, so it keeps the old run
+	// column width when metric columns are toggled. Re-measure whenever the per-run
+	// width changes so cells resize to the new column count instead of overflowing.
+	useEffect(() => {
+		columnVirtualizer.measure();
+	}, [columnVirtualizer, runColumnWidth]);
+
 	const virtualRows = rowVirtualizer.getVirtualItems();
 	const virtualColumns = columnVirtualizer.getVirtualItems();
 	const totalWidth = LEFT_COLUMN_WIDTH + columnVirtualizer.getTotalSize();
@@ -473,11 +480,7 @@ function ProgressRow({
 			style={style}
 			onMouseLeave={() => setHoveredColumnId(null)}
 		>
-			<RowHeaderCell
-				row={row}
-				isExpanded={isExpanded}
-				onToggle={onToggle}
-			/>
+			<RowHeaderCell row={row} isExpanded={isExpanded} onToggle={onToggle} />
 			{virtualColumns.map((virtualColumn) => (
 				<ResultCell
 					key={`${virtualColumn.key}-${row.id}`}
@@ -722,14 +725,8 @@ function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
 	return (
 		<div className="mt-1.5">
 			<div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
-				<div
-					className="h-full bg-[#65cd84]"
-					style={{ width: `${goodPct}%` }}
-				/>
-				<div
-					className="h-full bg-[#f95c78]"
-					style={{ width: `${badPct}%` }}
-				/>
+				<div className="h-full bg-[#65cd84]" style={{ width: `${goodPct}%` }} />
+				<div className="h-full bg-[#f95c78]" style={{ width: `${badPct}%` }} />
 			</div>
 			<div className="mt-0.5 flex items-center justify-between text-[0.625rem] font-medium leading-none">
 				<span className="text-text-secondary tabular-nums">{total} tests</span>
@@ -886,7 +883,7 @@ function ResultColumnValue({
 			onMouseEnter={() => onHover(column.id)}
 			onClick={() => onPin(column.id)}
 			className={cn(
-				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary px-1.5 last:border-r-0',
+				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary px-1.5 last:border-r-0',
 				toneClassName,
 				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
 				highlightState === 'pinned' &&
@@ -978,10 +975,8 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 			title={delta.title}
 			className={cn(
 				'rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
-				delta.status === 'improved' &&
-					'bg-diff-added text-text-expected',
-				delta.status === 'regressed' &&
-					'bg-diff-removed text-text-unexpected',
+				delta.status === 'improved' && 'bg-diff-added text-text-expected',
+				delta.status === 'regressed' && 'bg-diff-removed text-text-unexpected',
 				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
 			)}
 		>
