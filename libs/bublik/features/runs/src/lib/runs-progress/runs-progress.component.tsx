@@ -61,7 +61,6 @@ import {
 	RunsProgressRun
 } from './runs-progress.types';
 import {
-	filterChangedRows,
 	getNodeStats,
 	getStatsTotal,
 	getUnexpectedTotal
@@ -90,6 +89,7 @@ const METRIC_COLUMN_WIDTH = 104;
 
 type RunsProgressColumnId =
 	| 'total'
+	| 'run'
 	| 'passedExpected'
 	| 'unexpected'
 	| 'abnormal'
@@ -130,6 +130,9 @@ const ABNORMAL_ICON = (
 	/>
 );
 
+// Order mirrors the run-table badge columns (badge-columns.tsx): Total, Run,
+// Unexpected (all), Passed/Failed expected, Passed/Failed unexpected,
+// Skipped expected/unexpected, Abnormal.
 const RESULT_COLUMNS: RunsProgressColumn[] = [
 	{
 		id: 'total',
@@ -140,12 +143,12 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 		icon: null
 	},
 	{
-		id: 'passedExpected',
-		label: 'Passed expected',
-		shortLabel: 'Passed',
-		trendDirection: 'higher-is-better',
-		badgeVariant: BadgeVariants.ExpectedActive,
-		icon: EXPECTED_ICON
+		id: 'run',
+		label: 'Run',
+		shortLabel: 'Run',
+		trendDirection: 'neutral',
+		badgeVariant: BadgeVariants.PrimaryActive,
+		icon: null
 	},
 	{
 		id: 'unexpected',
@@ -156,20 +159,12 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 		icon: UNEXPECTED_ICON
 	},
 	{
-		id: 'abnormal',
-		label: 'Abnormal',
-		shortLabel: 'Abnormal',
-		trendDirection: 'lower-is-better',
-		badgeVariant: BadgeVariants.Unexpected,
-		icon: ABNORMAL_ICON
-	},
-	{
-		id: 'passedUnexpected',
-		label: 'Passed unexpected',
-		shortLabel: 'Passed unexp.',
-		trendDirection: 'lower-is-better',
-		badgeVariant: BadgeVariants.UnexpectedActive,
-		icon: UNEXPECTED_ICON
+		id: 'passedExpected',
+		label: 'Passed expected',
+		shortLabel: 'Passed',
+		trendDirection: 'higher-is-better',
+		badgeVariant: BadgeVariants.ExpectedActive,
+		icon: EXPECTED_ICON
 	},
 	{
 		id: 'failedExpected',
@@ -178,6 +173,14 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 		trendDirection: 'neutral',
 		badgeVariant: BadgeVariants.ExpectedActive,
 		icon: EXPECTED_ICON
+	},
+	{
+		id: 'passedUnexpected',
+		label: 'Passed unexpected',
+		shortLabel: 'Passed unexp.',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.UnexpectedActive,
+		icon: UNEXPECTED_ICON
 	},
 	{
 		id: 'failedUnexpected',
@@ -202,13 +205,23 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 		trendDirection: 'lower-is-better',
 		badgeVariant: BadgeVariants.UnexpectedActive,
 		icon: UNEXPECTED_ICON
+	},
+	{
+		id: 'abnormal',
+		label: 'Abnormal',
+		shortLabel: 'Abnormal',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.Unexpected,
+		icon: ABNORMAL_ICON
 	}
 ];
 
 const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
-	'total',
-	'passedExpected',
+	'run',
 	'unexpected',
+	'passedUnexpected',
+	'failedUnexpected',
+	'skippedUnexpected',
 	'abnormal'
 ];
 
@@ -265,8 +278,12 @@ function RunsProgress(props: RunsProgressProps) {
 	} = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-	const [changesOnly, setChangesOnly] = useState(false);
-	const [dimUnchanged, setDimUnchanged] = useState(true);
+	// Objective is per-test text shown in the pinned left column; off by default
+	// and toggled from the Columns dropdown.
+	const [showObjective, setShowObjective] = useState(false);
+	// Active sort keys, newest click last. Each key targets one run's metric column
+	// so the same metric can be sorted independently per run (Shift adds keys).
+	const [sorting, setSorting] = useState<RunsProgressSort[]>([]);
 	// A clicked (pinned) metric stays highlighted across all runs while scrolling,
 	// without needing to keep the pointer over it. Lives at the top level so it
 	// survives virtualized rows mounting/unmounting.
@@ -295,9 +312,37 @@ function RunsProgress(props: RunsProgressProps) {
 	const [columnOrder, setColumnOrder] =
 		useState<RunsProgressColumnId[]>(ALL_COLUMN_IDS);
 
+	// Cell N of every row aligns with run N, so a runId resolves to a cell index.
+	const runIndexById = useMemo(
+		() => new Map(runs.map((progressRun, index) => [progressRun.run.id, index])),
+		[runs]
+	);
+	// Cycle a metric header: unsorted → desc → asc → removed. Shift-click keeps the
+	// other keys (multi-sort); a plain click collapses to just this one.
+	const handleSort = useCallback(
+		(runId: number, columnId: RunsProgressColumnId, additive: boolean) => {
+			setSorting((current) => {
+				const existing = current.find(
+					(sort) => sort.runId === runId && sort.columnId === columnId
+				);
+				const others = additive
+					? current.filter(
+							(sort) =>
+								!(sort.runId === runId && sort.columnId === columnId)
+					  )
+					: [];
+
+				if (!existing) return [...others, { runId, columnId, desc: true }];
+				if (existing.desc) return [...others, { runId, columnId, desc: false }];
+
+				return others;
+			});
+		},
+		[]
+	);
 	const baseRows = useMemo(
-		() => (changesOnly ? filterChangedRows(rows) : rows),
-		[changesOnly, rows]
+		() => sortRows(rows, sorting, runIndexById),
+		[rows, sorting, runIndexById]
 	);
 	const visibleRows = useMemo(
 		() => getVisibleRows(baseRows, expandedRows),
@@ -348,9 +393,9 @@ function RunsProgress(props: RunsProgressProps) {
 	const totalWidth = LEFT_COLUMN_WIDTH + columnVirtualizer.getTotalSize();
 	const totalHeight = headerHeight + rowVirtualizer.getTotalSize();
 
-	// Holding Shift turns vertical wheel movement into horizontal scrolling.
+	// Holding Ctrl turns vertical wheel movement into horizontal scrolling.
 	// A native, non-passive listener is required so the page does not also
-	// scroll vertically while panning the matrix sideways.
+	// scroll vertically (or zoom) while panning the matrix sideways.
 	useEffect(() => {
 		const element: HTMLDivElement | null = parentRef.current;
 
@@ -359,7 +404,7 @@ function RunsProgress(props: RunsProgressProps) {
 		const scrollElement = element;
 
 		function handleWheel(event: WheelEvent) {
-			if (!event.shiftKey) return;
+			if (!event.ctrlKey) return;
 
 			const delta = event.deltaY || event.deltaX;
 
@@ -399,24 +444,6 @@ function RunsProgress(props: RunsProgressProps) {
 				<div className="flex items-center gap-3">
 					<Legend />
 					<div className="flex items-center gap-2">
-						<ButtonTw
-							variant="secondary"
-							size="xss"
-							state={changesOnly && 'active'}
-							onClick={() => setChangesOnly((value) => !value)}
-						>
-							<Icon name="Filter" size={20} className="mr-1.5" />
-							Changes only
-						</ButtonTw>
-						<ButtonTw
-							variant="secondary"
-							size="xss"
-							state={dimUnchanged && 'active'}
-							onClick={() => setDimUnchanged((value) => !value)}
-						>
-							<Icon name="EyeHide" size={20} className="mr-1.5" />
-							Dim unchanged
-						</ButtonTw>
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
 							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
 							Open all levels
@@ -440,6 +467,8 @@ function RunsProgress(props: RunsProgressProps) {
 						onVisibleColumnIdsChange={setVisibleColumnIds}
 						columnOrder={columnOrder}
 						onColumnOrderChange={setColumnOrder}
+						showObjective={showObjective}
+						onShowObjectiveChange={setShowObjective}
 					/>
 				</div>
 			</CardHeader>
@@ -465,8 +494,8 @@ function RunsProgress(props: RunsProgressProps) {
 							</span>
 							<span className="text-[0.625rem] font-normal text-text-secondary">
 								{groupKey
-									? `Grouped by ${groupKey}. Hold Shift to scroll sideways.`
-									: 'Trend reads newest → oldest. Hold Shift to scroll sideways.'}
+									? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
+									: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
 							</span>
 						</div>
 						{groups.map((group, groupIndex) => (
@@ -497,6 +526,8 @@ function RunsProgress(props: RunsProgressProps) {
 									run={progressRun.run}
 									root={progressRun.root}
 									columns={visibleColumns}
+									sorting={sorting}
+									onSort={handleSort}
 									height={HEADER_HEIGHT}
 									style={{
 										width: virtualColumn.size,
@@ -517,7 +548,7 @@ function RunsProgress(props: RunsProgressProps) {
 								row={row}
 								columns={visibleColumns}
 								virtualColumns={virtualColumns}
-								dimUnchanged={dimUnchanged}
+								showObjective={showObjective}
 								isExpanded={isRowExpanded(row, expandedRows)}
 								isGrouped={Boolean(groupKey)}
 								onToggle={handleRowToggle}
@@ -544,7 +575,7 @@ function ProgressRow({
 	row,
 	columns,
 	virtualColumns,
-	dimUnchanged,
+	showObjective,
 	isExpanded,
 	isGrouped,
 	onToggle,
@@ -555,7 +586,7 @@ function ProgressRow({
 	row: RunsProgressRow;
 	columns: RunsProgressColumn[];
 	virtualColumns: VirtualItem[];
-	dimUnchanged: boolean;
+	showObjective: boolean;
 	isExpanded: boolean;
 	isGrouped: boolean;
 	onToggle: (rowId: string) => void;
@@ -570,7 +601,7 @@ function ProgressRow({
 
 	return (
 		<div
-			className="absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
+			className="group/row absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
 			style={style}
 			onMouseLeave={() => setHoveredColumnId(null)}
 		>
@@ -578,6 +609,7 @@ function ProgressRow({
 				row={row}
 				isExpanded={isExpanded}
 				isGrouped={isGrouped}
+				showObjective={showObjective}
 				onToggle={onToggle}
 			/>
 			{virtualColumns.map((virtualColumn) => (
@@ -585,7 +617,6 @@ function ProgressRow({
 					key={`${virtualColumn.key}-${row.id}`}
 					cell={row.cells[virtualColumn.index]}
 					columns={columns}
-					dimUnchanged={dimUnchanged}
 					rowId={row.id}
 					hoveredColumnId={hoveredColumnId}
 					pinnedColumnId={pinnedColumnId}
@@ -610,6 +641,57 @@ function getHighlightState(
 	if (columnId === hoveredColumnId) return 'hover';
 
 	return 'none';
+}
+
+type RunsProgressSort = {
+	runId: number;
+	columnId: RunsProgressColumnId;
+	desc: boolean;
+};
+
+function compareRows(
+	left: RunsProgressRow,
+	right: RunsProgressRow,
+	sorting: RunsProgressSort[],
+	runIndexById: Map<number, number>
+): number {
+	for (const sort of sorting) {
+		const index = runIndexById.get(sort.runId);
+
+		if (index === undefined) continue;
+
+		const leftValue = getMetricValue(
+			sort.columnId,
+			getNodeStats(left.cells[index]?.node ?? null)
+		);
+		const rightValue = getMetricValue(
+			sort.columnId,
+			getNodeStats(right.cells[index]?.node ?? null)
+		);
+
+		if (leftValue !== rightValue) {
+			return sort.desc ? rightValue - leftValue : leftValue - rightValue;
+		}
+	}
+
+	return 0;
+}
+
+// Recursively, stably reorder siblings by the active sort keys; an empty key list
+// (or fully-tied rows) preserves the incoming order so the tree shape is untouched.
+function sortRows(
+	rows: RunsProgressRow[],
+	sorting: RunsProgressSort[],
+	runIndexById: Map<number, number>
+): RunsProgressRow[] {
+	if (!sorting.length) return rows;
+
+	return [...rows]
+		.sort((left, right) => compareRows(left, right, sorting, runIndexById))
+		.map((row) => ({
+			...row,
+			children: sortRows(row.children, sorting, runIndexById)
+		}));
 }
 
 function getVisibleRows(
@@ -718,12 +800,16 @@ function ColumnsVisibility({
 	visibleColumnIds,
 	onVisibleColumnIdsChange,
 	columnOrder,
-	onColumnOrderChange
+	onColumnOrderChange,
+	showObjective,
+	onShowObjectiveChange
 }: {
 	visibleColumnIds: RunsProgressColumnId[];
 	onVisibleColumnIdsChange: (columnIds: RunsProgressColumnId[]) => void;
 	columnOrder: RunsProgressColumnId[];
 	onColumnOrderChange: (columnOrder: RunsProgressColumnId[]) => void;
+	showObjective: boolean;
+	onShowObjectiveChange: (showObjective: boolean) => void;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const sensors = useSensors(
@@ -767,6 +853,21 @@ function ColumnsVisibility({
 				</ButtonTw>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
+				<DropdownMenuLabel className="text-xs">Test info</DropdownMenuLabel>
+				<Separator className="h-px my-1 -mx-1" />
+				<div
+					className="flex cursor-pointer items-center gap-2 rounded py-1.5 pl-[26px] pr-2 text-xs hover:bg-primary-wash"
+					onClick={() => onShowObjectiveChange(!showObjective)}
+				>
+					<Checkbox
+						checked={showObjective}
+						className="pointer-events-none"
+						tabIndex={-1}
+						aria-hidden
+					/>
+					<span className="select-none">Objective</span>
+				</div>
+				<Separator className="h-px my-1 -mx-1" />
 				<DropdownMenuLabel className="text-xs">
 					Result Columns
 				</DropdownMenuLabel>
@@ -866,9 +967,6 @@ function GroupByMenu({
 function Legend() {
 	return (
 		<div className="flex items-center gap-2.5 text-[0.6875rem] font-medium text-text-secondary">
-			<LegendItem className="bg-[#65cd84]" label="Passed" />
-			<LegendItem className="bg-[#f95c78]" label="Unexpected" />
-			<LegendItem className="bg-amber-400" label="Abnormal" />
 			<span className="inline-flex items-center gap-1">
 				<span className="text-text-expected">▲</span> improved
 			</span>
@@ -879,25 +977,24 @@ function Legend() {
 	);
 }
 
-function LegendItem(props: { className: string; label: string }) {
-	return (
-		<span className="inline-flex items-center gap-1">
-			<span className={cn('size-2 rounded-full', props.className)} />
-			{props.label}
-		</span>
-	);
-}
-
 function RunHeaderCell({
 	run,
 	root,
 	columns,
+	sorting,
+	onSort,
 	height,
 	style
 }: {
 	run: RunsProgressRun['run'];
 	root: RunData;
 	columns: RunsProgressColumn[];
+	sorting: RunsProgressSort[];
+	onSort: (
+		runId: number,
+		columnId: RunsProgressColumnId,
+		additive: boolean
+	) => void;
 	height: number;
 	style: CSSProperties;
 }) {
@@ -962,16 +1059,49 @@ function RunHeaderCell({
 					gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 				}}
 			>
-				{columns.map((column) => (
-					<div
-						key={column.id}
-						className="flex items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 transition-colors last:border-r-0 hover:bg-primary-wash"
-						title={column.label}
-					>
-						<span className="truncate">{column.shortLabel}</span>
-						{column.icon}
-					</div>
-				))}
+				{columns.map((column) => {
+					// The sort key this run+column owns (drives the arrow + highlight).
+					const ownIndex = sorting.findIndex(
+						(sort) => sort.runId === run.id && sort.columnId === column.id
+					);
+					const own = ownIndex === -1 ? null : sorting[ownIndex];
+					// Any key on this metric, possibly driven by another run — so every
+					// run header still signals which metric the matrix is sorted by.
+					const metricIndex = sorting.findIndex(
+						(sort) => sort.columnId === column.id
+					);
+					const metric = metricIndex === -1 ? null : sorting[metricIndex];
+
+					return (
+						<button
+							type="button"
+							key={column.id}
+							onClick={(event) => onSort(run.id, column.id, event.shiftKey)}
+							className={cn(
+								'flex items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 uppercase transition-colors last:border-r-0 hover:bg-primary-wash',
+								own && 'bg-primary-wash text-primary'
+							)}
+							title={`${column.label} — click to sort, Shift+click for multi-sort`}
+						>
+							<span className="truncate">{column.shortLabel}</span>
+							{column.icon}
+							{own ? (
+								<span className="inline-flex shrink-0 items-center gap-0.5 text-primary">
+									<span>{own.desc ? '▼' : '▲'}</span>
+									{sorting.length > 1 && (
+										<span className="text-[0.5625rem] tabular-nums">
+											{ownIndex + 1}
+										</span>
+									)}
+								</span>
+							) : metric ? (
+								<span className="inline-flex shrink-0 items-center text-text-secondary/60">
+									{metric.desc ? '▼' : '▲'}
+								</span>
+							) : null}
+						</button>
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -1009,11 +1139,13 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	row,
 	isExpanded,
 	isGrouped,
+	showObjective,
 	onToggle
 }: {
 	row: RunsProgressRow;
 	isExpanded: boolean;
 	isGrouped: boolean;
+	showObjective: boolean;
 	onToggle: (rowId: string) => void;
 }) {
 	const canExpand = row.children.length > 0;
@@ -1037,10 +1169,15 @@ const RowHeaderCell = memo(function RowHeaderCell({
 
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center gap-2 border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary"
+			className="sticky left-0 z-20 flex h-full items-center gap-2 border-t border-b border-r-2 border-t-transparent border-b-border-primary border-r-gray-500 bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary group-hover/row:border-t-primary group-hover/row:border-b-primary"
 			style={{ width: LEFT_COLUMN_WIDTH }}
 		>
-			<div className="flex min-w-0 flex-1 items-center">
+			<div
+				className={cn(
+					'flex min-w-0 items-center',
+					showObjective && row.objective ? 'shrink' : 'flex-1'
+				)}
+			>
 				<TableNode
 					nodeName={row.name}
 					nodeType={row.type}
@@ -1050,6 +1187,14 @@ const RowHeaderCell = memo(function RowHeaderCell({
 					disabled={!canToggle}
 				/>
 			</div>
+			{showObjective && row.objective ? (
+				<div
+					className="min-w-0 flex-1 truncate font-normal text-text-secondary"
+					title={row.objective}
+				>
+					{row.objective}
+				</div>
+			) : null}
 			<div
 				className="flex shrink-0 items-center justify-center"
 				style={{ width: SPARKLINE_WIDTH }}
@@ -1068,7 +1213,6 @@ const RowHeaderCell = memo(function RowHeaderCell({
 const ResultCell = memo(function ResultCell({
 	cell,
 	columns,
-	dimUnchanged,
 	rowId,
 	hoveredColumnId,
 	pinnedColumnId,
@@ -1079,7 +1223,6 @@ const ResultCell = memo(function ResultCell({
 }: {
 	cell: RunsProgressRow['cells'][number];
 	columns: RunsProgressColumn[];
-	dimUnchanged: boolean;
 	rowId: string;
 	hoveredColumnId: RunsProgressColumnId | null;
 	pinnedColumnId: RunsProgressColumnId | null;
@@ -1095,10 +1238,6 @@ const ResultCell = memo(function ResultCell({
 	// baseline to diff against, so deltas are suppressed rather than shown as +N
 	// against empty stats.
 	const hasPrevious = Boolean(cell.previousNode);
-	const isUnchanged = cell.trend === 'same';
-	// Dimming applies to the cell contents only, so the run-boundary and row
-	// borders stay crisp even for unchanged rows.
-	const dim = dimUnchanged && isUnchanged;
 
 	// Stable column position so the memoized cell skips re-render on vertical
 	// scroll (only width/start change when columns actually move).
@@ -1117,7 +1256,7 @@ const ResultCell = memo(function ResultCell({
 
 	return (
 		<div
-			className="absolute top-0 grid h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium"
+			className="absolute top-0 grid h-full items-center border-t border-b border-r-2 border-t-transparent border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium group-hover/row:border-t-primary group-hover/row:border-b-primary"
 			style={{
 				...style,
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
@@ -1131,7 +1270,6 @@ const ResultCell = memo(function ResultCell({
 						stats={stats}
 						previousStats={previousStats}
 						hasPrevious={hasPrevious}
-						dim={dim}
 						runId={cell.runId}
 						resultId={node.result_id}
 						highlightState={getHighlightState(
@@ -1144,14 +1282,7 @@ const ResultCell = memo(function ResultCell({
 					/>
 				))
 			) : (
-				<span
-					className={cn(
-						'col-span-full px-3 text-text-secondary',
-						dim && 'opacity-50'
-					)}
-				>
-					No data
-				</span>
+				<span className="col-span-full px-3 text-text-secondary">No data</span>
 			)}
 		</div>
 	);
@@ -1162,7 +1293,6 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	stats,
 	previousStats,
 	hasPrevious,
-	dim,
 	runId,
 	resultId,
 	highlightState,
@@ -1173,7 +1303,6 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	stats: ReturnType<typeof getNodeStats>;
 	previousStats: ReturnType<typeof getNodeStats>;
 	hasPrevious: boolean;
-	dim: boolean;
 	runId: number;
 	resultId: number;
 	highlightState: HighlightState;
@@ -1205,9 +1334,8 @@ const ResultColumnValue = memo(function ResultColumnValue({
 			onMouseLeave={() => setIsHovered(false)}
 			onClick={() => onPin(column.id)}
 			className={cn(
-				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
+				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
 				toneClassName,
-				dim && 'opacity-50',
 				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
 				highlightState === 'pinned' &&
 					'bg-[rgba(59,130,246,0.24)] shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.6)]'
@@ -1332,7 +1460,7 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 		<span
 			title={delta.title}
 			className={cn(
-				'rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
+				'mr-auto rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
 				delta.status === 'improved' && 'bg-diff-added text-text-expected',
 				delta.status === 'regressed' && 'bg-diff-removed text-text-unexpected',
 				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
@@ -1350,6 +1478,13 @@ function getMetricValue(
 	switch (columnId) {
 		case 'total':
 			return getStatsTotal(stats);
+		case 'run':
+			return (
+				stats.passed +
+				stats.passed_unexpected +
+				stats.failed +
+				stats.failed_unexpected
+			);
 		case 'passedExpected':
 			return stats.passed;
 		case 'unexpected':

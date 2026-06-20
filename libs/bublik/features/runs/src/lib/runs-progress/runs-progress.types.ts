@@ -17,6 +17,7 @@ type RunsProgressRow = {
 	type: NodeEntity;
 	path: string[];
 	depth: number;
+	objective?: string;
 	cells: RunsProgressCell[];
 	children: RunsProgressRow[];
 };
