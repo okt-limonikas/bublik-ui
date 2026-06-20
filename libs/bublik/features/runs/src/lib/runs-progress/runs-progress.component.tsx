@@ -3,6 +3,8 @@
 import {
 	CSSProperties,
 	ReactNode,
+	memo,
+	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
@@ -251,13 +253,18 @@ function RunsProgress(props: RunsProgressProps) {
 		columnId: RunsProgressColumnId;
 	} | null>(null);
 
-	function handleTogglePin(rowId: string, columnId: RunsProgressColumnId) {
-		setPinnedCell((current) =>
-			current && current.rowId === rowId && current.columnId === columnId
-				? null
-				: { rowId, columnId }
-		);
-	}
+	// Stable so the memoized matrix cells don't re-render when RunsProgress re-renders
+	// on scroll.
+	const handleTogglePin = useCallback(
+		(rowId: string, columnId: RunsProgressColumnId) => {
+			setPinnedCell((current) =>
+				current && current.rowId === rowId && current.columnId === columnId
+					? null
+					: { rowId, columnId }
+			);
+		},
+		[]
+	);
 	const [visibleColumnIds, setVisibleColumnIds] = useState<
 		RunsProgressColumnId[]
 	>(DEFAULT_VISIBLE_COLUMNS);
@@ -336,16 +343,14 @@ function RunsProgress(props: RunsProgressProps) {
 		return () => element.removeEventListener('wheel', handleWheel);
 	}, []);
 
-	function handleRowToggle(rowId: string) {
-		const row = visibleRows.find((row) => row.id === rowId);
-
-		if (!row || row.depth === 0) return;
-
+	// Stable across scroll re-renders so memoized RowHeaderCells stay cheap. Only
+	// expandable (depth > 0) rows ever reach this — RowHeaderCell gates the click.
+	const handleRowToggle = useCallback((rowId: string) => {
 		setExpandedRows((state) => ({
 			...state,
 			[rowId]: !(state[rowId] ?? false)
 		}));
-	}
+	}, []);
 
 	function handleExpandAll() {
 		setExpandedRows(
@@ -414,7 +419,7 @@ function RunsProgress(props: RunsProgressProps) {
 						style={{ width: totalWidth, height: headerHeight }}
 					>
 						<div
-							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-1 bg-white px-2 py-2 border-r border-border-primary"
+							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-1 bg-white px-2 py-2 border-r-2 border-gray-500"
 							style={{ width: LEFT_COLUMN_WIDTH }}
 						>
 							<span className="uppercase text-text-menu">Test procedures</span>
@@ -535,7 +540,7 @@ function ProgressRow({
 
 	return (
 		<div
-			className="absolute left-0 border-b border-border-primary text-[0.75rem] leading-[1.125rem] font-medium"
+			className="absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
 			style={style}
 			onMouseLeave={() => setHoveredColumnId(null)}
 		>
@@ -775,7 +780,7 @@ function RunHeaderCell({
 
 	return (
 		<div
-			className="absolute top-0 border-r-2 border-black bg-white"
+			className="absolute top-0 border-r-2 border-gray-500 bg-white"
 			style={{ ...style, height }}
 		>
 			<div
@@ -900,7 +905,7 @@ function RowHeaderCell({
 
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center gap-2 border-r border-border-primary bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary"
+			className="sticky left-0 z-20 flex h-full items-center gap-2 border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary"
 			style={{ width: LEFT_COLUMN_WIDTH }}
 		>
 			<div className="flex min-w-0 flex-1 items-center">
@@ -953,13 +958,13 @@ function ResultCell({
 	// against empty stats.
 	const hasPrevious = Boolean(cell.previousNode);
 	const isUnchanged = cell.trend === 'same';
+	// Dimming applies to the cell contents only, so the run-boundary and row
+	// borders stay crisp even for unchanged rows.
+	const dim = dimUnchanged && isUnchanged;
 
 	return (
 		<div
-			className={cn(
-				'absolute top-0 grid h-full items-center border-r-2 border-black bg-white text-[0.6875rem] font-medium',
-				dimUnchanged && isUnchanged && 'opacity-50'
-			)}
+			className="absolute top-0 grid h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium"
 			style={{
 				...style,
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
@@ -973,6 +978,7 @@ function ResultCell({
 						stats={stats}
 						previousStats={previousStats}
 						hasPrevious={hasPrevious}
+						dim={dim}
 						runId={cell.runId}
 						resultId={node.result_id}
 						highlightState={getHighlightState(column.id)}
@@ -981,7 +987,14 @@ function ResultCell({
 					/>
 				))
 			) : (
-				<span className="col-span-full px-3 text-text-secondary">No data</span>
+				<span
+					className={cn(
+						'col-span-full px-3 text-text-secondary',
+						dim && 'opacity-50'
+					)}
+				>
+					No data
+				</span>
 			)}
 		</div>
 	);
@@ -992,6 +1005,7 @@ function ResultColumnValue({
 	stats,
 	previousStats,
 	hasPrevious,
+	dim,
 	runId,
 	resultId,
 	highlightState,
@@ -1002,6 +1016,7 @@ function ResultColumnValue({
 	stats: ReturnType<typeof getNodeStats>;
 	previousStats: ReturnType<typeof getNodeStats>;
 	hasPrevious: boolean;
+	dim: boolean;
 	runId: number;
 	resultId: number;
 	highlightState: HighlightState;
@@ -1025,6 +1040,7 @@ function ResultColumnValue({
 			className={cn(
 				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
 				toneClassName,
+				dim && 'opacity-50',
 				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
 				highlightState === 'pinned' &&
 					'bg-[rgba(59,130,246,0.24)] shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.6)]'
