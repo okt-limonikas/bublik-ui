@@ -775,7 +775,7 @@ function RunHeaderCell({
 
 	return (
 		<div
-			className="absolute top-0 border-r-2 border-border-primary bg-white"
+			className="absolute top-0 border-r-2 border-black bg-white"
 			style={{ ...style, height }}
 		>
 			<div
@@ -957,7 +957,7 @@ function ResultCell({
 	return (
 		<div
 			className={cn(
-				'absolute top-0 grid h-full items-center border-r-2 border-border-primary bg-white text-[0.6875rem] font-medium',
+				'absolute top-0 grid h-full items-center border-r-2 border-black bg-white text-[0.6875rem] font-medium',
 				dimUnchanged && isUnchanged && 'opacity-50'
 			)}
 			style={{
