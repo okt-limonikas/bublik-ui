@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -18,12 +18,15 @@ import {
 import {
 	buildFilterSummary,
 	buildRunsProgressRows,
+	getMetadataKeys,
+	groupRuns,
 	sortRunsNewestFirst
 } from './runs-progress.utils';
 import type { RunsProgressRun } from './runs-progress.types';
 
 function RunsProgressContainer() {
 	const [searchParams] = useSearchParams();
+	const [groupKey, setGroupKey] = useState<string | null>(null);
 	const { query } = useRunsQuery();
 	const runsQuery = useGetRunsTablePageQuery(query, {
 		refetchOnFocus: true,
@@ -56,9 +59,17 @@ function RunsProgressContainer() {
 			.filter((run): run is RunsProgressRun => run !== null);
 	}, [sortedRuns, statsQuery.data?.runs]);
 
+	const availableGroupKeys = useMemo(
+		() => getMetadataKeys(sortedRuns),
+		[sortedRuns]
+	);
+	const { orderedRuns, groups } = useMemo(
+		() => groupRuns(progressRuns, groupKey),
+		[progressRuns, groupKey]
+	);
 	const rows = useMemo(
-		() => buildRunsProgressRows(progressRuns),
-		[progressRuns]
+		() => buildRunsProgressRows(orderedRuns),
+		[orderedRuns]
 	);
 	const filters = useMemo(
 		() => buildFilterSummary(searchParams),
@@ -75,8 +86,12 @@ function RunsProgressContainer() {
 
 	return (
 		<RunsProgress
-			runs={progressRuns}
+			runs={orderedRuns}
 			rows={rows}
+			groups={groups}
+			groupKey={groupKey}
+			availableGroupKeys={availableGroupKeys}
+			onGroupKeyChange={setGroupKey}
 			filters={filters}
 			isFetching={runsQuery.isFetching || statsQuery.isFetching}
 		/>

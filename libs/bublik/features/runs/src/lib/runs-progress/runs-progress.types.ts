@@ -24,6 +24,16 @@ type RunsProgressRow = {
 type RunsProgressRun = {
 	run: RunsData;
 	root: RunData;
+	/** Set when runs are grouped by a metadata key; equal ids share a group. */
+	groupId?: string;
+};
+
+type RunsProgressGroup = {
+	id: string;
+	label: string;
+	/** Index of the group's first run within the ordered runs array. */
+	startIndex: number;
+	runCount: number;
 };
 
 type RunsProgressFilterSummary = {
@@ -34,6 +44,7 @@ type RunsProgressFilterSummary = {
 export type {
 	RunsProgressCell,
 	RunsProgressFilterSummary,
+	RunsProgressGroup,
 	RunsProgressRow,
 	RunsProgressRun,
 	RunsProgressTrend

@@ -4,10 +4,13 @@ import { RunData, RunsData, RunStats } from '@/shared/types';
 
 import {
 	RunsProgressFilterSummary,
+	RunsProgressGroup,
 	RunsProgressRow,
 	RunsProgressRun,
 	RunsProgressTrend
 } from './runs-progress.types';
+
+const OTHER_GROUP_ID = '__other__';
 
 const EMPTY_STATS: RunStats = {
 	abnormal: 0,
@@ -157,9 +160,18 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 	});
 
 	rowByKey.forEach((row) => {
-		row.cells = runs.map(({ run }, runIndex) => {
+		row.cells = runs.map(({ run, groupId }, runIndex) => {
 				const node = nodeMaps[runIndex].get(row.id) ?? null;
-				const previousNode = nodeMaps[runIndex + 1]?.get(row.id) ?? null;
+				// The trend baseline is the next (older) run, but only when it shares
+				// this run's group, so grouped views compare like-for-like and the
+				// oldest run of a group has no baseline.
+				const previousRun = runs[runIndex + 1];
+				const sameGroup = previousRun
+					? previousRun.groupId === groupId
+					: false;
+				const previousNode = sameGroup
+					? nodeMaps[runIndex + 1]?.get(row.id) ?? null
+					: null;
 
 				return {
 					runId: run.id,
@@ -198,6 +210,80 @@ function filterChangedRows(rows: RunsProgressRow[]): RunsProgressRow[] {
 		.filter((row): row is RunsProgressRow => row !== null);
 }
 
+/** Metadata/tag items are `KEY=VALUE`; the key is the part before the first `=`. */
+function getMetadataKey(item: string): string {
+	const index = item.indexOf('=');
+
+	return index === -1 ? item : item.slice(0, index);
+}
+
+/** Distinct metadata keys across all runs, sorted for a stable group-by menu. */
+function getMetadataKeys(runs: RunsData[]): string[] {
+	const keys = new Set<string>();
+
+	runs.forEach((run) => {
+		run.metadata.filter(Boolean).forEach((item) => {
+			keys.add(getMetadataKey(item));
+		});
+	});
+
+	return Array.from(keys).sort((left, right) => left.localeCompare(right));
+}
+
+/** Value of the run's `key=...` metadata item, or null when the key is absent. */
+function getRunGroupValue(run: RunsData, key: string): string | null {
+	const prefix = `${key}=`;
+	const item = run.metadata.find((entry) => entry.startsWith(prefix));
+
+	return item ? item.slice(prefix.length) : null;
+}
+
+/**
+ * Buckets runs by the value of a metadata key so same-configuration runs sit
+ * together under one group header. Runs keep their incoming (newest-first) order
+ * within a group, and groups follow first appearance — so the group holding the
+ * newest run comes first. Runs missing the key fall into a trailing-by-appearance
+ * "No <key>" bucket. When key is null the runs pass through unchanged.
+ */
+function groupRuns(
+	runs: RunsProgressRun[],
+	key: string | null
+): { orderedRuns: RunsProgressRun[]; groups: RunsProgressGroup[] } {
+	if (!key) return { orderedRuns: runs, groups: [] };
+
+	const buckets = new Map<string, RunsProgressRun[]>();
+	const order: string[] = [];
+
+	runs.forEach((progressRun) => {
+		const value = getRunGroupValue(progressRun.run, key);
+		const groupId = value ?? OTHER_GROUP_ID;
+
+		if (!buckets.has(groupId)) {
+			buckets.set(groupId, []);
+			order.push(groupId);
+		}
+
+		buckets.get(groupId)?.push({ ...progressRun, groupId });
+	});
+
+	const orderedRuns: RunsProgressRun[] = [];
+	const groups: RunsProgressGroup[] = [];
+
+	order.forEach((groupId) => {
+		const members = buckets.get(groupId) ?? [];
+
+		groups.push({
+			id: groupId,
+			label: groupId === OTHER_GROUP_ID ? `No ${key}` : groupId,
+			startIndex: orderedRuns.length,
+			runCount: members.length
+		});
+		orderedRuns.push(...members);
+	});
+
+	return { orderedRuns, groups };
+}
+
 function sortRunsNewestFirst(runs: RunsData[]): RunsData[] {
 	return [...runs].sort((left, right) => {
 		return new Date(right.start).getTime() - new Date(left.start).getTime();
@@ -228,9 +314,13 @@ export {
 	buildFilterSummary,
 	buildRunsProgressRows,
 	filterChangedRows,
+	getMetadataKey,
+	getMetadataKeys,
 	getNodeStats,
+	getRunGroupValue,
 	getStatsTotal,
 	getUnexpectedTotal,
+	groupRuns,
 	rowHasChange,
 	sortRunsNewestFirst
 };

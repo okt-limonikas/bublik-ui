@@ -8,7 +8,10 @@ import {
 	buildFilterSummary,
 	buildRunsProgressRows,
 	filterChangedRows,
+	getMetadataKeys,
+	getRunGroupValue,
 	getUnexpectedTotal,
+	groupRuns,
 	rowHasChange,
 	sortRunsNewestFirst
 } from './runs-progress.utils';
@@ -44,6 +47,14 @@ function createRun(id: number, start: string): RunsData {
 		status_by_nok: 'ok',
 		conclusion: RUN_STATUS.Ok
 	};
+}
+
+function createRunWithMeta(
+	id: number,
+	start: string,
+	metadata: string[]
+): RunsData {
+	return { ...createRun(id, start), metadata };
 }
 
 function createRoot(testStats = baseStats): RunData {
@@ -188,6 +199,94 @@ describe('runs progress utils', () => {
 		expect(filtered[0].id).toBe('root');
 		expect(filtered[0].children).toHaveLength(1);
 		expect(filtered[0].children[0].id).toBe('changed-child');
+	});
+
+	it('collects distinct metadata keys sorted', () => {
+		expect(
+			getMetadataKeys([
+				createRunWithMeta(1, '2024-01-01T00:00:00Z', ['TS_NAME=x', 'CFG=a']),
+				createRunWithMeta(2, '2024-01-02T00:00:00Z', ['CFG=b'])
+			])
+		).toEqual(['CFG', 'TS_NAME']);
+	});
+
+	it('reads a metadata value by key, keeping extra equals signs', () => {
+		const run = createRunWithMeta(1, '2024-01-01T00:00:00Z', ['CFG=a=b']);
+
+		expect(getRunGroupValue(run, 'CFG')).toBe('a=b');
+		expect(getRunGroupValue(run, 'MISSING')).toBeNull();
+	});
+
+	it('passes runs through unchanged when no group key is given', () => {
+		const runs = [
+			{ run: createRun(1, '2024-01-01T00:00:00Z'), root: createRoot() }
+		];
+		const { orderedRuns, groups } = groupRuns(runs, null);
+
+		expect(orderedRuns).toBe(runs);
+		expect(groups).toEqual([]);
+	});
+
+	it('groups runs by metadata value, ordering groups by first appearance', () => {
+		const runs = [
+			{
+				run: createRunWithMeta(3, '2024-01-03T00:00:00Z', ['CFG=a']),
+				root: createRoot()
+			},
+			{
+				run: createRunWithMeta(2, '2024-01-02T00:00:00Z', ['CFG=b']),
+				root: createRoot()
+			},
+			{
+				run: createRunWithMeta(1, '2024-01-01T00:00:00Z', ['CFG=a']),
+				root: createRoot()
+			}
+		];
+		const { orderedRuns, groups } = groupRuns(runs, 'CFG');
+
+		expect(orderedRuns.map((entry) => entry.run.id)).toEqual([3, 1, 2]);
+		expect(orderedRuns.map((entry) => entry.groupId)).toEqual(['a', 'a', 'b']);
+		expect(groups).toEqual([
+			{ id: 'a', label: 'a', startIndex: 0, runCount: 2 },
+			{ id: 'b', label: 'b', startIndex: 2, runCount: 1 }
+		]);
+	});
+
+	it('buckets runs without the key into a "No <key>" group', () => {
+		const runs = [
+			{
+				run: createRunWithMeta(2, '2024-01-02T00:00:00Z', ['CFG=a']),
+				root: createRoot()
+			},
+			{ run: createRunWithMeta(1, '2024-01-01T00:00:00Z', []), root: createRoot() }
+		];
+		const { orderedRuns, groups } = groupRuns(runs, 'CFG');
+
+		expect(orderedRuns.map((entry) => entry.groupId)).toEqual(['a', '__other__']);
+		expect(groups[1]).toEqual({
+			id: '__other__',
+			label: 'No CFG',
+			startIndex: 1,
+			runCount: 1
+		});
+	});
+
+	it('resets the trend baseline at a group boundary', () => {
+		const rows = buildRunsProgressRows([
+			{
+				run: createRun(2, '2024-01-02T00:00:00Z'),
+				root: createRoot(baseStats),
+				groupId: 'b'
+			},
+			{
+				run: createRun(1, '2024-01-01T00:00:00Z'),
+				root: createRoot({ ...baseStats, failed_unexpected: 1 }),
+				groupId: 'a'
+			}
+		]);
+
+		expect(rows[0].children[0].cells[0].previousNode).toBeNull();
+		expect(rows[0].children[0].cells[0].trend).toBe('added');
 	});
 
 	it('summarizes active filters', () => {

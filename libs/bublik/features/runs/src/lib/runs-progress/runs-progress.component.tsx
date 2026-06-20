@@ -25,6 +25,8 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 	Icon,
 	Separator,
@@ -37,6 +39,7 @@ import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import {
 	RunsProgressFilterSummary,
+	RunsProgressGroup,
 	RunsProgressRow,
 	RunsProgressRun
 } from './runs-progress.types';
@@ -51,8 +54,19 @@ import { Sparkline, SparklinePoint } from './runs-progress.sparkline';
 const ROW_HEIGHT = 34;
 const HEADER_STRIP_HEIGHT = 34;
 const HEADER_HEIGHT = 162;
+// Band drawn above the run headers when runs are grouped by a metadata key.
+const GROUP_HEADER_HEIGHT = 28;
 const LEFT_COLUMN_WIDTH = 380;
 const SPARKLINE_WIDTH = 76;
+// Cycled per group so neighbouring groups stay visually distinct.
+const GROUP_COLORS = [
+	'bg-badge-1',
+	'bg-badge-2',
+	'bg-badge-3',
+	'bg-badge-5',
+	'bg-badge-6',
+	'bg-badge-7'
+];
 // Each metric keeps a constant width so cell content never compresses/overflows as
 // columns are shown/hidden; the run column simply grows with the metric count.
 const METRIC_COLUMN_WIDTH = 104;
@@ -207,12 +221,24 @@ function RunsProgressError({ error = {} }: { error?: unknown }) {
 interface RunsProgressProps {
 	runs: RunsProgressRun[];
 	rows: RunsProgressRow[];
+	groups: RunsProgressGroup[];
+	groupKey: string | null;
+	availableGroupKeys: string[];
+	onGroupKeyChange: (groupKey: string | null) => void;
 	filters: RunsProgressFilterSummary[];
 	isFetching?: boolean;
 }
 
 function RunsProgress(props: RunsProgressProps) {
-	const { runs, rows, isFetching } = props;
+	const {
+		runs,
+		rows,
+		groups,
+		groupKey,
+		availableGroupKeys,
+		onGroupKeyChange,
+		isFetching
+	} = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 	const [changesOnly, setChangesOnly] = useState(false);
@@ -254,6 +280,9 @@ function RunsProgress(props: RunsProgressProps) {
 		[visibleColumnIds]
 	);
 	const runColumnWidth = visibleColumns.length * METRIC_COLUMN_WIDTH;
+	// The group band only takes space while grouping is active.
+	const groupBandHeight = groups.length ? GROUP_HEADER_HEIGHT : 0;
+	const headerHeight = HEADER_HEIGHT + groupBandHeight;
 
 	const rowVirtualizer = useVirtualizer({
 		count: visibleRows.length,
@@ -279,7 +308,7 @@ function RunsProgress(props: RunsProgressProps) {
 	const virtualRows = rowVirtualizer.getVirtualItems();
 	const virtualColumns = columnVirtualizer.getVirtualItems();
 	const totalWidth = LEFT_COLUMN_WIDTH + columnVirtualizer.getTotalSize();
-	const totalHeight = HEADER_HEIGHT + rowVirtualizer.getTotalSize();
+	const totalHeight = headerHeight + rowVirtualizer.getTotalSize();
 
 	// Holding Shift turns vertical wheel movement into horizontal scrolling.
 	// A native, non-passive listener is required so the page does not also
@@ -361,6 +390,11 @@ function RunsProgress(props: RunsProgressProps) {
 							Collapse
 						</ButtonTw>
 					</div>
+					<GroupByMenu
+						groupKey={groupKey}
+						availableGroupKeys={availableGroupKeys}
+						onGroupKeyChange={onGroupKeyChange}
+					/>
 					<ColumnsVisibility
 						visibleColumnIds={visibleColumnIds}
 						onVisibleColumnIdsChange={setVisibleColumnIds}
@@ -377,7 +411,7 @@ function RunsProgress(props: RunsProgressProps) {
 				>
 					<div
 						className="sticky top-0 z-30 bg-white border-b border-border-primary text-left text-[0.6875rem] font-semibold leading-[0.875rem]"
-						style={{ width: totalWidth, height: HEADER_HEIGHT }}
+						style={{ width: totalWidth, height: headerHeight }}
 					>
 						<div
 							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-1 bg-white px-2 py-2 border-r border-border-primary"
@@ -388,9 +422,30 @@ function RunsProgress(props: RunsProgressProps) {
 								{visibleRows.length} visible rows across {runs.length} runs
 							</span>
 							<span className="text-[0.625rem] font-normal text-text-secondary">
-								Trend reads newest → oldest. Hold Shift to scroll sideways.
+								{groupKey
+									? `Grouped by ${groupKey}. Hold Shift to scroll sideways.`
+									: 'Trend reads newest → oldest. Hold Shift to scroll sideways.'}
 							</span>
 						</div>
+						{groups.map((group, groupIndex) => (
+							<div
+								key={group.id}
+								className={cn(
+									'absolute top-0 z-10 flex items-center justify-center border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
+									GROUP_COLORS[groupIndex % GROUP_COLORS.length]
+								)}
+								style={{
+									height: GROUP_HEADER_HEIGHT,
+									width: group.runCount * runColumnWidth,
+									transform: `translateX(${
+										LEFT_COLUMN_WIDTH + group.startIndex * runColumnWidth
+									}px)`
+								}}
+								title={group.label}
+							>
+								<span className="truncate">{group.label}</span>
+							</div>
+						))}
 						{virtualColumns.map((virtualColumn) => {
 							const progressRun = runs[virtualColumn.index];
 
@@ -400,11 +455,12 @@ function RunsProgress(props: RunsProgressProps) {
 									run={progressRun.run}
 									root={progressRun.root}
 									columns={visibleColumns}
+									height={HEADER_HEIGHT}
 									style={{
 										width: virtualColumn.size,
 										transform: `translateX(${
 											LEFT_COLUMN_WIDTH + virtualColumn.start
-										}px)`
+										}px) translateY(${groupBandHeight}px)`
 									}}
 								/>
 							);
@@ -421,6 +477,7 @@ function RunsProgress(props: RunsProgressProps) {
 								virtualColumns={virtualColumns}
 								dimUnchanged={dimUnchanged}
 								isExpanded={isRowExpanded(row, expandedRows)}
+								isGrouped={Boolean(groupKey)}
 								onToggle={handleRowToggle}
 								pinnedColumnId={
 									pinnedCell?.rowId === row.id ? pinnedCell.columnId : null
@@ -430,7 +487,7 @@ function RunsProgress(props: RunsProgressProps) {
 									top: 0,
 									width: totalWidth,
 									height: virtualRow.size,
-									transform: `translateY(${HEADER_HEIGHT + virtualRow.start}px)`
+									transform: `translateY(${headerHeight + virtualRow.start}px)`
 								}}
 							/>
 						);
@@ -447,6 +504,7 @@ function ProgressRow({
 	virtualColumns,
 	dimUnchanged,
 	isExpanded,
+	isGrouped,
 	onToggle,
 	pinnedColumnId,
 	onTogglePin,
@@ -457,6 +515,7 @@ function ProgressRow({
 	virtualColumns: VirtualItem[];
 	dimUnchanged: boolean;
 	isExpanded: boolean;
+	isGrouped: boolean;
 	onToggle: (rowId: string) => void;
 	pinnedColumnId: RunsProgressColumnId | null;
 	onTogglePin: (rowId: string, columnId: RunsProgressColumnId) => void;
@@ -480,7 +539,12 @@ function ProgressRow({
 			style={style}
 			onMouseLeave={() => setHoveredColumnId(null)}
 		>
-			<RowHeaderCell row={row} isExpanded={isExpanded} onToggle={onToggle} />
+			<RowHeaderCell
+				row={row}
+				isExpanded={isExpanded}
+				isGrouped={isGrouped}
+				onToggle={onToggle}
+			/>
 			{virtualColumns.map((virtualColumn) => (
 				<ResultCell
 					key={`${virtualColumn.key}-${row.id}`}
@@ -603,6 +667,65 @@ function ColumnsVisibility({
 	);
 }
 
+const NO_GROUPING_VALUE = '__none__';
+
+function GroupByMenu({
+	groupKey,
+	availableGroupKeys,
+	onGroupKeyChange
+}: {
+	groupKey: string | null;
+	availableGroupKeys: string[];
+	onGroupKeyChange: (groupKey: string | null) => void;
+}) {
+	const [isOpen, setIsOpen] = useState(false);
+
+	if (!availableGroupKeys.length) return null;
+
+	return (
+		<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+			<DropdownMenuTrigger asChild>
+				<ButtonTw
+					variant="secondary"
+					size="xss"
+					state={(isOpen || Boolean(groupKey)) && 'active'}
+				>
+					{groupKey ? `Group: ${groupKey}` : 'Group by'}
+					<Icon name="ArrowShortSmall" className="ml-1.5" />
+				</ButtonTw>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
+				<DropdownMenuLabel className="text-xs">
+					Group runs by metadata
+				</DropdownMenuLabel>
+				<Separator className="h-px my-1 -mx-1" />
+				<DropdownMenuRadioGroup
+					value={groupKey ?? NO_GROUPING_VALUE}
+					onValueChange={(value) =>
+						onGroupKeyChange(value === NO_GROUPING_VALUE ? null : value)
+					}
+				>
+					<DropdownMenuRadioItem
+						value={NO_GROUPING_VALUE}
+						className="text-xs"
+					>
+						No grouping
+					</DropdownMenuRadioItem>
+					{availableGroupKeys.map((key) => (
+						<DropdownMenuRadioItem
+							key={key}
+							value={key}
+							className="text-xs"
+						>
+							{key}
+						</DropdownMenuRadioItem>
+					))}
+				</DropdownMenuRadioGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}
+
 function Legend() {
 	return (
 		<div className="flex items-center gap-2.5 text-[0.6875rem] font-medium text-text-secondary">
@@ -632,11 +755,13 @@ function RunHeaderCell({
 	run,
 	root,
 	columns,
+	height,
 	style
 }: {
 	run: RunsProgressRun['run'];
 	root: RunData;
 	columns: RunsProgressColumn[];
+	height: number;
 	style: CSSProperties;
 }) {
 	const metadata = useMemo<BadgeListItem[]>(() => {
@@ -650,12 +775,12 @@ function RunHeaderCell({
 
 	return (
 		<div
-			className="absolute top-0 h-full border-r border-border-primary bg-white"
-			style={style}
+			className="absolute top-0 border-r border-border-primary bg-white"
+			style={{ ...style, height }}
 		>
 			<div
 				className="flex"
-				style={{ height: HEADER_HEIGHT - HEADER_STRIP_HEIGHT }}
+				style={{ height: height - HEADER_STRIP_HEIGHT }}
 			>
 				<ConclusionHoverCard
 					conclusion={run.conclusion as RUN_STATUS}
@@ -746,10 +871,12 @@ function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
 function RowHeaderCell({
 	row,
 	isExpanded,
+	isGrouped,
 	onToggle
 }: {
 	row: RunsProgressRow;
 	isExpanded: boolean;
+	isGrouped: boolean;
 	onToggle: (rowId: string) => void;
 }) {
 	const canExpand = row.children.length > 0;
@@ -789,7 +916,11 @@ function RowHeaderCell({
 			<div
 				className="flex shrink-0 items-center justify-center"
 				style={{ width: SPARKLINE_WIDTH }}
-				title="Total results trend across runs (newest → oldest)"
+				title={
+					isGrouped
+						? 'Total results trend across runs (grouped order)'
+						: 'Total results trend across runs (newest → oldest)'
+				}
 			>
 				<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
 			</div>
@@ -817,6 +948,10 @@ function ResultCell({
 	const node = cell.node;
 	const stats = getNodeStats(node);
 	const previousStats = getNodeStats(cell.previousNode);
+	// No in-group predecessor (e.g. the oldest run of a group) means there is no
+	// baseline to diff against, so deltas are suppressed rather than shown as +N
+	// against empty stats.
+	const hasPrevious = Boolean(cell.previousNode);
 	const isUnchanged = cell.trend === 'same';
 
 	return (
@@ -837,6 +972,7 @@ function ResultCell({
 						column={column}
 						stats={stats}
 						previousStats={previousStats}
+						hasPrevious={hasPrevious}
 						runId={cell.runId}
 						resultId={node.result_id}
 						highlightState={getHighlightState(column.id)}
@@ -855,6 +991,7 @@ function ResultColumnValue({
 	column,
 	stats,
 	previousStats,
+	hasPrevious,
 	runId,
 	resultId,
 	highlightState,
@@ -864,6 +1001,7 @@ function ResultColumnValue({
 	column: RunsProgressColumn;
 	stats: ReturnType<typeof getNodeStats>;
 	previousStats: ReturnType<typeof getNodeStats>;
+	hasPrevious: boolean;
 	runId: number;
 	resultId: number;
 	highlightState: HighlightState;
@@ -872,7 +1010,9 @@ function ResultColumnValue({
 }) {
 	const value = getMetricValue(column.id, stats);
 	const previousValue = getMetricValue(column.id, previousStats);
-	const delta = getMetricDelta(value, previousValue, column.trendDirection);
+	const delta = hasPrevious
+		? getMetricDelta(value, previousValue, column.trendDirection)
+		: null;
 	// The "bad" tone only paints when this metric is highlight-free, so the blue
 	// hover/pin highlight always wins (avoids arbitrary-value bg class conflicts).
 	const toneClassName =
