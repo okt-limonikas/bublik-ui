@@ -189,6 +189,7 @@ export const {
 	useImportAnalyticsDataMutation,
 	// Classification
 	useGetIssuesQuery,
+	useGetIssuePickerQuery,
 	useGetIssueRulesQuery,
 	useClassifyResultMutation,
 	useCloseIssueMutation,
