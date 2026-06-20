@@ -819,7 +819,7 @@ function RunHeaderCell({
 				</div>
 			</div>
 			<div
-				className="absolute bottom-0 left-0 right-0 grid border-t border-border-primary bg-white text-[0.6875rem] font-semibold uppercase leading-[0.875rem]"
+				className="absolute bottom-0 left-0 right-0 grid border-y border-border-primary bg-white text-[0.6875rem] font-semibold uppercase leading-[0.875rem]"
 				style={{
 					height: HEADER_STRIP_HEIGHT,
 					gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
