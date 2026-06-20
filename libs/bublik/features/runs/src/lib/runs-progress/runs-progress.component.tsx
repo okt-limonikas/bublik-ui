@@ -531,13 +531,6 @@ function ProgressRow({
 	const [hoveredColumnId, setHoveredColumnId] =
 		useState<RunsProgressColumnId | null>(null);
 
-	function getHighlightState(columnId: RunsProgressColumnId): HighlightState {
-		if (columnId === pinnedColumnId) return 'pinned';
-		if (columnId === hoveredColumnId) return 'hover';
-
-		return 'none';
-	}
-
 	return (
 		<div
 			className="absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
@@ -556,15 +549,13 @@ function ProgressRow({
 					cell={row.cells[virtualColumn.index]}
 					columns={columns}
 					dimUnchanged={dimUnchanged}
-					getHighlightState={getHighlightState}
+					rowId={row.id}
+					hoveredColumnId={hoveredColumnId}
+					pinnedColumnId={pinnedColumnId}
 					onHoverColumn={setHoveredColumnId}
-					onPinColumn={(columnId) => onTogglePin(row.id, columnId)}
-					style={{
-						width: virtualColumn.size,
-						transform: `translateX(${
-							LEFT_COLUMN_WIDTH + virtualColumn.start
-						}px)`
-					}}
+					onTogglePin={onTogglePin}
+					width={virtualColumn.size}
+					start={virtualColumn.start}
 				/>
 			))}
 		</div>
@@ -572,6 +563,17 @@ function ProgressRow({
 }
 
 type HighlightState = 'none' | 'hover' | 'pinned';
+
+function getHighlightState(
+	columnId: RunsProgressColumnId,
+	hoveredColumnId: RunsProgressColumnId | null,
+	pinnedColumnId: RunsProgressColumnId | null
+): HighlightState {
+	if (columnId === pinnedColumnId) return 'pinned';
+	if (columnId === hoveredColumnId) return 'hover';
+
+	return 'none';
+}
 
 function getVisibleRows(
 	rows: RunsProgressRow[],
@@ -873,7 +875,7 @@ function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
 	);
 }
 
-function RowHeaderCell({
+const RowHeaderCell = memo(function RowHeaderCell({
 	row,
 	isExpanded,
 	isGrouped,
@@ -931,24 +933,30 @@ function RowHeaderCell({
 			</div>
 		</div>
 	);
-}
+});
 
-function ResultCell({
+const ResultCell = memo(function ResultCell({
 	cell,
 	columns,
 	dimUnchanged,
-	getHighlightState,
+	rowId,
+	hoveredColumnId,
+	pinnedColumnId,
 	onHoverColumn,
-	onPinColumn,
-	style
+	onTogglePin,
+	width,
+	start
 }: {
 	cell: RunsProgressRow['cells'][number];
 	columns: RunsProgressColumn[];
 	dimUnchanged: boolean;
-	getHighlightState: (columnId: RunsProgressColumnId) => HighlightState;
+	rowId: string;
+	hoveredColumnId: RunsProgressColumnId | null;
+	pinnedColumnId: RunsProgressColumnId | null;
 	onHoverColumn: (columnId: RunsProgressColumnId | null) => void;
-	onPinColumn: (columnId: RunsProgressColumnId) => void;
-	style: CSSProperties;
+	onTogglePin: (rowId: string, columnId: RunsProgressColumnId) => void;
+	width: number;
+	start: number;
 }) {
 	const node = cell.node;
 	const stats = getNodeStats(node);
@@ -961,6 +969,21 @@ function ResultCell({
 	// Dimming applies to the cell contents only, so the run-boundary and row
 	// borders stay crisp even for unchanged rows.
 	const dim = dimUnchanged && isUnchanged;
+
+	// Stable column position so the memoized cell skips re-render on vertical
+	// scroll (only width/start change when columns actually move).
+	const style = useMemo<CSSProperties>(
+		() => ({
+			width,
+			transform: `translateX(${LEFT_COLUMN_WIDTH + start}px)`
+		}),
+		[width, start]
+	);
+	// Bound to this row's id once so every value shares one stable pin handler.
+	const handlePin = useCallback(
+		(columnId: RunsProgressColumnId) => onTogglePin(rowId, columnId),
+		[onTogglePin, rowId]
+	);
 
 	return (
 		<div
@@ -981,9 +1004,13 @@ function ResultCell({
 						dim={dim}
 						runId={cell.runId}
 						resultId={node.result_id}
-						highlightState={getHighlightState(column.id)}
+						highlightState={getHighlightState(
+							column.id,
+							hoveredColumnId,
+							pinnedColumnId
+						)}
 						onHover={onHoverColumn}
-						onPin={onPinColumn}
+						onPin={handlePin}
 					/>
 				))
 			) : (
@@ -998,9 +1025,9 @@ function ResultCell({
 			)}
 		</div>
 	);
-}
+});
 
-function ResultColumnValue({
+const ResultColumnValue = memo(function ResultColumnValue({
 	column,
 	stats,
 	previousStats,
@@ -1023,6 +1050,10 @@ function ResultColumnValue({
 	onHover: (columnId: RunsProgressColumnId | null) => void;
 	onPin: (columnId: RunsProgressColumnId) => void;
 }) {
+	// The "open test in run" link is invisible until this metric is hovered, so it
+	// is mounted on demand instead of in every one of the ~thousands of cells. That
+	// per-cell react-router Link + SVG was the dominant render cost.
+	const [isHovered, setIsHovered] = useState(false);
 	const value = getMetricValue(column.id, stats);
 	const previousValue = getMetricValue(column.id, previousStats);
 	const delta = hasPrevious
@@ -1035,7 +1066,11 @@ function ResultColumnValue({
 
 	return (
 		<div
-			onMouseEnter={() => onHover(column.id)}
+			onMouseEnter={() => {
+				setIsHovered(true);
+				onHover(column.id);
+			}}
+			onMouseLeave={() => setIsHovered(false)}
 			onClick={() => onPin(column.id)}
 			className={cn(
 				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
@@ -1046,14 +1081,16 @@ function ResultColumnValue({
 					'bg-[rgba(59,130,246,0.24)] shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.6)]'
 			)}
 		>
-			<LinkWithProject
-				to={routes.run({ runId, targetIterationId: resultId })}
-				onClick={(event) => event.stopPropagation()}
-				title={`Open test in run ${runId}`}
-				className="absolute left-0.5 top-1/2 z-10 hidden size-4 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white group-hover:grid"
-			>
-				<Icon name="BoxArrowRight" size={12} />
-			</LinkWithProject>
+			{isHovered && (
+				<LinkWithProject
+					to={routes.run({ runId, targetIterationId: resultId })}
+					onClick={(event) => event.stopPropagation()}
+					title={`Open test in run ${runId}`}
+					className="absolute left-0.5 top-1/2 z-10 grid size-4 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
+				>
+					<Icon name="BoxArrowRight" size={12} />
+				</LinkWithProject>
+			)}
 			<DeltaPill delta={delta} />
 			{value === 0 ? (
 				<span className="px-2 py-0.5 text-text-secondary">0</span>
@@ -1062,7 +1099,7 @@ function ResultColumnValue({
 			)}
 		</div>
 	);
-}
+});
 
 // Per-metric "bad" background tone: only bad-type metrics (lower-is-better) with a
 // non-zero value get tinted, scaled into tiers. Expected/neutral metrics and zeros
