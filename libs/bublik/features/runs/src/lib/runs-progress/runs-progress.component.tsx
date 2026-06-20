@@ -775,7 +775,7 @@ function RunHeaderCell({
 
 	return (
 		<div
-			className="absolute top-0 border-r border-border-primary bg-white"
+			className="absolute top-0 border-r-2 border-border-primary bg-white"
 			style={{ ...style, height }}
 		>
 			<div
@@ -828,7 +828,7 @@ function RunHeaderCell({
 				{columns.map((column) => (
 					<div
 						key={column.id}
-						className="flex items-center justify-end gap-1 border-r border-border-primary px-1.5 transition-colors last:border-r-0 hover:bg-primary-wash"
+						className="flex items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 transition-colors last:border-r-0 hover:bg-primary-wash"
 						title={column.label}
 					>
 						<span className="truncate">{column.shortLabel}</span>
@@ -957,7 +957,7 @@ function ResultCell({
 	return (
 		<div
 			className={cn(
-				'absolute top-0 grid h-full items-center border-r border-border-primary bg-white text-[0.6875rem] font-medium',
+				'absolute top-0 grid h-full items-center border-r-2 border-border-primary bg-white text-[0.6875rem] font-medium',
 				dimUnchanged && isUnchanged && 'opacity-50'
 			)}
 			style={{
@@ -1023,7 +1023,7 @@ function ResultColumnValue({
 			onMouseEnter={() => onHover(column.id)}
 			onClick={() => onPin(column.id)}
 			className={cn(
-				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary px-1.5 last:border-r-0',
+				'group relative flex h-full min-w-0 cursor-pointer items-center justify-between gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
 				toneClassName,
 				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
 				highlightState === 'pinned' &&
