@@ -11,6 +11,21 @@ import {
 	useState
 } from 'react';
 import { VirtualItem, useVirtualizer } from '@tanstack/react-virtual';
+import {
+	DndContext,
+	DragEndEvent,
+	PointerSensor,
+	closestCenter,
+	useSensor,
+	useSensors
+} from '@dnd-kit/core';
+import {
+	SortableContext,
+	arrayMove,
+	useSortable,
+	verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
@@ -22,9 +37,9 @@ import {
 	BadgeVariants,
 	ButtonTw,
 	CardHeader,
+	Checkbox,
 	ConclusionHoverCard,
 	DropdownMenu,
-	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuLabel,
 	DropdownMenuRadioGroup,
@@ -197,6 +212,13 @@ const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
 	'abnormal'
 ];
 
+const ALL_COLUMN_IDS: RunsProgressColumnId[] = RESULT_COLUMNS.map(
+	(column) => column.id
+);
+const COLUMN_BY_ID = new Map<RunsProgressColumnId, RunsProgressColumn>(
+	RESULT_COLUMNS.map((column) => [column.id, column])
+);
+
 function RunsProgressLoading() {
 	return (
 		<main className="flex flex-col bg-white rounded-md">
@@ -268,6 +290,10 @@ function RunsProgress(props: RunsProgressProps) {
 	const [visibleColumnIds, setVisibleColumnIds] = useState<
 		RunsProgressColumnId[]
 	>(DEFAULT_VISIBLE_COLUMNS);
+	// Full ordering of every metric column (visible or not); the dropdown lets the
+	// user drag to reorder, and visibleColumns is derived by walking this order.
+	const [columnOrder, setColumnOrder] =
+		useState<RunsProgressColumnId[]>(ALL_COLUMN_IDS);
 
 	const baseRows = useMemo(
 		() => (changesOnly ? filterChangedRows(rows) : rows),
@@ -283,8 +309,13 @@ function RunsProgress(props: RunsProgressProps) {
 	);
 	const visibleColumns = useMemo(
 		() =>
-			RESULT_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
-		[visibleColumnIds]
+			columnOrder
+				.map((id) => COLUMN_BY_ID.get(id))
+				.filter(
+					(column): column is RunsProgressColumn =>
+						column !== undefined && visibleColumnIds.includes(column.id)
+				),
+		[columnOrder, visibleColumnIds]
 	);
 	const runColumnWidth = visibleColumns.length * METRIC_COLUMN_WIDTH;
 	// The group band only takes space while grouping is active.
@@ -374,6 +405,7 @@ function RunsProgress(props: RunsProgressProps) {
 							state={changesOnly && 'active'}
 							onClick={() => setChangesOnly((value) => !value)}
 						>
+							<Icon name="Filter" size={20} className="mr-1.5" />
 							Changes only
 						</ButtonTw>
 						<ButtonTw
@@ -382,9 +414,11 @@ function RunsProgress(props: RunsProgressProps) {
 							state={dimUnchanged && 'active'}
 							onClick={() => setDimUnchanged((value) => !value)}
 						>
+							<Icon name="EyeHide" size={20} className="mr-1.5" />
 							Dim unchanged
 						</ButtonTw>
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
+							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
 							Open all levels
 						</ButtonTw>
 						<ButtonTw
@@ -392,6 +426,7 @@ function RunsProgress(props: RunsProgressProps) {
 							size="xss"
 							onClick={handleCollapseAll}
 						>
+							<Icon name="ChevronDown" size={20} className="mr-1.5" />
 							Collapse
 						</ButtonTw>
 					</div>
@@ -403,6 +438,8 @@ function RunsProgress(props: RunsProgressProps) {
 					<ColumnsVisibility
 						visibleColumnIds={visibleColumnIds}
 						onVisibleColumnIdsChange={setVisibleColumnIds}
+						columnOrder={columnOrder}
+						onColumnOrderChange={setColumnOrder}
 					/>
 				</div>
 			</CardHeader>
@@ -617,25 +654,88 @@ function getExpandableRowIds(rows: RunsProgressRow[]): string[] {
 	return rowIds;
 }
 
+function SortableColumnItem({
+	column,
+	checked,
+	onToggle
+}: {
+	column: RunsProgressColumn;
+	checked: boolean;
+	onToggle: (checked: boolean) => void;
+}) {
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		transform,
+		transition,
+		isDragging
+	} = useSortable({ id: column.id });
+
+	const style: CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition
+	};
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={cn(
+				'flex items-center gap-1.5 rounded py-1 pr-2 text-xs hover:bg-primary-wash',
+				isDragging && 'relative z-10 bg-primary-wash shadow-sm'
+			)}
+		>
+			<button
+				type="button"
+				className="grid h-5 w-5 shrink-0 cursor-grab touch-none place-items-center text-text-menu active:cursor-grabbing"
+				aria-label={`Reorder ${column.label} column`}
+				{...attributes}
+				{...listeners}
+			>
+				<Icon name="ThreeDotsVertical" size={20} />
+			</button>
+			<div
+				className="flex flex-1 cursor-pointer items-center gap-2 py-0.5"
+				onClick={() => onToggle(!checked)}
+			>
+				<Checkbox
+					checked={checked}
+					className="pointer-events-none"
+					tabIndex={-1}
+					aria-hidden
+				/>
+				<span className="flex select-none items-center gap-1.5">
+					{column.label}
+					{column.icon}
+				</span>
+			</div>
+		</div>
+	);
+}
+
 function ColumnsVisibility({
 	visibleColumnIds,
-	onVisibleColumnIdsChange
+	onVisibleColumnIdsChange,
+	columnOrder,
+	onColumnOrderChange
 }: {
 	visibleColumnIds: RunsProgressColumnId[];
 	onVisibleColumnIdsChange: (columnIds: RunsProgressColumnId[]) => void;
+	columnOrder: RunsProgressColumnId[];
+	onColumnOrderChange: (columnOrder: RunsProgressColumnId[]) => void;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+	);
 
 	function handleColumnChange(
 		columnId: RunsProgressColumnId,
 		isChecked: boolean
 	) {
 		if (isChecked) {
-			onVisibleColumnIdsChange(
-				RESULT_COLUMNS.map((column) => column.id).filter(
-					(id) => id === columnId || visibleColumnIds.includes(id)
-				)
-			);
+			onVisibleColumnIdsChange([...visibleColumnIds, columnId]);
 			return;
 		}
 
@@ -644,10 +744,24 @@ function ColumnsVisibility({
 		onVisibleColumnIdsChange(visibleColumnIds.filter((id) => id !== columnId));
 	}
 
+	function handleDragEnd(event: DragEndEvent) {
+		const { active, over } = event;
+
+		if (!over || active.id === over.id) return;
+
+		const oldIndex = columnOrder.indexOf(active.id as RunsProgressColumnId);
+		const newIndex = columnOrder.indexOf(over.id as RunsProgressColumnId);
+
+		if (oldIndex === -1 || newIndex === -1) return;
+
+		onColumnOrderChange(arrayMove(columnOrder, oldIndex, newIndex));
+	}
+
 	return (
 		<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
 			<DropdownMenuTrigger asChild>
 				<ButtonTw variant="secondary" size="xss" state={isOpen && 'active'}>
+					<Icon name="DashboardModeColumns" size={20} className="mr-1.5" />
 					Columns
 					<Icon name="ArrowShortSmall" className="ml-1.5" />
 				</ButtonTw>
@@ -657,18 +771,33 @@ function ColumnsVisibility({
 					Result Columns
 				</DropdownMenuLabel>
 				<Separator className="h-px my-1 -mx-1" />
-				{RESULT_COLUMNS.map((column) => (
-					<DropdownMenuCheckboxItem
-						key={column.id}
-						checked={visibleColumnIds.includes(column.id)}
-						onCheckedChange={(isChecked) =>
-							handleColumnChange(column.id, Boolean(isChecked))
-						}
-						className="text-xs"
+				<DndContext
+					sensors={sensors}
+					collisionDetection={closestCenter}
+					onDragEnd={handleDragEnd}
+				>
+					<SortableContext
+						items={columnOrder}
+						strategy={verticalListSortingStrategy}
 					>
-						{column.label}
-					</DropdownMenuCheckboxItem>
-				))}
+						{columnOrder.map((id) => {
+							const column = COLUMN_BY_ID.get(id);
+
+							if (!column) return null;
+
+							return (
+								<SortableColumnItem
+									key={id}
+									column={column}
+									checked={visibleColumnIds.includes(id)}
+									onToggle={(isChecked) =>
+										handleColumnChange(id, isChecked)
+									}
+								/>
+							);
+						})}
+					</SortableContext>
+				</DndContext>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -697,6 +826,7 @@ function GroupByMenu({
 					size="xss"
 					state={(isOpen || Boolean(groupKey)) && 'active'}
 				>
+					<Icon name="Category" size={20} className="mr-1.5" />
 					{groupKey ? `Group: ${groupKey}` : 'Group by'}
 					<Icon name="ArrowShortSmall" className="ml-1.5" />
 				</ButtonTw>
