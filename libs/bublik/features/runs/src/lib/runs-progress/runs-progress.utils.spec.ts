@@ -7,8 +7,12 @@ import { NodeEntity, RunData, RunsData, RUN_STATUS } from '@/shared/types';
 import {
 	buildFilterSummary,
 	buildRunsProgressRows,
+	filterChangedRows,
+	getUnexpectedTotal,
+	rowHasChange,
 	sortRunsNewestFirst
 } from './runs-progress.utils';
+import { RunsProgressCell, RunsProgressRow } from './runs-progress.types';
 
 const baseStats = {
 	abnormal: 0,
@@ -136,6 +140,54 @@ describe('runs progress utils', () => {
 		expect(rows[0].children).toHaveLength(2);
 		expect(rows[0].children[0].cells[0].node?.exec_seqno).toBe(1);
 		expect(rows[0].children[0].cells[0].previousNode?.exec_seqno).toBe(1);
+	});
+
+	it('sums all unexpected results', () => {
+		expect(
+			getUnexpectedTotal({
+				...baseStats,
+				passed_unexpected: 2,
+				failed_unexpected: 3,
+				skipped_unexpected: 1
+			})
+		).toBe(6);
+	});
+
+	it('keeps changed rows together with their ancestors', () => {
+		const cell = (trend: RunsProgressCell['trend']): RunsProgressCell => ({
+			runId: 1,
+			node: null,
+			previousNode: null,
+			trend
+		});
+		const makeRow = (
+			id: string,
+			depth: number,
+			trend: RunsProgressCell['trend'],
+			children: RunsProgressRow[] = []
+		): RunsProgressRow => ({
+			id,
+			name: id,
+			type: 'pkg' as RunsProgressRow['type'],
+			path: [id],
+			depth,
+			cells: [cell(trend)],
+			children
+		});
+
+		const changedChild = makeRow('changed-child', 1, 'regressed');
+		const unchangedChild = makeRow('unchanged-child', 1, 'same');
+		const root = makeRow('root', 0, 'same', [changedChild, unchangedChild]);
+
+		expect(rowHasChange(changedChild)).toBe(true);
+		expect(rowHasChange(unchangedChild)).toBe(false);
+
+		const filtered = filterChangedRows([root]);
+
+		expect(filtered).toHaveLength(1);
+		expect(filtered[0].id).toBe('root');
+		expect(filtered[0].children).toHaveLength(1);
+		expect(filtered[0].children[0].id).toBe('changed-child');
 	});
 
 	it('summarizes active filters', () => {

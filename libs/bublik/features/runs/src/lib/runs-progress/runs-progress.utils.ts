@@ -96,6 +96,12 @@ function getStatsTotal(stats: RunStats): number {
 	);
 }
 
+function getUnexpectedTotal(stats: RunStats): number {
+	return (
+		stats.passed_unexpected + stats.failed_unexpected + stats.skipped_unexpected
+	);
+}
+
 function getNodeStats(node: RunData | null): RunStats {
 	return node?.stats ?? EMPTY_STATS;
 }
@@ -167,6 +173,31 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 	return Array.from(rowByKey.values()).filter((row) => row.depth === 0);
 }
 
+function rowHasChange(row: RunsProgressRow): boolean {
+	return row.cells.some((cell) => cell.trend !== 'same');
+}
+
+/**
+ * Keeps rows that changed between runs plus all of their ancestors, so the tree
+ * context around a change survives the filter. A subtree is kept when the row
+ * itself changed or any of its descendants changed.
+ */
+function filterChangedRows(rows: RunsProgressRow[]): RunsProgressRow[] {
+	function visit(row: RunsProgressRow): RunsProgressRow | null {
+		const children = row.children
+			.map(visit)
+			.filter((child): child is RunsProgressRow => child !== null);
+
+		if (!children.length && !rowHasChange(row)) return null;
+
+		return { ...row, children };
+	}
+
+	return rows
+		.map(visit)
+		.filter((row): row is RunsProgressRow => row !== null);
+}
+
 function sortRunsNewestFirst(runs: RunsData[]): RunsData[] {
 	return [...runs].sort((left, right) => {
 		return new Date(right.start).getTime() - new Date(left.start).getTime();
@@ -196,7 +227,10 @@ function buildFilterSummary(searchParams: URLSearchParams): RunsProgressFilterSu
 export {
 	buildFilterSummary,
 	buildRunsProgressRows,
+	filterChangedRows,
 	getNodeStats,
 	getStatsTotal,
+	getUnexpectedTotal,
+	rowHasChange,
 	sortRunsNewestFirst
 };

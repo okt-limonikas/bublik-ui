@@ -1,16 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { CSSProperties, WheelEvent, useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+	CSSProperties,
+	ReactNode,
+	useEffect,
+	useMemo,
+	useRef,
+	useState
+} from 'react';
+import { VirtualItem, useVirtualizer } from '@tanstack/react-virtual';
 
 import { LinkWithProject } from '@/bublik/features/projects';
-import { RUN_STATUS } from '@/shared/types';
+import { routes } from '@/router';
+import { RUN_STATUS, RunData } from '@/shared/types';
 import {
+	Badge,
 	BadgeList,
 	BadgeListItem,
+	BadgeVariants,
 	ButtonTw,
 	CardHeader,
-	ConclusionBadge,
+	ConclusionHoverCard,
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
@@ -20,109 +30,155 @@ import {
 	Separator,
 	Skeleton,
 	TableNode,
-	cn
+	cn,
+	getRunStatusInfo
 } from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import {
 	RunsProgressFilterSummary,
 	RunsProgressRow,
-	RunsProgressRun,
-	RunsProgressTrend
+	RunsProgressRun
 } from './runs-progress.types';
-import { getNodeStats, getStatsTotal } from './runs-progress.utils';
+import {
+	filterChangedRows,
+	getNodeStats,
+	getStatsTotal,
+	getUnexpectedTotal
+} from './runs-progress.utils';
+import { Sparkline, SparklinePoint } from './runs-progress.sparkline';
 
 const ROW_HEIGHT = 34;
-const HEADER_HEIGHT = 140;
-const LEFT_COLUMN_WIDTH = 360;
-const MIN_RUN_COLUMN_WIDTH = 320;
-const METRIC_COLUMN_WIDTH = 82;
+const HEADER_STRIP_HEIGHT = 34;
+const HEADER_HEIGHT = 162;
+const LEFT_COLUMN_WIDTH = 380;
+const SPARKLINE_WIDTH = 76;
+// Each metric keeps a constant width so cell content never compresses/overflows as
+// columns are shown/hidden; the run column simply grows with the metric count.
+const METRIC_COLUMN_WIDTH = 104;
 
 type RunsProgressColumnId =
 	| 'total'
 	| 'passedExpected'
+	| 'unexpected'
+	| 'abnormal'
 	| 'passedUnexpected'
 	| 'failedExpected'
 	| 'failedUnexpected'
 	| 'skippedExpected'
-	| 'skippedUnexpected'
-	| 'abnormal'
-	| 'trend';
+	| 'skippedUnexpected';
 
 type RunsProgressColumn = {
 	id: RunsProgressColumnId;
 	label: string;
 	shortLabel: string;
 	trendDirection: 'higher-is-better' | 'lower-is-better' | 'neutral';
+	badgeVariant: BadgeVariants;
+	icon: ReactNode;
 };
+
+const EXPECTED_ICON = (
+	<Icon
+		name="InformationCircleCheckmark"
+		size={14}
+		className="text-text-expected"
+	/>
+);
+const UNEXPECTED_ICON = (
+	<Icon
+		name="InformationCircleExclamationMark"
+		size={14}
+		className="text-text-unexpected"
+	/>
+);
+const ABNORMAL_ICON = (
+	<Icon
+		name="InformationCircleQuestionMark"
+		size={14}
+		className="text-text-unexpected"
+	/>
+);
 
 const RESULT_COLUMNS: RunsProgressColumn[] = [
 	{
 		id: 'total',
 		label: 'Total',
 		shortLabel: 'Total',
-		trendDirection: 'neutral'
+		trendDirection: 'neutral',
+		badgeVariant: BadgeVariants.PrimaryActive,
+		icon: null
 	},
 	{
 		id: 'passedExpected',
 		label: 'Passed expected',
-		shortLabel: 'Passed exp.',
-		trendDirection: 'higher-is-better'
+		shortLabel: 'Passed',
+		trendDirection: 'higher-is-better',
+		badgeVariant: BadgeVariants.ExpectedActive,
+		icon: EXPECTED_ICON
 	},
 	{
-		id: 'passedUnexpected',
-		label: 'Passed unexpected',
-		shortLabel: 'Passed unexp.',
-		trendDirection: 'lower-is-better'
-	},
-	{
-		id: 'failedExpected',
-		label: 'Failed expected',
-		shortLabel: 'Failed exp.',
-		trendDirection: 'lower-is-better'
-	},
-	{
-		id: 'failedUnexpected',
-		label: 'Failed unexpected',
-		shortLabel: 'Failed unexp.',
-		trendDirection: 'lower-is-better'
-	},
-	{
-		id: 'skippedExpected',
-		label: 'Skipped expected',
-		shortLabel: 'Skipped exp.',
-		trendDirection: 'lower-is-better'
-	},
-	{
-		id: 'skippedUnexpected',
-		label: 'Skipped unexpected',
-		shortLabel: 'Skipped unexp.',
-		trendDirection: 'lower-is-better'
+		id: 'unexpected',
+		label: 'Unexpected (all)',
+		shortLabel: 'Unexp.',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.UnexpectedActive,
+		icon: UNEXPECTED_ICON
 	},
 	{
 		id: 'abnormal',
 		label: 'Abnormal',
 		shortLabel: 'Abnormal',
-		trendDirection: 'lower-is-better'
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.Unexpected,
+		icon: ABNORMAL_ICON
 	},
 	{
-		id: 'trend',
-		label: 'Overall trend',
-		shortLabel: 'Trend',
-		trendDirection: 'neutral'
+		id: 'passedUnexpected',
+		label: 'Passed unexpected',
+		shortLabel: 'Passed unexp.',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.UnexpectedActive,
+		icon: UNEXPECTED_ICON
+	},
+	{
+		id: 'failedExpected',
+		label: 'Failed expected',
+		shortLabel: 'Failed exp.',
+		trendDirection: 'neutral',
+		badgeVariant: BadgeVariants.ExpectedActive,
+		icon: EXPECTED_ICON
+	},
+	{
+		id: 'failedUnexpected',
+		label: 'Failed unexpected',
+		shortLabel: 'Failed unexp.',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.UnexpectedActive,
+		icon: UNEXPECTED_ICON
+	},
+	{
+		id: 'skippedExpected',
+		label: 'Skipped expected',
+		shortLabel: 'Skipped exp.',
+		trendDirection: 'neutral',
+		badgeVariant: BadgeVariants.ExpectedActive,
+		icon: EXPECTED_ICON
+	},
+	{
+		id: 'skippedUnexpected',
+		label: 'Skipped unexpected',
+		shortLabel: 'Skipped unexp.',
+		trendDirection: 'lower-is-better',
+		badgeVariant: BadgeVariants.UnexpectedActive,
+		icon: UNEXPECTED_ICON
 	}
 ];
 
 const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
 	'total',
 	'passedExpected',
-	'passedUnexpected',
-	'failedExpected',
-	'failedUnexpected',
-	'skippedExpected',
-	'skippedUnexpected',
-	'abnormal',
-	'trend'
+	'unexpected',
+	'abnormal'
 ];
 
 function RunsProgressLoading() {
@@ -156,27 +212,48 @@ interface RunsProgressProps {
 }
 
 function RunsProgress(props: RunsProgressProps) {
-	const { runs, rows, filters, isFetching } = props;
+	const { runs, rows, isFetching } = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+	const [changesOnly, setChangesOnly] = useState(false);
+	const [dimUnchanged, setDimUnchanged] = useState(true);
+	// A clicked (pinned) metric stays highlighted across all runs while scrolling,
+	// without needing to keep the pointer over it. Lives at the top level so it
+	// survives virtualized rows mounting/unmounting.
+	const [pinnedCell, setPinnedCell] = useState<{
+		rowId: string;
+		columnId: RunsProgressColumnId;
+	} | null>(null);
+
+	function handleTogglePin(rowId: string, columnId: RunsProgressColumnId) {
+		setPinnedCell((current) =>
+			current && current.rowId === rowId && current.columnId === columnId
+				? null
+				: { rowId, columnId }
+		);
+	}
 	const [visibleColumnIds, setVisibleColumnIds] = useState<
 		RunsProgressColumnId[]
 	>(DEFAULT_VISIBLE_COLUMNS);
 
-	const visibleRows = useMemo(
-		() => getVisibleRows(rows, expandedRows),
-		[expandedRows, rows]
+	const baseRows = useMemo(
+		() => (changesOnly ? filterChangedRows(rows) : rows),
+		[changesOnly, rows]
 	);
-	const expandableRowIds = useMemo(() => getExpandableRowIds(rows), [rows]);
+	const visibleRows = useMemo(
+		() => getVisibleRows(baseRows, expandedRows),
+		[baseRows, expandedRows]
+	);
+	const expandableRowIds = useMemo(
+		() => getExpandableRowIds(baseRows),
+		[baseRows]
+	);
 	const visibleColumns = useMemo(
 		() =>
 			RESULT_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
 		[visibleColumnIds]
 	);
-	const runColumnWidth = Math.max(
-		MIN_RUN_COLUMN_WIDTH,
-		visibleColumns.length * METRIC_COLUMN_WIDTH
-	);
+	const runColumnWidth = visibleColumns.length * METRIC_COLUMN_WIDTH;
 
 	const rowVirtualizer = useVirtualizer({
 		count: visibleRows.length,
@@ -196,6 +273,32 @@ function RunsProgress(props: RunsProgressProps) {
 	const virtualColumns = columnVirtualizer.getVirtualItems();
 	const totalWidth = LEFT_COLUMN_WIDTH + columnVirtualizer.getTotalSize();
 	const totalHeight = HEADER_HEIGHT + rowVirtualizer.getTotalSize();
+
+	// Holding Shift turns vertical wheel movement into horizontal scrolling.
+	// A native, non-passive listener is required so the page does not also
+	// scroll vertically while panning the matrix sideways.
+	useEffect(() => {
+		const element: HTMLDivElement | null = parentRef.current;
+
+		if (!element) return;
+
+		const scrollElement = element;
+
+		function handleWheel(event: WheelEvent) {
+			if (!event.shiftKey) return;
+
+			const delta = event.deltaY || event.deltaX;
+
+			if (!delta) return;
+
+			scrollElement.scrollLeft += delta;
+			event.preventDefault();
+		}
+
+		element.addEventListener('wheel', handleWheel, { passive: false });
+
+		return () => element.removeEventListener('wheel', handleWheel);
+	}, []);
 
 	function handleRowToggle(rowId: string) {
 		const row = visibleRows.find((row) => row.id === rowId);
@@ -224,6 +327,22 @@ function RunsProgress(props: RunsProgressProps) {
 				<div className="flex items-center gap-3">
 					<Legend />
 					<div className="flex items-center gap-2">
+						<ButtonTw
+							variant="secondary"
+							size="xss"
+							state={changesOnly && 'active'}
+							onClick={() => setChangesOnly((value) => !value)}
+						>
+							Changes only
+						</ButtonTw>
+						<ButtonTw
+							variant="secondary"
+							size="xss"
+							state={dimUnchanged && 'active'}
+							onClick={() => setDimUnchanged((value) => !value)}
+						>
+							Dim unchanged
+						</ButtonTw>
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
 							Open all levels
 						</ButtonTw>
@@ -261,14 +380,18 @@ function RunsProgress(props: RunsProgressProps) {
 							<span className="text-[0.6875rem] font-medium text-text-secondary">
 								{visibleRows.length} visible rows across {runs.length} runs
 							</span>
+							<span className="text-[0.625rem] font-normal text-text-secondary">
+								Trend reads newest → oldest. Hold Shift to scroll sideways.
+							</span>
 						</div>
 						{virtualColumns.map((virtualColumn) => {
-							const run = runs[virtualColumn.index].run;
+							const progressRun = runs[virtualColumn.index];
 
 							return (
 								<RunHeaderCell
 									key={virtualColumn.key}
-									run={run}
+									run={progressRun.run}
+									root={progressRun.root}
 									columns={visibleColumns}
 									style={{
 										width: virtualColumn.size,
@@ -284,35 +407,25 @@ function RunsProgress(props: RunsProgressProps) {
 						const row = visibleRows[virtualRow.index];
 
 						return (
-							<div
+							<ProgressRow
 								key={virtualRow.key}
-								className="absolute left-0 border-b border-border-primary text-[0.75rem] leading-[1.125rem] font-medium [&>*]:hover:bg-gray-50"
+								row={row}
+								columns={visibleColumns}
+								virtualColumns={virtualColumns}
+								dimUnchanged={dimUnchanged}
+								isExpanded={isRowExpanded(row, expandedRows)}
+								onToggle={handleRowToggle}
+								pinnedColumnId={
+									pinnedCell?.rowId === row.id ? pinnedCell.columnId : null
+								}
+								onTogglePin={handleTogglePin}
 								style={{
 									top: 0,
 									width: totalWidth,
 									height: virtualRow.size,
 									transform: `translateY(${HEADER_HEIGHT + virtualRow.start}px)`
 								}}
-							>
-								<RowHeaderCell
-									row={row}
-									isExpanded={isRowExpanded(row, expandedRows)}
-									onToggle={handleRowToggle}
-								/>
-								{virtualColumns.map((virtualColumn) => (
-									<ResultCell
-										key={`${virtualColumn.key}-${row.id}`}
-										cell={row.cells[virtualColumn.index]}
-										columns={visibleColumns}
-										style={{
-											width: virtualColumn.size,
-											transform: `translateX(${
-												LEFT_COLUMN_WIDTH + virtualColumn.start
-											}px)`
-										}}
-									/>
-								))}
-							</div>
+							/>
 						);
 					})}
 				</div>
@@ -320,6 +433,73 @@ function RunsProgress(props: RunsProgressProps) {
 		</main>
 	);
 }
+
+function ProgressRow({
+	row,
+	columns,
+	virtualColumns,
+	dimUnchanged,
+	isExpanded,
+	onToggle,
+	pinnedColumnId,
+	onTogglePin,
+	style
+}: {
+	row: RunsProgressRow;
+	columns: RunsProgressColumn[];
+	virtualColumns: VirtualItem[];
+	dimUnchanged: boolean;
+	isExpanded: boolean;
+	onToggle: (rowId: string) => void;
+	pinnedColumnId: RunsProgressColumnId | null;
+	onTogglePin: (rowId: string, columnId: RunsProgressColumnId) => void;
+	style: CSSProperties;
+}) {
+	// Which metric is hovered within this row — used to highlight the same metric
+	// across every run column so a single value can be compared run-to-run.
+	const [hoveredColumnId, setHoveredColumnId] =
+		useState<RunsProgressColumnId | null>(null);
+
+	function getHighlightState(columnId: RunsProgressColumnId): HighlightState {
+		if (columnId === pinnedColumnId) return 'pinned';
+		if (columnId === hoveredColumnId) return 'hover';
+
+		return 'none';
+	}
+
+	return (
+		<div
+			className="absolute left-0 border-b border-border-primary text-[0.75rem] leading-[1.125rem] font-medium"
+			style={style}
+			onMouseLeave={() => setHoveredColumnId(null)}
+		>
+			<RowHeaderCell
+				row={row}
+				isExpanded={isExpanded}
+				onToggle={onToggle}
+			/>
+			{virtualColumns.map((virtualColumn) => (
+				<ResultCell
+					key={`${virtualColumn.key}-${row.id}`}
+					cell={row.cells[virtualColumn.index]}
+					columns={columns}
+					dimUnchanged={dimUnchanged}
+					getHighlightState={getHighlightState}
+					onHoverColumn={setHoveredColumnId}
+					onPinColumn={(columnId) => onTogglePin(row.id, columnId)}
+					style={{
+						width: virtualColumn.size,
+						transform: `translateX(${
+							LEFT_COLUMN_WIDTH + virtualColumn.start
+						}px)`
+					}}
+				/>
+			))}
+		</div>
+	);
+}
+
+type HighlightState = 'none' | 'hover' | 'pinned';
 
 function getVisibleRows(
 	rows: RunsProgressRow[],
@@ -420,33 +600,18 @@ function ColumnsVisibility({
 	);
 }
 
-function FilterSummary({ filters }: { filters: RunsProgressFilterSummary[] }) {
-	if (!filters.length) return null;
-
-	return (
-		<div className="flex flex-wrap items-center gap-2 px-4 py-2 border-t border-border-primary bg-primary-wash/40">
-			<span className="text-[0.6875rem] font-semibold uppercase text-text-menu">
-				Current filters
-			</span>
-			{filters.map((filter) => (
-				<span
-					key={filter.label}
-					className="rounded bg-white px-2 py-1 text-[0.6875rem] font-medium text-text-primary shadow-sm"
-				>
-					{filter.label}: {filter.value}
-				</span>
-			))}
-		</div>
-	);
-}
-
 function Legend() {
 	return (
-		<div className="flex items-center gap-2 text-[0.6875rem] font-medium text-text-secondary">
-			<LegendItem className="bg-badge-6" label="Expected" />
-			<LegendItem className="bg-badge-4" label="Unexpected" />
-			<LegendItem className="bg-diff-added" label="Metric improved" />
-			<LegendItem className="bg-diff-removed" label="Metric regressed" />
+		<div className="flex items-center gap-2.5 text-[0.6875rem] font-medium text-text-secondary">
+			<LegendItem className="bg-[#65cd84]" label="Passed" />
+			<LegendItem className="bg-[#f95c78]" label="Unexpected" />
+			<LegendItem className="bg-amber-400" label="Abnormal" />
+			<span className="inline-flex items-center gap-1">
+				<span className="text-text-expected">▲</span> improved
+			</span>
+			<span className="inline-flex items-center gap-1">
+				<span className="text-text-unexpected">▼</span> regressed
+			</span>
 		</div>
 	);
 }
@@ -462,55 +627,120 @@ function LegendItem(props: { className: string; label: string }) {
 
 function RunHeaderCell({
 	run,
+	root,
 	columns,
 	style
 }: {
 	run: RunsProgressRun['run'];
+	root: RunData;
 	columns: RunsProgressColumn[];
 	style: CSSProperties;
 }) {
-	const tags = useMemo<BadgeListItem[]>(() => {
-		return [...run.important_tags, ...run.metadata, ...run.relevant_tags]
+	const metadata = useMemo<BadgeListItem[]>(() => {
+		return run.metadata
 			.filter(Boolean)
 			.slice(0, 8)
 			.map((tag) => ({ payload: tag }));
-	}, [run.important_tags, run.metadata, run.relevant_tags]);
+	}, [run.metadata]);
+
+	const { icon, bg, color } = getRunStatusInfo(run.conclusion as RUN_STATUS);
 
 	return (
 		<div
-			className="absolute top-0 h-full border-r border-border-primary bg-white px-2 py-1.5"
+			className="absolute top-0 h-full border-r border-border-primary bg-white"
 			style={style}
 		>
-			<div className="flex items-center justify-between gap-2">
-				<LinkWithProject
-					to={`/runs/${run.id}`}
-					className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+			<div
+				className="flex"
+				style={{ height: HEADER_HEIGHT - HEADER_STRIP_HEIGHT }}
+			>
+				<ConclusionHoverCard
+					conclusion={run.conclusion as RUN_STATUS}
+					conclusionReason={run.conclusion_reason}
+					side="right"
+					align="start"
 				>
-					<Icon name="BoxArrowRight" size={16} />
-					{run.id}
-				</LinkWithProject>
-				<ConclusionBadge status={run.conclusion as RUN_STATUS} />
-			</div>
-			<div className="mt-0.5 truncate text-[0.6875rem] font-medium text-text-secondary">
-				{formatDate(run.start)}
-			</div>
-			<div className="mt-1 max-h-[54px] overflow-hidden">
-				<BadgeList badges={tags} className="bg-badge-6" />
+					<div
+						className={cn(
+							'flex w-6 shrink-0 flex-col items-center pt-2.5',
+							bg,
+							color
+						)}
+					>
+						{icon}
+					</div>
+				</ConclusionHoverCard>
+				<div className="flex min-w-0 flex-1 flex-col px-2 py-1.5">
+					<LinkWithProject
+						to={`/runs/${run.id}`}
+						className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+					>
+						<Icon name="BoxArrowRight" size={16} />
+						{run.id}
+					</LinkWithProject>
+					<div className="mt-0.5 truncate text-[0.6875rem] font-medium text-text-secondary">
+						{formatDate(run.start)}
+					</div>
+					<RunHealthBar stats={root.stats} />
+					<div className="mt-1 max-h-[34px] overflow-hidden">
+						<BadgeList
+							badges={metadata}
+							className="bg-badge-4 whitespace-nowrap"
+						/>
+					</div>
+				</div>
 			</div>
 			<div
-				className="absolute bottom-0 left-0 right-0 grid border-t border-border-primary bg-white text-[0.625rem] font-semibold uppercase text-text-menu"
+				className="absolute bottom-0 left-0 right-0 grid border-t border-border-primary bg-white text-[0.6875rem] font-semibold uppercase leading-[0.875rem]"
 				style={{
+					height: HEADER_STRIP_HEIGHT,
 					gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 				}}
 			>
 				{columns.map((column) => (
 					<div
 						key={column.id}
-						className="truncate border-r border-border-primary px-1.5 py-1 last:border-r-0"
+						className="flex items-center justify-end gap-1 border-r border-border-primary px-1.5 transition-colors last:border-r-0 hover:bg-primary-wash"
+						title={column.label}
 					>
-						{column.shortLabel}
+						<span className="truncate">{column.shortLabel}</span>
+						{column.icon}
 					</div>
 				))}
+			</div>
+		</div>
+	);
+}
+
+function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
+	const total = getStatsTotal(stats);
+	const bad = getUnexpectedTotal(stats) + stats.abnormal;
+	const good = Math.max(0, total - bad);
+	const goodPct = total === 0 ? 0 : (good / total) * 100;
+	const badPct = total === 0 ? 0 : (bad / total) * 100;
+
+	return (
+		<div className="mt-1.5">
+			<div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+				<div
+					className="h-full bg-[#65cd84]"
+					style={{ width: `${goodPct}%` }}
+				/>
+				<div
+					className="h-full bg-[#f95c78]"
+					style={{ width: `${badPct}%` }}
+				/>
+			</div>
+			<div className="mt-0.5 flex items-center justify-between text-[0.625rem] font-medium leading-none">
+				<span className="text-text-secondary tabular-nums">{total} tests</span>
+				<span
+					className={cn(
+						'tabular-nums',
+						bad > 0 ? 'text-text-unexpected' : 'text-text-secondary'
+					)}
+				>
+					{bad} unexpected
+				</span>
 			</div>
 		</div>
 	);
@@ -528,9 +758,25 @@ function RowHeaderCell({
 	const canExpand = row.children.length > 0;
 	const canToggle = canExpand && row.depth > 0;
 
+	// Cells are stored newest-first; keep that order so the sparkline aligns with
+	// the pinned run columns (newest on the left).
+	const sparklinePoints = useMemo<SparklinePoint[]>(
+		() =>
+			row.cells.map((cell) => {
+				const stats = getNodeStats(cell.node);
+
+				return {
+					present: Boolean(cell.node),
+					total: getStatsTotal(stats),
+					nok: getUnexpectedTotal(stats) + stats.abnormal
+				};
+			}),
+		[row.cells]
+	);
+
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center border-r border-border-primary bg-white px-2 text-[0.75rem] font-medium text-text-primary"
+			className="sticky left-0 z-20 flex h-full items-center gap-2 border-r border-border-primary bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary"
 			style={{ width: LEFT_COLUMN_WIDTH }}
 		>
 			<div className="flex min-w-0 flex-1 items-center">
@@ -543,6 +789,13 @@ function RowHeaderCell({
 					disabled={!canToggle}
 				/>
 			</div>
+			<div
+				className="flex shrink-0 items-center justify-center"
+				style={{ width: SPARKLINE_WIDTH }}
+				title="Total results trend across runs (newest → oldest)"
+			>
+				<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
+			</div>
 		</div>
 	);
 }
@@ -550,32 +803,48 @@ function RowHeaderCell({
 function ResultCell({
 	cell,
 	columns,
+	dimUnchanged,
+	getHighlightState,
+	onHoverColumn,
+	onPinColumn,
 	style
 }: {
 	cell: RunsProgressRow['cells'][number];
 	columns: RunsProgressColumn[];
+	dimUnchanged: boolean;
+	getHighlightState: (columnId: RunsProgressColumnId) => HighlightState;
+	onHoverColumn: (columnId: RunsProgressColumnId | null) => void;
+	onPinColumn: (columnId: RunsProgressColumnId) => void;
 	style: CSSProperties;
 }) {
-	const stats = getNodeStats(cell.node);
+	const node = cell.node;
+	const stats = getNodeStats(node);
 	const previousStats = getNodeStats(cell.previousNode);
+	const isUnchanged = cell.trend === 'same';
+
 	return (
 		<div
 			className={cn(
-				'absolute top-0 grid h-full items-center border-r border-border-primary bg-white text-[0.6875rem] font-medium'
+				'absolute top-0 grid h-full items-center border-r border-border-primary bg-white text-[0.6875rem] font-medium',
+				dimUnchanged && isUnchanged && 'opacity-50'
 			)}
 			style={{
 				...style,
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 			}}
 		>
-			{cell.node ? (
+			{node ? (
 				columns.map((column) => (
 					<ResultColumnValue
 						key={column.id}
 						column={column}
 						stats={stats}
 						previousStats={previousStats}
-						trend={cell.trend}
+						runId={cell.runId}
+						resultId={node.result_id}
+						highlightState={getHighlightState(column.id)}
+						onHover={onHoverColumn}
+						onPin={onPinColumn}
 					/>
 				))
 			) : (
@@ -589,44 +858,78 @@ function ResultColumnValue({
 	column,
 	stats,
 	previousStats,
-	trend
+	runId,
+	resultId,
+	highlightState,
+	onHover,
+	onPin
 }: {
 	column: RunsProgressColumn;
 	stats: ReturnType<typeof getNodeStats>;
 	previousStats: ReturnType<typeof getNodeStats>;
-	trend: RunsProgressTrend;
+	runId: number;
+	resultId: number;
+	highlightState: HighlightState;
+	onHover: (columnId: RunsProgressColumnId | null) => void;
+	onPin: (columnId: RunsProgressColumnId) => void;
 }) {
-	if (column.id === 'trend') {
-		return (
-			<div className="flex min-w-0 justify-center px-2">
-				<TrendPill trend={trend} />
-			</div>
-		);
-	}
-
 	const value = getMetricValue(column.id, stats);
 	const previousValue = getMetricValue(column.id, previousStats);
 	const delta = getMetricDelta(value, previousValue, column.trendDirection);
+	// The "bad" tone only paints when this metric is highlight-free, so the blue
+	// hover/pin highlight always wins (avoids arbitrary-value bg class conflicts).
+	const toneClassName =
+		highlightState === 'none' ? getMetricToneClassName(column, value) : '';
 
 	return (
-		<div className="flex min-w-0 items-center justify-end gap-1 border-r border-border-primary px-1.5 last:border-r-0">
-			<span
-				className={cn(
-					'tabular-nums',
-					getMetricValueClassName(column.id, value)
-				)}
+		<div
+			onMouseEnter={() => onHover(column.id)}
+			onClick={() => onPin(column.id)}
+			className={cn(
+				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary px-1.5 last:border-r-0',
+				toneClassName,
+				highlightState === 'hover' && 'bg-[rgba(59,130,246,0.14)]',
+				highlightState === 'pinned' &&
+					'bg-[rgba(59,130,246,0.24)] shadow-[inset_0_0_0_1.5px_rgba(59,130,246,0.6)]'
+			)}
+		>
+			<LinkWithProject
+				to={routes.run({ runId, targetIterationId: resultId })}
+				onClick={(event) => event.stopPropagation()}
+				title={`Open test in run ${runId}`}
+				className="absolute left-0.5 top-1/2 z-10 hidden size-4 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white group-hover:grid"
 			>
-				{value}
-			</span>
+				<Icon name="BoxArrowRight" size={12} />
+			</LinkWithProject>
 			<DeltaPill delta={delta} />
+			{value === 0 ? (
+				<span className="px-2 py-0.5 text-text-secondary">0</span>
+			) : (
+				<Badge variant={column.badgeVariant}>{value}</Badge>
+			)}
 		</div>
 	);
+}
+
+// Per-metric "bad" background tone: only bad-type metrics (lower-is-better) with a
+// non-zero value get tinted, scaled into tiers. Expected/neutral metrics and zeros
+// stay clean — this is the per-metric fix for the old "abnormal 0 looks red" bug.
+function getMetricToneClassName(
+	column: RunsProgressColumn,
+	value: number
+): string {
+	if (column.trendDirection !== 'lower-is-better' || value <= 0) return '';
+	if (value >= 5) return 'bg-[rgba(249,92,120,0.22)]';
+	if (value >= 2) return 'bg-[rgba(249,92,120,0.14)]';
+
+	return 'bg-[rgba(249,92,120,0.08)]';
 }
 
 type MetricDeltaStatus = 'improved' | 'regressed' | 'changed';
 
 type MetricDelta = {
 	label: string;
+	title: string;
 	status: MetricDeltaStatus;
 } | null;
 
@@ -635,23 +938,36 @@ function getMetricDelta(
 	previousValue: number,
 	direction: RunsProgressColumn['trendDirection']
 ): MetricDelta {
-	if (direction === 'neutral' || value === previousValue) return null;
+	if (value === previousValue) return null;
+
+	const diff = value - previousValue;
+	const sign = diff > 0 ? '+' : '';
+	const arrow = diff > 0 ? '▲' : '▼';
 
 	let status: MetricDeltaStatus = 'changed';
 
-	if (value > previousValue) {
-		status = direction === 'higher-is-better' ? 'improved' : 'regressed';
-	} else {
-		status = direction === 'higher-is-better' ? 'regressed' : 'improved';
+	if (direction !== 'neutral') {
+		if (value > previousValue) {
+			status = direction === 'higher-is-better' ? 'improved' : 'regressed';
+		} else {
+			status = direction === 'higher-is-better' ? 'regressed' : 'improved';
+		}
 	}
 
-	if (previousValue === 0) return { label: 'new', status };
-	if (value === 0) return { label: 'cleared', status };
+	const percent =
+		previousValue === 0
+			? null
+			: Math.round(((value - previousValue) / previousValue) * 100);
+	const title =
+		percent === null
+			? `${sign}${diff} vs previous run`
+			: `${sign}${diff} (${percent > 0 ? '+' : ''}${percent}%) vs previous run`;
 
-	const percent = Math.round(((value - previousValue) / previousValue) * 100);
-	const sign = percent > 0 ? '+' : '';
-
-	return { label: `${sign}${percent}%`, status };
+	return {
+		label: `${arrow}${Math.abs(diff)}`,
+		title,
+		status
+	};
 }
 
 function DeltaPill({ delta }: { delta: MetricDelta }) {
@@ -659,11 +975,14 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 
 	return (
 		<span
+			title={delta.title}
 			className={cn(
-				'rounded px-1 py-0.5 text-[0.5625rem] font-semibold uppercase leading-none',
-				delta.status === 'improved' && 'bg-diff-added text-text-primary',
-				delta.status === 'regressed' && 'bg-diff-removed text-text-primary',
-				delta.status === 'changed' && 'bg-white/70 text-text-secondary'
+				'rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
+				delta.status === 'improved' &&
+					'bg-diff-added text-text-expected',
+				delta.status === 'regressed' &&
+					'bg-diff-removed text-text-unexpected',
+				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
 			)}
 		>
 			{delta.label}
@@ -672,7 +991,7 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 }
 
 function getMetricValue(
-	columnId: Exclude<RunsProgressColumnId, 'trend'>,
+	columnId: RunsProgressColumnId,
 	stats: ReturnType<typeof getNodeStats>
 ): number {
 	switch (columnId) {
@@ -680,6 +999,8 @@ function getMetricValue(
 			return getStatsTotal(stats);
 		case 'passedExpected':
 			return stats.passed;
+		case 'unexpected':
+			return getUnexpectedTotal(stats);
 		case 'failedExpected':
 			return stats.failed;
 		case 'failedUnexpected':
@@ -693,48 +1014,6 @@ function getMetricValue(
 		case 'abnormal':
 			return stats.abnormal;
 	}
-}
-
-function getMetricValueClassName(
-	columnId: RunsProgressColumnId,
-	value: number
-): string {
-	const base =
-		'inline-flex min-w-5 justify-center rounded px-1 py-0.5 leading-none';
-
-	if (value === 0) return cn(base, 'text-text-secondary');
-	if (columnId === 'passedExpected')
-		return cn(base, 'bg-badge-6 text-text-primary');
-	if (
-		columnId === 'failedExpected' ||
-		columnId === 'failedUnexpected' ||
-		columnId === 'passedUnexpected' ||
-		columnId === 'abnormal' ||
-		columnId === 'skippedUnexpected'
-	) {
-		return cn(base, 'bg-badge-4 text-text-unexpected');
-	}
-
-	return cn(base, 'bg-primary-wash text-text-secondary');
-}
-
-function TrendPill({ trend }: { trend: RunsProgressTrend }) {
-	if (trend === 'same') return null;
-
-	const labelByTrend: Record<RunsProgressTrend, string> = {
-		added: '+',
-		removed: '-',
-		improved: 'better',
-		regressed: 'worse',
-		changed: 'changed',
-		same: ''
-	};
-
-	return (
-		<span className="rounded bg-white/70 px-1.5 py-0.5 text-[0.625rem] uppercase text-text-primary">
-			{labelByTrend[trend]}
-		</span>
-	);
 }
 
 function formatDate(value: string): string {
