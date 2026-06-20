@@ -1192,7 +1192,9 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	// The "bad" tone only paints when this metric is highlight-free, so the blue
 	// hover/pin highlight always wins (avoids arbitrary-value bg class conflicts).
 	const toneClassName =
-		highlightState === 'none' ? getMetricToneClassName(column, value) : '';
+		highlightState === 'none'
+			? getMetricToneClassName(column, value, previousValue, hasPrevious)
+			: '';
 
 	return (
 		<div
@@ -1231,18 +1233,51 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	);
 });
 
-// Per-metric "bad" background tone: only bad-type metrics (lower-is-better) with a
-// non-zero value get tinted, scaled into tiers. Expected/neutral metrics and zeros
-// stay clean — this is the per-metric fix for the old "abnormal 0 looks red" bug.
+// Per-metric change-aware background tone for bad-type metrics (lower-is-better).
+// Red when the metric regressed vs the older run (rose, or appeared with no
+// baseline), green when it improved (fell). Carried-forward and expected/neutral
+// metrics stay clean — the matrix is a progress view, so a stable value is not a
+// change worth highlighting. Intensity scales with the size of the change.
 function getMetricToneClassName(
 	column: RunsProgressColumn,
-	value: number
+	value: number,
+	previousValue: number,
+	hasPrevious: boolean
 ): string {
-	if (column.trendDirection !== 'lower-is-better' || value <= 0) return '';
-	if (value >= 5) return 'bg-[rgba(249,92,120,0.22)]';
-	if (value >= 2) return 'bg-[rgba(249,92,120,0.14)]';
+	if (column.trendDirection !== 'lower-is-better') return '';
 
-	return 'bg-[rgba(249,92,120,0.08)]';
+	// No baseline: a non-zero bad value reads as a regression; there is nothing to
+	// have improved on, so a zero stays clean.
+	if (!hasPrevious) return value > 0 ? toneTierClassName(value, 'bad') : '';
+
+	if (value === previousValue) return '';
+
+	// lower-is-better: a drop is an improvement (green), a rise is a regression (red).
+	const kind = value < previousValue ? 'good' : 'bad';
+
+	return toneTierClassName(Math.abs(value - previousValue), kind);
+}
+
+// Tiered tint by the magnitude of the change. Colors match the legend: bad uses
+// the unexpected red (#f95c78), good uses the passed green (#65cd84).
+function toneTierClassName(magnitude: number, kind: 'bad' | 'good'): string {
+	const tiers =
+		kind === 'bad'
+			? [
+					'bg-[rgba(249,92,120,0.08)]',
+					'bg-[rgba(249,92,120,0.14)]',
+					'bg-[rgba(249,92,120,0.22)]'
+			  ]
+			: [
+					'bg-[rgba(101,205,132,0.08)]',
+					'bg-[rgba(101,205,132,0.14)]',
+					'bg-[rgba(101,205,132,0.22)]'
+			  ];
+
+	if (magnitude >= 5) return tiers[2];
+	if (magnitude >= 2) return tiers[1];
+
+	return tiers[0];
 }
 
 type MetricDeltaStatus = 'improved' | 'regressed' | 'changed';
