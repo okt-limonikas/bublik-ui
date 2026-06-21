@@ -3,18 +3,15 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import {
-	useGetRunsStatsByRunIdsQuery,
-	useGetRunsTablePageQuery
-} from '@/services/bublik-api';
+import { useGetRunsStatsByRunIdsQuery } from '@/services/bublik-api';
 
-import { useRunsQuery } from '../hooks';
 import {
 	RunsProgress,
 	RunsProgressEmpty,
 	RunsProgressError,
 	RunsProgressLoading
 } from './runs-progress.component';
+import { useRunsProgressRuns } from './runs-progress.hooks';
 import {
 	buildFilterSummary,
 	buildRunsProgressRows,
@@ -27,15 +24,11 @@ import type { RunsProgressRun } from './runs-progress.types';
 function RunsProgressContainer() {
 	const [searchParams] = useSearchParams();
 	const [groupKey, setGroupKey] = useState<string | null>(null);
-	const { query } = useRunsQuery();
-	const runsQuery = useGetRunsTablePageQuery(query, {
-		refetchOnFocus: true,
-		refetchOnMountOrArgChange: true
-	});
+	const runsQuery = useRunsProgressRuns();
 
 	const sortedRuns = useMemo(
-		() => sortRunsNewestFirst(runsQuery.data?.results ?? []),
-		[runsQuery.data?.results]
+		() => sortRunsNewestFirst(runsQuery.runs),
+		[runsQuery.runs]
 	);
 	const statsParams = useMemo(
 		() => sortedRuns.map((run) => ({ runId: run.id })),
@@ -94,6 +87,9 @@ function RunsProgressContainer() {
 			onGroupKeyChange={setGroupKey}
 			filters={filters}
 			isFetching={runsQuery.isFetching || statsQuery.isFetching}
+			isCapped={runsQuery.isCapped}
+			total={runsQuery.total}
+			cap={runsQuery.cap}
 		/>
 	);
 }

@@ -291,6 +291,11 @@ interface RunsProgressProps {
 	onGroupKeyChange: (groupKey: string | null) => void;
 	filters: RunsProgressFilterSummary[];
 	isFetching?: boolean;
+	// The run window was capped (no date boundary selected); show the latest `cap`
+	// of `total` runs and prompt the user to narrow by dates to see all.
+	isCapped?: boolean;
+	total?: number;
+	cap?: number;
 }
 
 function RunsProgress(props: RunsProgressProps) {
@@ -301,7 +306,10 @@ function RunsProgress(props: RunsProgressProps) {
 		groupKey,
 		availableGroupKeys,
 		onGroupKeyChange,
-		isFetching
+		isFetching,
+		isCapped,
+		total,
+		cap
 	} = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -649,6 +657,13 @@ function RunsProgress(props: RunsProgressProps) {
 								<span className="text-[0.6875rem] font-medium text-text-secondary">
 									{visibleRows.length} visible rows across {runs.length} runs
 								</span>
+								{isCapped ? (
+									<span className="inline-flex items-center gap-1 text-[0.625rem] font-medium text-text-unexpected">
+										<Icon name="InformationCircleExclamationMark" size={12} />
+										Showing the latest {cap} of {total} runs — select a date range
+										or duration to view all.
+									</span>
+								) : null}
 								<span className="text-[0.625rem] font-normal text-text-secondary">
 									{groupKey
 										? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
