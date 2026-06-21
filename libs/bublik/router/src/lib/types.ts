@@ -10,6 +10,8 @@ import {
 export type RunConfig = {
 	runId: number | string;
 	targetIterationId?: number;
+	/** Run-table `ColumnId` value used to pre-filter the nested results table. */
+	resultFilter?: string;
 };
 
 export type DashboardConfig = {

@@ -224,6 +224,25 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 	}
 ];
 
+// Maps a runs-progress metric column to the run-table `ColumnId` value that the
+// run page understands as a results filter (via the `resultFilter` query param).
+// These strings must mirror `ColumnId` in the run feature
+// (libs/bublik/features/run/.../run-table/types). They are intentionally inlined
+// as literals — `ColumnId` is a cross-lib `const enum` whose values don't survive
+// babel compilation, and they are frozen ("DO NOT CHANGE — breaks URL links").
+const RUNS_PROGRESS_COL_TO_RUN_COLUMN_ID: Record<RunsProgressColumnId, string> = {
+	total: 'TOTAL',
+	run: 'RUN',
+	unexpected: 'UNEXPECTED_TOTAL',
+	passedExpected: 'PASSED_EXPECTED',
+	failedExpected: 'FAILED_EXPECTED',
+	passedUnexpected: 'PASSED_UNEXPECTED',
+	failedUnexpected: 'FAILED_UNEXPECTED',
+	skippedExpected: 'SKIPPED_EXPECTED',
+	skippedUnexpected: 'SKIPPED_UNEXPECTED',
+	abnormal: 'ABNORMAL'
+};
+
 const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
 	'run',
 	'unexpected',
@@ -1565,12 +1584,12 @@ const ResultCell = memo(function ResultCell({
 	return (
 		<div
 			className={cn(
-				'absolute top-0 grid h-full items-center border-b border-r-2 bg-white text-[0.6875rem] font-medium',
-				// Each grid line is the cell's own border; recolor to primary when its
-				// boundary is highlighted. Widths never change (1px lines, 2px run
-				// separator) so the highlight keeps its thickness and nothing reflows.
-				highlightBottomBorder ? 'border-b-primary' : 'border-b-border-primary',
-				highlightRunSeparator ? 'border-r-primary' : 'border-r-gray-500'
+				'absolute top-0 grid h-full items-center border-b bg-white text-[0.6875rem] font-medium',
+				// The bottom grid line is the cell's own border, recolored to primary when
+				// highlighted. With no right border to miter against it, this line now spans
+				// the full cell width, so the row line stays continuous across run
+				// boundaries. Width never changes so nothing reflows.
+				highlightBottomBorder ? 'border-b-primary' : 'border-b-border-primary'
 			)}
 			style={{
 				...style,
@@ -1693,9 +1712,13 @@ const ResultColumnValue = memo(function ResultColumnValue({
 		>
 			{isHovered && (
 				<LinkWithProject
-					to={routes.run({ runId, targetIterationId: resultId })}
+					to={routes.run({
+						runId,
+						targetIterationId: resultId,
+						resultFilter: RUNS_PROGRESS_COL_TO_RUN_COLUMN_ID[column.id]
+					})}
 					onClick={(event) => event.stopPropagation()}
-					title={`Open test in run ${runId}`}
+					title={`Open ${column.label} in run ${runId}`}
 					className="absolute left-0.5 top-1/2 z-10 grid size-4 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
 				>
 					<Icon name="BoxArrowRight" size={12} />

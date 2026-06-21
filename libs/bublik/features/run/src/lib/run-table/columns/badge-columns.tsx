@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { RunTableColumnConfig, ColumnId } from '../types';
 
-import { RESULT_PROPERTIES, RESULT_TYPE } from '@/shared/types';
+import { RESULT_PROPERTIES, RESULT_TYPE, ResultTableFilter } from '@/shared/types';
 import { BadgeVariants, Icon } from '@/shared/tailwind-ui';
 import {
 	getAbnormal,
@@ -207,3 +207,19 @@ const columnConfigs: RunTableColumnConfig[] = [
 ];
 
 export const badgeColumns = columnConfigs.map(createRunColumn);
+
+/**
+ * Resolves the `{ results, resultProperties }` request filter for a given
+ * column. Single-sources the mapping already used by the badge columns so deep
+ * links (e.g. from runs-progress) reproduce exactly what clicking a badge does.
+ */
+export function getResultFilterForColumnId(
+	columnId: ColumnId | string
+): ResultTableFilter {
+	const config = columnConfigs.find((column) => column.id === columnId);
+
+	return {
+		results: config?.results ?? [],
+		resultProperties: config?.resultProperties ?? []
+	};
+}
