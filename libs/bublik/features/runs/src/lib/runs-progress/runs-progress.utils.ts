@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+import { parseISO } from 'date-fns';
+
 import { RunData, RunsData, RunStats } from '@/shared/types';
+import { formatTimeToAPI } from '@/shared/utils';
 
 import {
 	RunsProgressFilterSummary,
@@ -285,6 +288,30 @@ function groupRuns(
 	return { orderedRuns, groups };
 }
 
+/**
+ * Restricts runs to the selected date window so the progress matrix shows only
+ * runs whose start day falls within [startDate, finishDate]. Both bounds are the
+ * resolved `yyyy-MM-dd` strings from `useRunsQuery` (empty string = no bound on
+ * that side) and both ends are inclusive, matching the backend's semantics. With
+ * no bounds the runs pass through unchanged (the capped/unbounded path).
+ */
+function filterRunsByDateWindow(
+	runs: RunsData[],
+	startDate: string,
+	finishDate: string
+): RunsData[] {
+	if (!startDate && !finishDate) return runs;
+
+	return runs.filter((run) => {
+		const runDay = formatTimeToAPI(parseISO(run.start));
+
+		if (startDate && runDay < startDate) return false;
+		if (finishDate && runDay > finishDate) return false;
+
+		return true;
+	});
+}
+
 function sortRunsNewestFirst(runs: RunsData[]): RunsData[] {
 	return [...runs].sort((left, right) => {
 		return new Date(right.start).getTime() - new Date(left.start).getTime();
@@ -315,6 +342,7 @@ export {
 	buildFilterSummary,
 	buildRunsProgressRows,
 	filterChangedRows,
+	filterRunsByDateWindow,
 	getMetadataKey,
 	getMetadataKeys,
 	getNodeStats,

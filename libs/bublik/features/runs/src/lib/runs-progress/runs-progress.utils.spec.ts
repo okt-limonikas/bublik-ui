@@ -8,6 +8,7 @@ import {
 	buildFilterSummary,
 	buildRunsProgressRows,
 	filterChangedRows,
+	filterRunsByDateWindow,
 	getMetadataKeys,
 	getRunGroupValue,
 	getUnexpectedTotal,
@@ -115,6 +116,48 @@ describe('runs progress utils', () => {
 				createRun(3, '2024-01-02T00:00:00Z')
 			]).map((run) => run.id)
 		).toEqual([2, 3, 1]);
+	});
+
+	describe('filterRunsByDateWindow', () => {
+		// Local-time starts (no trailing Z) keep the day boundary deterministic
+		// across timezones, matching how the form/API resolve dates locally.
+		const runs = [
+			createRun(1, '2024-01-01T12:00:00'),
+			createRun(2, '2024-01-02T12:00:00'),
+			createRun(3, '2024-01-03T12:00:00')
+		];
+
+		it('keeps only runs within the range', () => {
+			expect(
+				filterRunsByDateWindow(runs, '2024-01-02', '2024-01-03').map(
+					(run) => run.id
+				)
+			).toEqual([2, 3]);
+		});
+
+		it('includes runs on both boundary days', () => {
+			expect(
+				filterRunsByDateWindow(runs, '2024-01-01', '2024-01-03').map(
+					(run) => run.id
+				)
+			).toEqual([1, 2, 3]);
+		});
+
+		it('respects an only-start bound', () => {
+			expect(
+				filterRunsByDateWindow(runs, '2024-01-02', '').map((run) => run.id)
+			).toEqual([2, 3]);
+		});
+
+		it('respects an only-finish bound', () => {
+			expect(
+				filterRunsByDateWindow(runs, '', '2024-01-02').map((run) => run.id)
+			).toEqual([1, 2]);
+		});
+
+		it('returns runs unchanged when no bounds are set', () => {
+			expect(filterRunsByDateWindow(runs, '', '')).toBe(runs);
+		});
 	});
 
 	it('builds matrix tree rows and classifies improvements against older run', () => {

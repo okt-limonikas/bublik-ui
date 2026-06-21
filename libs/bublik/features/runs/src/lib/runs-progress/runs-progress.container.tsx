@@ -15,20 +15,36 @@ import { useRunsProgressRuns } from './runs-progress.hooks';
 import {
 	buildFilterSummary,
 	buildRunsProgressRows,
+	filterRunsByDateWindow,
 	getMetadataKeys,
 	groupRuns,
 	sortRunsNewestFirst
 } from './runs-progress.utils';
+import { useRunsQuery } from '../hooks';
 import type { RunsProgressRun } from './runs-progress.types';
 
 function RunsProgressContainer() {
 	const [searchParams] = useSearchParams();
 	const [groupKey, setGroupKey] = useState<string | null>(null);
 	const runsQuery = useRunsProgressRuns();
+	const { query } = useRunsQuery();
+
+	// Enforce the selected date window on the client so the matrix shows only
+	// in-range runs regardless of how the page was fetched (and pins boundary
+	// inclusivity). No-op when no date boundary is set.
+	const windowedRuns = useMemo(
+		() =>
+			filterRunsByDateWindow(
+				runsQuery.runs,
+				query.startDate ?? '',
+				query.finishDate ?? ''
+			),
+		[runsQuery.runs, query.startDate, query.finishDate]
+	);
 
 	const sortedRuns = useMemo(
-		() => sortRunsNewestFirst(runsQuery.runs),
-		[runsQuery.runs]
+		() => sortRunsNewestFirst(windowedRuns),
+		[windowedRuns]
 	);
 	const statsParams = useMemo(
 		() => sortedRuns.map((run) => ({ runId: run.id })),
