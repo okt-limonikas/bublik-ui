@@ -234,18 +234,19 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 // (libs/bublik/features/run/.../run-table/types). They are intentionally inlined
 // as literals — `ColumnId` is a cross-lib `const enum` whose values don't survive
 // babel compilation, and they are frozen ("DO NOT CHANGE — breaks URL links").
-const RUNS_PROGRESS_COL_TO_RUN_COLUMN_ID: Record<RunsProgressColumnId, string> = {
-	total: 'TOTAL',
-	run: 'RUN',
-	unexpected: 'UNEXPECTED_TOTAL',
-	passedExpected: 'PASSED_EXPECTED',
-	failedExpected: 'FAILED_EXPECTED',
-	passedUnexpected: 'PASSED_UNEXPECTED',
-	failedUnexpected: 'FAILED_UNEXPECTED',
-	skippedExpected: 'SKIPPED_EXPECTED',
-	skippedUnexpected: 'SKIPPED_UNEXPECTED',
-	abnormal: 'ABNORMAL'
-};
+const RUNS_PROGRESS_COL_TO_RUN_COLUMN_ID: Record<RunsProgressColumnId, string> =
+	{
+		total: 'TOTAL',
+		run: 'RUN',
+		unexpected: 'UNEXPECTED_TOTAL',
+		passedExpected: 'PASSED_EXPECTED',
+		failedExpected: 'FAILED_EXPECTED',
+		passedUnexpected: 'PASSED_UNEXPECTED',
+		failedUnexpected: 'FAILED_UNEXPECTED',
+		skippedExpected: 'SKIPPED_EXPECTED',
+		skippedUnexpected: 'SKIPPED_UNEXPECTED',
+		abnormal: 'ABNORMAL'
+	};
 
 const DEFAULT_VISIBLE_COLUMNS: RunsProgressColumnId[] = [
 	'run',
@@ -350,7 +351,8 @@ function RunsProgress(props: RunsProgressProps) {
 	// Clear any pending flash timer if the matrix unmounts mid-pulse.
 	useEffect(
 		() => () => {
-			if (flashTimeoutRef.current !== null) clearTimeout(flashTimeoutRef.current);
+			if (flashTimeoutRef.current !== null)
+				clearTimeout(flashTimeoutRef.current);
 		},
 		[]
 	);
@@ -509,7 +511,8 @@ function RunsProgress(props: RunsProgressProps) {
 					const itemTop = rowIndex * ROW_HEIGHT;
 					const visibleHeight = scrollElement.clientHeight - headerHeight;
 					const targetTop = itemTop - (visibleHeight - ROW_HEIGHT) / 2;
-					const maxTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+					const maxTop =
+						scrollElement.scrollHeight - scrollElement.clientHeight;
 					top = Math.max(0, Math.min(targetTop, maxTop));
 				}
 
@@ -664,8 +667,8 @@ function RunsProgress(props: RunsProgressProps) {
 								{isCapped ? (
 									<span className="inline-flex items-center gap-1 text-[0.625rem] font-medium text-text-unexpected">
 										<Icon name="InformationCircleExclamationMark" size={12} />
-										Showing the latest {cap} of {total} runs — select a date range
-										or duration to view all.
+										Showing the latest {cap} of {total} runs — select a date
+										range or duration to view all.
 									</span>
 								) : null}
 								<span className="text-[0.625rem] font-normal text-text-secondary">
@@ -1269,13 +1272,19 @@ function Legend() {
 	return (
 		<div className="flex items-center gap-2.5 text-[0.6875rem] font-medium text-text-secondary">
 			<span className="inline-flex items-center gap-1">
-				<span className="text-text-expected">▲</span> improved
+				<span className="inline-flex text-text-expected">
+					<TrendArrowGlyph increased />
+				</span>{' '}
+				Improved
 			</span>
 			<span className="inline-flex items-center gap-1">
-				<span className="text-text-unexpected">▼</span> regressed
+				<span className="inline-flex text-text-unexpected">
+					<TrendArrowGlyph increased={false} />
+				</span>{' '}
+				Regressed
 			</span>
 			<span className="inline-flex items-center gap-1">
-				<span className="text-[hsl(40_55%_42%)]">●</span> changed
+				<span className="text-[hsl(40_55%_42%)]">●</span> Changed
 			</span>
 		</div>
 	);
@@ -1817,9 +1826,9 @@ const ResultColumnValue = memo(function ResultColumnValue({
 					})}
 					onClick={(event) => event.stopPropagation()}
 					title={`Open ${column.label} in run ${runId}`}
-					className="absolute left-0.5 top-1/2 z-10 grid size-4 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
+					className="absolute left-1.5 top-1/2 z-10 grid size-6 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
 				>
-					<Icon name="BoxArrowRight" size={12} />
+					<Icon name="BoxArrowRight" size={16} />
 				</LinkWithProject>
 			)}
 			<TrendArrow delta={delta} />
@@ -1848,21 +1857,24 @@ function TrendArrow({ delta }: { delta: MetricDelta }) {
 				delta.status === 'changed' && 'text-[hsl(40_55%_42%)]'
 			)}
 		>
-			<svg
-				viewBox="0 0 10 10"
-				className={cn(
-					'size-3.5 shrink-0',
-					delta.increased ? '-rotate-45' : 'rotate-45'
-				)}
-				aria-hidden
-			>
-				<path
-					d="M1 4 L5 4 L5 1.5 L9 5 L5 8.5 L5 6 L1 6 Z"
-					fill="currentColor"
-				/>
-			</svg>
+			<TrendArrowGlyph increased={delta.increased} />
 			{delta.amount}
 		</span>
+	);
+}
+
+// The directional chevron shared by the in-cell trend indicator and the legend so
+// both render the exact same glyph. `increased` points it up-right, otherwise
+// down-right; color is inherited from the parent via currentColor.
+function TrendArrowGlyph({ increased }: { increased: boolean }) {
+	return (
+		<svg
+			viewBox="0 0 10 10"
+			className={cn('size-3.5 shrink-0', increased ? '-rotate-45' : 'rotate-45')}
+			aria-hidden
+		>
+			<path d="M1 4 L5 4 L5 1.5 L9 5 L5 8.5 L5 6 L1 6 Z" fill="currentColor" />
+		</svg>
 	);
 }
 
