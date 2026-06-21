@@ -79,6 +79,9 @@ const HEADER_HEIGHT = 162;
 const GROUP_HEADER_HEIGHT = 28;
 const LEFT_COLUMN_WIDTH = 380;
 const SPARKLINE_WIDTH = 76;
+// Objective is rendered as its own divider-separated column after the sparkline;
+// it widens the pinned left area only while toggled on.
+const OBJECTIVE_COLUMN_WIDTH = 200;
 // Cycled per group so neighbouring groups stay visually distinct.
 const GROUP_COLORS = [
 	'bg-badge-1',
@@ -297,11 +300,20 @@ function RunsProgress(props: RunsProgressProps) {
 		runId: number;
 		columnId: RunsProgressColumnId;
 	} | null>(null);
+	// The cell currently under the pointer drives the hover crosshair. It is
+	// suppressed while a cell is pinned (clicking replaces the crosshair with the
+	// persistent selection). Updated only when the pointer crosses into a new cell.
+	const [hoveredCell, setHoveredCell] = useState<{
+		rowId: string;
+		runId: number;
+		columnId: RunsProgressColumnId;
+	} | null>(null);
 
 	// Stable so the memoized matrix cells don't re-render when RunsProgress re-renders
 	// on scroll.
 	const handleTogglePin = useCallback(
 		(rowId: string, runId: number, columnId: RunsProgressColumnId) => {
+			setHoveredCell(null);
 			setPinnedCell((current) =>
 				current &&
 				current.rowId === rowId &&
@@ -313,6 +325,20 @@ function RunsProgress(props: RunsProgressProps) {
 		},
 		[]
 	);
+	const handleHoverCell = useCallback(
+		(rowId: string, runId: number, columnId: RunsProgressColumnId) => {
+			setHoveredCell((current) =>
+				current &&
+				current.rowId === rowId &&
+				current.runId === runId &&
+				current.columnId === columnId
+					? current
+					: { rowId, runId, columnId }
+			);
+		},
+		[]
+	);
+	const handleClearHover = useCallback(() => setHoveredCell(null), []);
 	const [visibleColumnIds, setVisibleColumnIds] = useState<
 		RunsProgressColumnId[]
 	>(DEFAULT_VISIBLE_COLUMNS);
@@ -323,7 +349,8 @@ function RunsProgress(props: RunsProgressProps) {
 
 	// Cell N of every row aligns with run N, so a runId resolves to a cell index.
 	const runIndexById = useMemo(
-		() => new Map(runs.map((progressRun, index) => [progressRun.run.id, index])),
+		() =>
+			new Map(runs.map((progressRun, index) => [progressRun.run.id, index])),
 		[runs]
 	);
 	// Cycle a metric header: unsorted → desc → asc → removed. Shift-click keeps the
@@ -336,8 +363,7 @@ function RunsProgress(props: RunsProgressProps) {
 				);
 				const others = additive
 					? current.filter(
-							(sort) =>
-								!(sort.runId === runId && sort.columnId === columnId)
+							(sort) => !(sort.runId === runId && sort.columnId === columnId)
 					  )
 					: [];
 
@@ -372,6 +398,10 @@ function RunsProgress(props: RunsProgressProps) {
 		[columnOrder, visibleColumnIds]
 	);
 	const runColumnWidth = visibleColumns.length * METRIC_COLUMN_WIDTH;
+	// The pinned left area grows when the Objective column is shown; every matrix
+	// offset is measured from this width.
+	const leftColumnWidth =
+		LEFT_COLUMN_WIDTH + (showObjective ? OBJECTIVE_COLUMN_WIDTH : 0);
 	// The group band only takes space while grouping is active.
 	const groupBandHeight = groups.length ? GROUP_HEADER_HEIGHT : 0;
 	const headerHeight = HEADER_HEIGHT + groupBandHeight;
@@ -419,7 +449,7 @@ function RunsProgress(props: RunsProgressProps) {
 
 	const virtualRows = rowVirtualizer.getVirtualItems();
 	const virtualColumns = columnVirtualizer.getVirtualItems();
-	const totalWidth = LEFT_COLUMN_WIDTH + columnVirtualizer.getTotalSize();
+	const totalWidth = leftColumnWidth + columnVirtualizer.getTotalSize();
 	const totalHeight = headerHeight + rowVirtualizer.getTotalSize();
 
 	// Holding Ctrl turns vertical wheel movement into horizontal scrolling.
@@ -503,6 +533,7 @@ function RunsProgress(props: RunsProgressProps) {
 			</CardHeader>
 			<div
 				ref={parentRef}
+				onMouseLeave={handleClearHover}
 				className="relative h-[calc(100vh-140px)] overflow-auto overscroll-contain"
 			>
 				<div
@@ -514,18 +545,33 @@ function RunsProgress(props: RunsProgressProps) {
 						style={{ width: totalWidth, height: headerHeight }}
 					>
 						<div
-							className="sticky left-0 z-40 flex h-full flex-col justify-end gap-1 bg-white px-2 py-2 border-r-2 border-gray-500"
-							style={{ width: LEFT_COLUMN_WIDTH }}
+							className="sticky left-0 z-40 flex h-full bg-white border-r-2 border-gray-500"
+							style={{ width: leftColumnWidth }}
 						>
-							<span className="uppercase text-text-menu">Test procedures</span>
-							<span className="text-[0.6875rem] font-medium text-text-secondary">
-								{visibleRows.length} visible rows across {runs.length} runs
-							</span>
-							<span className="text-[0.625rem] font-normal text-text-secondary">
-								{groupKey
-									? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
-									: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
-							</span>
+							<div
+								className="flex h-full flex-1 flex-col justify-end gap-1 px-2 py-2"
+								style={{ width: LEFT_COLUMN_WIDTH }}
+							>
+								<span className="uppercase text-text-menu">
+									Test procedures
+								</span>
+								<span className="text-[0.6875rem] font-medium text-text-secondary">
+									{visibleRows.length} visible rows across {runs.length} runs
+								</span>
+								<span className="text-[0.625rem] font-normal text-text-secondary">
+									{groupKey
+										? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
+										: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
+								</span>
+							</div>
+							{showObjective ? (
+								<div
+									className="flex h-full flex-col justify-end gap-1 border-l-2 border-gray-500 px-2 py-2"
+									style={{ width: OBJECTIVE_COLUMN_WIDTH }}
+								>
+									<span className="uppercase text-text-menu">Objective</span>
+								</div>
+							) : null}
 						</div>
 						{groups.map((group, groupIndex) => (
 							<div
@@ -538,7 +584,7 @@ function RunsProgress(props: RunsProgressProps) {
 									height: GROUP_HEADER_HEIGHT,
 									width: group.runCount * runColumnWidth,
 									transform: `translateX(${
-										LEFT_COLUMN_WIDTH + group.startIndex * runColumnWidth
+										leftColumnWidth + group.startIndex * runColumnWidth
 									}px)`
 								}}
 								title={group.label}
@@ -561,7 +607,7 @@ function RunsProgress(props: RunsProgressProps) {
 									style={{
 										width: virtualColumn.size,
 										transform: `translateX(${
-											LEFT_COLUMN_WIDTH + virtualColumn.start
+											leftColumnWidth + virtualColumn.start
 										}px) translateY(${groupBandHeight}px)`
 									}}
 								/>
@@ -579,14 +625,20 @@ function RunsProgress(props: RunsProgressProps) {
 								columns={visibleColumns}
 								virtualColumns={virtualColumns}
 								showObjective={showObjective}
+								leftColumnWidth={leftColumnWidth}
 								onJumpToCell={handleJumpToCell}
 								isExpanded={isRowExpanded(row, expandedRows)}
 								isGrouped={Boolean(groupKey)}
 								onToggle={handleRowToggle}
+								isPinned={pinnedCell !== null}
 								pinnedColumnId={pinnedCell?.columnId ?? null}
 								pinnedRunId={pinnedCell?.runId ?? null}
 								isPinnedRow={pinnedCell?.rowId === row.id}
+								hoveredColumnId={hoveredCell?.columnId ?? null}
+								hoveredRunId={hoveredCell?.runId ?? null}
+								isHoveredRow={hoveredCell?.rowId === row.id}
 								onTogglePin={handleTogglePin}
+								onHoverCell={handleHoverCell}
 								style={{
 									top: 0,
 									width: totalWidth,
@@ -608,14 +660,20 @@ function ProgressRow({
 	columns,
 	virtualColumns,
 	showObjective,
+	leftColumnWidth,
 	isExpanded,
 	isGrouped,
 	onToggle,
 	onJumpToCell,
+	isPinned,
 	pinnedColumnId,
 	pinnedRunId,
 	isPinnedRow,
+	hoveredColumnId,
+	hoveredRunId,
+	isHoveredRow,
 	onTogglePin,
+	onHoverCell,
 	style
 }: {
 	row: RunsProgressRow;
@@ -623,20 +681,34 @@ function ProgressRow({
 	columns: RunsProgressColumn[];
 	virtualColumns: VirtualItem[];
 	showObjective: boolean;
+	leftColumnWidth: number;
 	isExpanded: boolean;
 	isGrouped: boolean;
 	onToggle: (rowId: string) => void;
 	onJumpToCell: (rowId: string, runId: number) => void;
+	isPinned: boolean;
 	pinnedColumnId: RunsProgressColumnId | null;
 	pinnedRunId: number | null;
 	isPinnedRow: boolean;
+	hoveredColumnId: RunsProgressColumnId | null;
+	hoveredRunId: number | null;
+	isHoveredRow: boolean;
 	onTogglePin: (
+		rowId: string,
+		runId: number,
+		columnId: RunsProgressColumnId
+	) => void;
+	onHoverCell: (
 		rowId: string,
 		runId: number,
 		columnId: RunsProgressColumnId
 	) => void;
 	style: CSSProperties;
 }) {
+	// The hover crosshair stands down while a cell is pinned so the selection reads
+	// cleanly. The row line is part of the crosshair, so it follows the same rule.
+	const rowLineHighlighted = isPinned ? isPinnedRow : isHoveredRow;
+
 	return (
 		<div
 			className="group/row absolute left-0 text-[0.75rem] leading-[1.125rem] font-medium"
@@ -648,6 +720,8 @@ function ProgressRow({
 				isExpanded={isExpanded}
 				isGrouped={isGrouped}
 				showObjective={showObjective}
+				leftColumnWidth={leftColumnWidth}
+				isRowHighlighted={rowLineHighlighted}
 				onToggle={onToggle}
 				onJumpToCell={onJumpToCell}
 			/>
@@ -657,10 +731,16 @@ function ProgressRow({
 					cell={row.cells[virtualColumn.index]}
 					columns={columns}
 					rowId={row.id}
+					leftColumnWidth={leftColumnWidth}
+					isPinned={isPinned}
 					pinnedColumnId={pinnedColumnId}
 					pinnedRunId={pinnedRunId}
 					isPinnedRow={isPinnedRow}
+					hoveredColumnId={hoveredColumnId}
+					hoveredRunId={hoveredRunId}
+					isHoveredRow={isHoveredRow}
 					onTogglePin={onTogglePin}
+					onHoverCell={onHoverCell}
 					width={virtualColumn.size}
 					start={virtualColumn.start}
 				/>
@@ -669,31 +749,95 @@ function ProgressRow({
 	);
 }
 
-// How a cell participates in the pinned-cell highlight.
+// Which edges of a cell the primary highlight draws, plus how the centre is filled.
+// One mechanism feeds both the pinned selection and the hover crosshair so every
+// edge originates from the cell itself (never the row wrapper) and corners never
+// double up.
 type CellHighlight = {
-	// Cross-run tint: this metric in the pinned row (every run column).
-	bg: boolean;
-	// Vertical bracket: the pinned run's metric column, drawn down every row.
-	scope: boolean;
-	// The exact clicked cell — full box at the centre of the bracket.
+	top: boolean;
+	bottom: boolean;
+	left: boolean;
+	right: boolean;
+	// Cross-run tint along the selected row's metric strip.
+	rowTint: boolean;
+	// The exact clicked cell — strongest fill + full box.
 	clicked: boolean;
+};
+
+const NO_HIGHLIGHT: CellHighlight = {
+	top: false,
+	bottom: false,
+	left: false,
+	right: false,
+	rowTint: false,
+	clicked: false
 };
 
 function getCellHighlight(
 	columnId: RunsProgressColumnId,
 	runId: number,
+	isPinned: boolean,
 	pinnedColumnId: RunsProgressColumnId | null,
 	pinnedRunId: number | null,
-	isPinnedRow: boolean
+	isPinnedRow: boolean,
+	hoveredColumnId: RunsProgressColumnId | null,
+	hoveredRunId: number | null,
+	isHoveredRow: boolean
 ): CellHighlight {
-	const sameColumn = pinnedColumnId !== null && columnId === pinnedColumnId;
-	const scope = sameColumn && runId === pinnedRunId;
+	// Pinned selection wins: column bracket across every run + a full-width row
+	// border across every column, with the clicked cell capped. The hover
+	// crosshair is suppressed.
+	if (isPinned) {
+		const sameColumn = pinnedColumnId !== null && columnId === pinnedColumnId;
+		const inRow = isPinnedRow;
+
+		if (!sameColumn && !inRow) return NO_HIGHLIGHT;
+
+		const clicked = sameColumn && inRow && runId === pinnedRunId;
+
+		return {
+			// Vertical bracket runs down every row of the metric column.
+			left: sameColumn,
+			right: sameColumn,
+			// Horizontal edges span the whole selected row, every column.
+			top: inRow,
+			bottom: inRow,
+			// Tint only the metric strip (this column in the selected row).
+			rowTint: sameColumn && inRow,
+			clicked
+		};
+	}
+
+	// Hover crosshair: the hovered single-run column (vertical) crossing the
+	// hovered row (horizontal), meeting at the hovered cell.
+	const sameHoverColumn =
+		hoveredColumnId !== null &&
+		columnId === hoveredColumnId &&
+		runId === hoveredRunId;
 
 	return {
-		bg: sameColumn && isPinnedRow,
-		scope,
-		clicked: scope && isPinnedRow
+		left: sameHoverColumn,
+		right: sameHoverColumn,
+		top: isHoveredRow,
+		bottom: isHoveredRow,
+		rowTint: false,
+		clicked: false
 	};
+}
+
+// Builds an inset box-shadow from the active edges so highlights layer on top of
+// the structural grid lines without shifting layout. `clicked` thickens to 1.5px.
+function getHighlightBoxShadow(highlight: CellHighlight): string | undefined {
+	const color = 'hsl(var(--colors-primary))';
+	const width = highlight.clicked ? '1.5px' : '1px';
+	const segments: string[] = [];
+
+	if (highlight.top) segments.push(`inset 0 ${width} 0 0 ${color}`);
+	if (highlight.bottom) segments.push(`inset 0 -${width} 0 0 ${color}`);
+	if (highlight.left) segments.push(`inset ${width} 0 0 0 ${color}`);
+	if (highlight.right) segments.push(`inset -${width} 0 0 0 ${color}`);
+
+	return segments.length ? segments.join(', ') : undefined;
 }
 
 type RunsProgressSort = {
@@ -944,9 +1088,7 @@ function ColumnsVisibility({
 									key={id}
 									column={column}
 									checked={visibleColumnIds.includes(id)}
-									onToggle={(isChecked) =>
-										handleColumnChange(id, isChecked)
-									}
+									onToggle={(isChecked) => handleColumnChange(id, isChecked)}
 								/>
 							);
 						})}
@@ -996,18 +1138,11 @@ function GroupByMenu({
 						onGroupKeyChange(value === NO_GROUPING_VALUE ? null : value)
 					}
 				>
-					<DropdownMenuRadioItem
-						value={NO_GROUPING_VALUE}
-						className="text-xs"
-					>
+					<DropdownMenuRadioItem value={NO_GROUPING_VALUE} className="text-xs">
 						No grouping
 					</DropdownMenuRadioItem>
 					{availableGroupKeys.map((key) => (
-						<DropdownMenuRadioItem
-							key={key}
-							value={key}
-							className="text-xs"
-						>
+						<DropdownMenuRadioItem key={key} value={key} className="text-xs">
 							{key}
 						</DropdownMenuRadioItem>
 					))}
@@ -1065,10 +1200,7 @@ function RunHeaderCell({
 			className="absolute top-0 border-r-2 border-gray-500 bg-white"
 			style={{ ...style, height }}
 		>
-			<div
-				className="flex"
-				style={{ height: height - HEADER_STRIP_HEIGHT }}
-			>
+			<div className="flex" style={{ height: height - HEADER_STRIP_HEIGHT }}>
 				<ConclusionHoverCard
 					conclusion={run.conclusion as RUN_STATUS}
 					conclusionReason={run.conclusion_reason}
@@ -1194,6 +1326,8 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	isExpanded,
 	isGrouped,
 	showObjective,
+	leftColumnWidth,
+	isRowHighlighted,
 	onToggle,
 	onJumpToCell
 }: {
@@ -1202,6 +1336,8 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	isExpanded: boolean;
 	isGrouped: boolean;
 	showObjective: boolean;
+	leftColumnWidth: number;
+	isRowHighlighted: boolean;
 	onToggle: (rowId: string) => void;
 	onJumpToCell: (rowId: string, runId: number) => void;
 }) {
@@ -1233,61 +1369,64 @@ const RowHeaderCell = memo(function RowHeaderCell({
 
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center gap-2 border-t border-b border-r-2 border-t-transparent border-b-border-primary border-r-gray-500 bg-white pl-2 pr-3 text-[0.75rem] font-medium text-text-primary group-hover/row:border-t-primary group-hover/row:border-b-primary"
-			style={{ width: LEFT_COLUMN_WIDTH }}
+			className="sticky left-0 z-20 flex h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.75rem] font-medium text-text-primary"
+			style={{
+				width: leftColumnWidth,
+				boxShadow: isRowHighlighted
+					? 'inset 0 1px 0 0 hsl(var(--colors-primary)), inset 0 -1px 0 0 hsl(var(--colors-primary))'
+					: undefined
+			}}
 		>
-			<div
-				className={cn(
-					'flex min-w-0 items-center',
-					showObjective && row.objective ? 'shrink' : 'flex-1'
-				)}
-			>
-				<TableNode
-					nodeName={row.name}
-					nodeType={row.type}
-					depth={row.depth}
-					onClick={() => canToggle && onToggle(row.id)}
-					isExpanded={canExpand ? isExpanded : undefined}
-					disabled={!canToggle}
-				/>
-			</div>
-			{showObjective && row.objective ? (
-				<div
-					className="min-w-0 flex-1 truncate font-normal text-text-secondary"
-					title={row.objective}
-				>
-					{row.objective}
-				</div>
-			) : null}
-			<HoverCard
-				open={isChartOpen}
-				onOpenChange={setIsChartOpen}
-				openDelay={120}
-				closeDelay={80}
-				side="right"
-				align="center"
-				content={
-					<SparklineHoverChart
-						points={sparklinePoints}
-						onPointClick={(index) => {
-							setIsChartOpen(false);
-							onJumpToCell(row.id, sparklinePoints[index].runId);
-						}}
+			<div className="flex h-full min-w-0 flex-1 items-center gap-2 pl-2 pr-3">
+				<div className="flex min-w-0 flex-1 items-center">
+					<TableNode
+						nodeName={row.name}
+						nodeType={row.type}
+						depth={row.depth}
+						onClick={() => canToggle && onToggle(row.id)}
+						isExpanded={canExpand ? isExpanded : undefined}
+						disabled={!canToggle}
 					/>
-				}
-			>
-				<div
-					className="flex shrink-0 cursor-pointer items-center justify-center"
-					style={{ width: SPARKLINE_WIDTH }}
-					aria-label={
-						isGrouped
-							? 'Total results trend across runs (grouped order)'
-							: 'Total results trend across runs (newest → oldest)'
+				</div>
+				<HoverCard
+					open={isChartOpen}
+					onOpenChange={setIsChartOpen}
+					openDelay={120}
+					closeDelay={80}
+					side="right"
+					align="center"
+					content={
+						<SparklineHoverChart
+							points={sparklinePoints}
+							onPointClick={(index) => {
+								setIsChartOpen(false);
+								onJumpToCell(row.id, sparklinePoints[index].runId);
+							}}
+						/>
 					}
 				>
-					<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
+					<div
+						className="flex shrink-0 cursor-pointer items-center justify-center"
+						style={{ width: SPARKLINE_WIDTH }}
+						aria-label={
+							isGrouped
+								? 'Total results trend across runs (grouped order)'
+								: 'Total results trend across runs (newest → oldest)'
+						}
+					>
+						<Sparkline points={sparklinePoints} width={SPARKLINE_WIDTH} />
+					</div>
+				</HoverCard>
+			</div>
+			{showObjective ? (
+				<div
+					className="flex h-full shrink-0 items-center border-l-2 border-gray-500 px-2 font-normal text-text-secondary"
+					style={{ width: OBJECTIVE_COLUMN_WIDTH }}
+					title={row.objective}
+				>
+					<span className="truncate">{row.objective}</span>
 				</div>
-			</HoverCard>
+			) : null}
 		</div>
 	);
 });
@@ -1296,20 +1435,36 @@ const ResultCell = memo(function ResultCell({
 	cell,
 	columns,
 	rowId,
+	leftColumnWidth,
+	isPinned,
 	pinnedColumnId,
 	pinnedRunId,
 	isPinnedRow,
+	hoveredColumnId,
+	hoveredRunId,
+	isHoveredRow,
 	onTogglePin,
+	onHoverCell,
 	width,
 	start
 }: {
 	cell: RunsProgressRow['cells'][number];
 	columns: RunsProgressColumn[];
 	rowId: string;
+	leftColumnWidth: number;
+	isPinned: boolean;
 	pinnedColumnId: RunsProgressColumnId | null;
 	pinnedRunId: number | null;
 	isPinnedRow: boolean;
+	hoveredColumnId: RunsProgressColumnId | null;
+	hoveredRunId: number | null;
+	isHoveredRow: boolean;
 	onTogglePin: (
+		rowId: string,
+		runId: number,
+		columnId: RunsProgressColumnId
+	) => void;
+	onHoverCell: (
 		rowId: string,
 		runId: number,
 		columnId: RunsProgressColumnId
@@ -1330,9 +1485,9 @@ const ResultCell = memo(function ResultCell({
 	const style = useMemo<CSSProperties>(
 		() => ({
 			width,
-			transform: `translateX(${LEFT_COLUMN_WIDTH + start}px)`
+			transform: `translateX(${leftColumnWidth + start}px)`
 		}),
-		[width, start]
+		[leftColumnWidth, width, start]
 	);
 	// Bound to this row+run once so every value shares one stable pin handler.
 	const handlePin = useCallback(
@@ -1340,10 +1495,15 @@ const ResultCell = memo(function ResultCell({
 			onTogglePin(rowId, cell.runId, columnId),
 		[onTogglePin, rowId, cell.runId]
 	);
+	const handleHover = useCallback(
+		(columnId: RunsProgressColumnId) =>
+			onHoverCell(rowId, cell.runId, columnId),
+		[onHoverCell, rowId, cell.runId]
+	);
 
 	return (
 		<div
-			className="absolute top-0 grid h-full items-center border-t border-b border-r-2 border-t-transparent border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium group-hover/row:border-t-primary group-hover/row:border-b-primary"
+			className="absolute top-0 grid h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium"
 			style={{
 				...style,
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
@@ -1354,9 +1514,13 @@ const ResultCell = memo(function ResultCell({
 					const highlight = getCellHighlight(
 						column.id,
 						cell.runId,
+						isPinned,
 						pinnedColumnId,
 						pinnedRunId,
-						isPinnedRow
+						isPinnedRow,
+						hoveredColumnId,
+						hoveredRunId,
+						isHoveredRow
 					);
 
 					return (
@@ -1368,10 +1532,11 @@ const ResultCell = memo(function ResultCell({
 							hasPrevious={hasPrevious}
 							runId={cell.runId}
 							resultId={node.result_id}
-							bgHighlight={highlight.bg}
-							scopeHighlight={highlight.scope}
+							boxShadow={getHighlightBoxShadow(highlight)}
+							rowTint={highlight.rowTint}
 							isClicked={highlight.clicked}
 							onPin={handlePin}
+							onHover={handleHover}
 						/>
 					);
 				})
@@ -1389,10 +1554,11 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	hasPrevious,
 	runId,
 	resultId,
-	bgHighlight,
-	scopeHighlight,
+	boxShadow,
+	rowTint,
 	isClicked,
-	onPin
+	onPin,
+	onHover
 }: {
 	column: RunsProgressColumn;
 	stats: ReturnType<typeof getNodeStats>;
@@ -1400,13 +1566,14 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	hasPrevious: boolean;
 	runId: number;
 	resultId: number;
-	// Cross-run tint in the pinned row.
-	bgHighlight: boolean;
-	// Vertical bracket down the pinned run's metric column.
-	scopeHighlight: boolean;
-	// The exact clicked cell at the centre of the bracket.
+	// Inset primary edges for the crosshair/selection, computed per cell.
+	boxShadow: string | undefined;
+	// Cross-run blue tint along the selected row's metric strip.
+	rowTint: boolean;
+	// The exact clicked cell — strongest fill at the centre of the selection.
 	isClicked: boolean;
 	onPin: (columnId: RunsProgressColumnId) => void;
+	onHover: (columnId: RunsProgressColumnId) => void;
 }) {
 	// The "open test in run" link is invisible until this metric is hovered, so it
 	// is mounted on demand instead of in every one of the ~thousands of cells. That
@@ -1417,30 +1584,36 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	const delta = hasPrevious
 		? getMetricDelta(value, previousValue, column.trendDirection)
 		: null;
-	// The "bad" tone steps aside only where the blue pin tint paints, so the
-	// vertical bracket (which only draws borders) keeps its change-aware tone.
-	const toneClassName =
-		bgHighlight || isClicked
-			? ''
-			: getMetricToneClassName(column, value, previousValue, hasPrevious);
+	// Selected cells (the clicked cell + its metric strip) deepen their own
+	// change-aware hue — red stays redder, green greener. Cells with no change
+	// tone (neutral/expected metrics) fall back to a blue selection tint so the
+	// strip still reads as selected.
+	const isSelected = rowTint || isClicked;
+	const tintedToneClassName = getMetricToneClassName(
+		column,
+		value,
+		previousValue,
+		hasPrevious,
+		isSelected
+	);
+	const selectionFallback = isSelected
+		? isClicked
+			? 'bg-[rgba(59,130,246,0.24)]'
+			: 'bg-[rgba(59,130,246,0.14)]'
+		: '';
 
 	return (
 		<div
-			onMouseEnter={() => setIsHovered(true)}
+			onMouseEnter={() => {
+				setIsHovered(true);
+				onHover(column.id);
+			}}
 			onMouseLeave={() => setIsHovered(false)}
 			onClick={() => onPin(column.id)}
+			style={boxShadow ? { boxShadow } : undefined}
 			className={cn(
 				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
-				toneClassName,
-				bgHighlight && !isClicked && 'bg-[rgba(59,130,246,0.14)]',
-				isClicked && 'bg-[rgba(59,130,246,0.24)]',
-				// Left + right primary edges form the column bracket; the clicked cell
-				// gets a full box that caps the bracket at its centre.
-				scopeHighlight &&
-					!isClicked &&
-					'shadow-[inset_1px_0_0_0_hsl(var(--colors-primary)),inset_-1px_0_0_0_hsl(var(--colors-primary))]',
-				isClicked &&
-					'shadow-[inset_0_0_0_1.5px_hsl(var(--colors-primary))]'
+				tintedToneClassName || selectionFallback
 			)}
 		>
 			{isHovered && (
@@ -1468,35 +1641,70 @@ const ResultColumnValue = memo(function ResultColumnValue({
 // baseline), green when it improved (fell). Carried-forward and expected/neutral
 // metrics stay clean — the matrix is a progress view, so a stable value is not a
 // change worth highlighting. Intensity scales with the size of the change.
-function getMetricToneClassName(
+// The change a bad-type metric (lower-is-better) made vs the older run: `good`
+// when it fell (improved), `bad` when it rose or appeared with no baseline.
+// Neutral/expected metrics and stable values have no change to highlight.
+function getMetricChange(
 	column: RunsProgressColumn,
 	value: number,
 	previousValue: number,
 	hasPrevious: boolean
-): string {
-	if (column.trendDirection !== 'lower-is-better') return '';
+): { kind: 'bad' | 'good'; magnitude: number } | null {
+	if (column.trendDirection !== 'lower-is-better') return null;
 
 	// No baseline: a non-zero bad value reads as a regression; there is nothing to
 	// have improved on, so a zero stays clean.
-	if (!hasPrevious) return value > 0 ? toneTierClassName(value, 'bad') : '';
+	if (!hasPrevious) return value > 0 ? { kind: 'bad', magnitude: value } : null;
 
-	if (value === previousValue) return '';
+	if (value === previousValue) return null;
 
 	// lower-is-better: a drop is an improvement (green), a rise is a regression (red).
-	const kind = value < previousValue ? 'good' : 'bad';
+	return {
+		kind: value < previousValue ? 'good' : 'bad',
+		magnitude: Math.abs(value - previousValue)
+	};
+}
 
-	return toneTierClassName(Math.abs(value - previousValue), kind);
+function getMetricToneClassName(
+	column: RunsProgressColumn,
+	value: number,
+	previousValue: number,
+	hasPrevious: boolean,
+	boost = false
+): string {
+	const change = getMetricChange(column, value, previousValue, hasPrevious);
+
+	if (!change) return '';
+
+	return toneTierClassName(change.magnitude, change.kind, boost);
 }
 
 // Tiered tint by the magnitude of the change. Colors match the legend: bad uses
-// the unexpected red (#f95c78), good uses the passed green (#65cd84).
-function toneTierClassName(magnitude: number, kind: 'bad' | 'good'): string {
+// the unexpected red (#f95c78), good uses the passed green (#65cd84). `boost`
+// deepens the same hue so a selected cell reads as "more red"/"more green".
+function toneTierClassName(
+	magnitude: number,
+	kind: 'bad' | 'good',
+	boost = false
+): string {
 	const tiers =
 		kind === 'bad'
+			? boost
+				? [
+						'bg-[rgba(249,92,120,0.3)]',
+						'bg-[rgba(249,92,120,0.4)]',
+						'bg-[rgba(249,92,120,0.55)]'
+				  ]
+				: [
+						'bg-[rgba(249,92,120,0.08)]',
+						'bg-[rgba(249,92,120,0.14)]',
+						'bg-[rgba(249,92,120,0.22)]'
+				  ]
+			: boost
 			? [
-					'bg-[rgba(249,92,120,0.08)]',
-					'bg-[rgba(249,92,120,0.14)]',
-					'bg-[rgba(249,92,120,0.22)]'
+					'bg-[rgba(101,205,132,0.3)]',
+					'bg-[rgba(101,205,132,0.4)]',
+					'bg-[rgba(101,205,132,0.55)]'
 			  ]
 			: [
 					'bg-[rgba(101,205,132,0.08)]',
@@ -1569,11 +1777,19 @@ function DeltaPill({ delta }: { delta: MetricDelta }) {
 				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
 			)}
 		>
-			<Icon
-				name="ArrowLeanUp"
-				size={12}
-				className={delta.increased ? 'rotate-45' : 'rotate-[135deg]'}
-			/>
+			<svg
+				viewBox="0 0 10 10"
+				className={cn(
+					'size-2.5 shrink-0',
+					delta.increased ? '-rotate-45' : 'rotate-45'
+				)}
+				aria-hidden
+			>
+				<path
+					d="M1 4 L5 4 L5 1.5 L9 5 L5 8.5 L5 6 L1 6 Z"
+					fill="currentColor"
+				/>
+			</svg>
 			{delta.amount}
 		</span>
 	);
