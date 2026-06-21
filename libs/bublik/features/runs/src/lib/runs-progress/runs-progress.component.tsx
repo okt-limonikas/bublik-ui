@@ -383,6 +383,11 @@ function RunsProgress(props: RunsProgressProps) {
 		() => getVisibleRows(baseRows, expandedRows),
 		[baseRows, expandedRows]
 	);
+	// Row id → index in the visible list, so a jump can vertically center the row.
+	const rowIndexById = useMemo(
+		() => new Map(visibleRows.map((row, index) => [row.id, index])),
+		[visibleRows]
+	);
 	const expandableRowIds = useMemo(
 		() => getExpandableRowIds(baseRows),
 		[baseRows]
@@ -436,7 +441,34 @@ function RunsProgress(props: RunsProgressProps) {
 
 			if (runIndex === undefined) return;
 
-			columnVirtualizer.scrollToIndex(runIndex, { align: 'center' });
+			const scrollElement = parentRef.current;
+
+			if (scrollElement) {
+				// scrollToIndex's 'center' centers within the whole viewport, but the
+				// sticky left column covers its leftmost leftColumnWidth px, so the cell
+				// lands right-of-center. Center within the *uncovered* area instead, and
+				// animate the move.
+				const itemLeft = runIndex * runColumnWidth;
+				const visibleWidth = scrollElement.clientWidth - leftColumnWidth;
+				const targetLeft = itemLeft - (visibleWidth - runColumnWidth) / 2;
+				const maxLeft = scrollElement.scrollWidth - scrollElement.clientWidth;
+				const left = Math.max(0, Math.min(targetLeft, maxLeft));
+
+				// Same idea vertically: the sticky header covers the top headerHeight px,
+				// so center the row within the area below it.
+				const rowIndex = rowIndexById.get(rowId);
+				let top = scrollElement.scrollTop;
+
+				if (rowIndex !== undefined) {
+					const itemTop = rowIndex * ROW_HEIGHT;
+					const visibleHeight = scrollElement.clientHeight - headerHeight;
+					const targetTop = itemTop - (visibleHeight - ROW_HEIGHT) / 2;
+					const maxTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+					top = Math.max(0, Math.min(targetTop, maxTop));
+				}
+
+				scrollElement.scrollTo({ left, top, behavior: 'smooth' });
+			}
 
 			const columnId = visibleColumnIds.includes('unexpected')
 				? 'unexpected'
@@ -444,7 +476,15 @@ function RunsProgress(props: RunsProgressProps) {
 
 			if (columnId) setPinnedCell({ rowId, runId, columnId });
 		},
-		[columnVirtualizer, runIndexById, visibleColumnIds, visibleColumns]
+		[
+			runIndexById,
+			rowIndexById,
+			runColumnWidth,
+			leftColumnWidth,
+			headerHeight,
+			visibleColumnIds,
+			visibleColumns
+		]
 	);
 
 	// The row whose horizontal line is lit: the pinned row wins over hover (the hover
