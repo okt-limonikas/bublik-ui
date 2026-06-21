@@ -447,6 +447,11 @@ function RunsProgress(props: RunsProgressProps) {
 		[columnVirtualizer, runIndexById, visibleColumnIds, visibleColumns]
 	);
 
+	// The row whose horizontal line is lit: the pinned row wins over hover (the hover
+	// crosshair stands down while a cell is pinned), matching ProgressRow's own rule.
+	const highlightedRowId = pinnedCell
+		? pinnedCell.rowId
+		: hoveredCell?.rowId ?? null;
 	const virtualRows = rowVirtualizer.getVirtualItems();
 	const virtualColumns = columnVirtualizer.getVirtualItems();
 	const totalWidth = leftColumnWidth + columnVirtualizer.getTotalSize();
@@ -616,6 +621,12 @@ function RunsProgress(props: RunsProgressProps) {
 					</div>
 					{virtualRows.map((virtualRow) => {
 						const row = visibleRows[virtualRow.index];
+						// The next row down shares this row's bottom boundary; if it is the
+						// highlighted row, its blue top edge lands there, so this row drops
+						// its gray bottom line to keep the boundary a single line.
+						const isNextRowHighlighted =
+							highlightedRowId !== null &&
+							visibleRows[virtualRow.index + 1]?.id === highlightedRowId;
 
 						return (
 							<ProgressRow
@@ -637,6 +648,7 @@ function RunsProgress(props: RunsProgressProps) {
 								hoveredColumnId={hoveredCell?.columnId ?? null}
 								hoveredRunId={hoveredCell?.runId ?? null}
 								isHoveredRow={hoveredCell?.rowId === row.id}
+								isNextRowHighlighted={isNextRowHighlighted}
 								onTogglePin={handleTogglePin}
 								onHoverCell={handleHoverCell}
 								style={{
@@ -672,6 +684,7 @@ function ProgressRow({
 	hoveredColumnId,
 	hoveredRunId,
 	isHoveredRow,
+	isNextRowHighlighted,
 	onTogglePin,
 	onHoverCell,
 	style
@@ -693,6 +706,9 @@ function ProgressRow({
 	hoveredColumnId: RunsProgressColumnId | null;
 	hoveredRunId: number | null;
 	isHoveredRow: boolean;
+	// The next visible row is the highlighted one, so its blue top edge lands on
+	// this row's bottom boundary — used to drop this row's gray bottom line.
+	isNextRowHighlighted: boolean;
 	onTogglePin: (
 		rowId: string,
 		runId: number,
@@ -708,6 +724,10 @@ function ProgressRow({
 	// The hover crosshair stands down while a cell is pinned so the selection reads
 	// cleanly. The row line is part of the crosshair, so it follows the same rule.
 	const rowLineHighlighted = isPinned ? isPinnedRow : isHoveredRow;
+	// This row's bottom boundary carries a blue line when the row itself is
+	// highlighted (its bottom edge) or the row below it is (its top edge); either
+	// way the gray grid line there is dropped to avoid a double border.
+	const suppressBottomBorder = rowLineHighlighted || isNextRowHighlighted;
 
 	return (
 		<div
@@ -722,6 +742,7 @@ function ProgressRow({
 				showObjective={showObjective}
 				leftColumnWidth={leftColumnWidth}
 				isRowHighlighted={rowLineHighlighted}
+				suppressBottomBorder={suppressBottomBorder}
 				onToggle={onToggle}
 				onJumpToCell={onJumpToCell}
 			/>
@@ -739,6 +760,7 @@ function ProgressRow({
 					hoveredColumnId={hoveredColumnId}
 					hoveredRunId={hoveredRunId}
 					isHoveredRow={isHoveredRow}
+					suppressBottomBorder={suppressBottomBorder}
 					onTogglePin={onTogglePin}
 					onHoverCell={onHoverCell}
 					width={virtualColumn.size}
@@ -1328,6 +1350,7 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	showObjective,
 	leftColumnWidth,
 	isRowHighlighted,
+	suppressBottomBorder,
 	onToggle,
 	onJumpToCell
 }: {
@@ -1338,6 +1361,9 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	showObjective: boolean;
 	leftColumnWidth: number;
 	isRowHighlighted: boolean;
+	// Mirrors the matrix cells: drop the gray bottom line when the blue row
+	// highlight already owns this boundary so the sticky header column stays single.
+	suppressBottomBorder: boolean;
 	onToggle: (rowId: string) => void;
 	onJumpToCell: (rowId: string, runId: number) => void;
 }) {
@@ -1369,7 +1395,10 @@ const RowHeaderCell = memo(function RowHeaderCell({
 
 	return (
 		<div
-			className="sticky left-0 z-20 flex h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.75rem] font-medium text-text-primary"
+			className={cn(
+				'sticky left-0 z-20 flex h-full items-center border-b border-r-2 border-r-gray-500 bg-white text-[0.75rem] font-medium text-text-primary',
+				suppressBottomBorder ? 'border-b-transparent' : 'border-b-border-primary'
+			)}
 			style={{
 				width: leftColumnWidth,
 				boxShadow: isRowHighlighted
@@ -1443,6 +1472,7 @@ const ResultCell = memo(function ResultCell({
 	hoveredColumnId,
 	hoveredRunId,
 	isHoveredRow,
+	suppressBottomBorder,
 	onTogglePin,
 	onHoverCell,
 	width,
@@ -1459,6 +1489,10 @@ const ResultCell = memo(function ResultCell({
 	hoveredColumnId: RunsProgressColumnId | null;
 	hoveredRunId: number | null;
 	isHoveredRow: boolean;
+	// The gray horizontal grid line below this row. Suppressed when the blue row
+	// highlight already occupies this row's bottom (or the row below it is the
+	// highlighted row, whose top edge sits on this same boundary).
+	suppressBottomBorder: boolean;
 	onTogglePin: (
 		rowId: string,
 		runId: number,
@@ -1501,27 +1535,49 @@ const ResultCell = memo(function ResultCell({
 		[onHoverCell, rowId, cell.runId]
 	);
 
+	// One highlight per metric column drives both the blue box-shadow and the
+	// suppression of the gray grid line it would otherwise sit beside.
+	const highlights = node
+		? columns.map((column) =>
+				getCellHighlight(
+					column.id,
+					cell.runId,
+					isPinned,
+					pinnedColumnId,
+					pinnedRunId,
+					isPinnedRow,
+					hoveredColumnId,
+					hoveredRunId,
+					isHoveredRow
+				)
+		  )
+		: [];
+	// The 2px run separator on the cell's right edge doubles the last column's blue
+	// right edge — drop it whenever that edge is highlighted.
+	const suppressRunSeparator = Boolean(highlights[highlights.length - 1]?.right);
+
 	return (
 		<div
-			className="absolute top-0 grid h-full items-center border-b border-r-2 border-b-border-primary border-r-gray-500 bg-white text-[0.6875rem] font-medium"
+			className={cn(
+				'absolute top-0 grid h-full items-center border-b border-r-2 bg-white text-[0.6875rem] font-medium',
+				// Border widths stay constant; only colors flip to transparent where a
+				// blue highlight already owns the boundary, so the grid never reflows.
+				suppressBottomBorder ? 'border-b-transparent' : 'border-b-border-primary',
+				suppressRunSeparator ? 'border-r-transparent' : 'border-r-gray-500'
+			)}
 			style={{
 				...style,
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 			}}
 		>
 			{node ? (
-				columns.map((column) => {
-					const highlight = getCellHighlight(
-						column.id,
-						cell.runId,
-						isPinned,
-						pinnedColumnId,
-						pinnedRunId,
-						isPinnedRow,
-						hoveredColumnId,
-						hoveredRunId,
-						isHoveredRow
-					);
+				columns.map((column, columnIndex) => {
+					const highlight = highlights[columnIndex];
+					// A column owns the gray line on its right; suppress it when either
+					// this column's right edge or the next column's left edge is
+					// highlighted (both sides of an interior boundary resolve here).
+					const suppressRightBorder =
+						highlight.right || Boolean(highlights[columnIndex + 1]?.left);
 
 					return (
 						<ResultColumnValue
@@ -1535,6 +1591,8 @@ const ResultCell = memo(function ResultCell({
 							boxShadow={getHighlightBoxShadow(highlight)}
 							rowTint={highlight.rowTint}
 							isClicked={highlight.clicked}
+							isLastColumn={columnIndex === columns.length - 1}
+							suppressRightBorder={suppressRightBorder}
 							onPin={handlePin}
 							onHover={handleHover}
 						/>
@@ -1557,6 +1615,8 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	boxShadow,
 	rowTint,
 	isClicked,
+	isLastColumn,
+	suppressRightBorder,
 	onPin,
 	onHover
 }: {
@@ -1572,6 +1632,11 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	rowTint: boolean;
 	// The exact clicked cell — strongest fill at the centre of the selection.
 	isClicked: boolean;
+	// Last column has no right grid line (the cell's run separator owns that edge).
+	isLastColumn: boolean;
+	// A blue highlight edge already occupies this column's right boundary, so the
+	// gray line is made transparent — the border width stays to avoid layout shift.
+	suppressRightBorder: boolean;
 	onPin: (columnId: RunsProgressColumnId) => void;
 	onHover: (columnId: RunsProgressColumnId) => void;
 }) {
@@ -1612,7 +1677,12 @@ const ResultColumnValue = memo(function ResultColumnValue({
 			onClick={() => onPin(column.id)}
 			style={boxShadow ? { boxShadow } : undefined}
 			className={cn(
-				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 border-r border-border-primary/60 px-1.5 last:border-r-0',
+				'group relative flex h-full min-w-0 cursor-pointer items-center justify-end gap-1 px-1.5',
+				// Keep the 1px right border width on every interior column; only its
+				// color flips to transparent under a highlight so nothing reflows.
+				!isLastColumn && 'border-r',
+				!isLastColumn &&
+					(suppressRightBorder ? 'border-transparent' : 'border-border-primary/60'),
 				tintedToneClassName || selectionFallback
 			)}
 		>
