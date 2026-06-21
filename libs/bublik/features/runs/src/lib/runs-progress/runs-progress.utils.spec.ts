@@ -10,6 +10,9 @@ import {
 	filterChangedRows,
 	filterRunsByDateWindow,
 	getMetadataKeys,
+	getMetricChange,
+	getMetricDelta,
+	getMetricToneClassName,
 	getRunGroupValue,
 	getUnexpectedTotal,
 	groupRuns,
@@ -330,6 +333,106 @@ describe('runs progress utils', () => {
 
 		expect(rows[0].children[0].cells[0].previousNode).toBeNull();
 		expect(rows[0].children[0].cells[0].trend).toBe('added');
+	});
+
+	describe('getMetricChange', () => {
+		it('tones a lower-is-better rise as bad and a fall as good', () => {
+			expect(getMetricChange('lower-is-better', 3, 1, true)).toEqual({
+				kind: 'bad',
+				magnitude: 2
+			});
+			expect(getMetricChange('lower-is-better', 1, 4, true)).toEqual({
+				kind: 'good',
+				magnitude: 3
+			});
+		});
+
+		it('tones a higher-is-better rise as good and a fall as bad', () => {
+			expect(getMetricChange('higher-is-better', 8, 5, true)).toEqual({
+				kind: 'good',
+				magnitude: 3
+			});
+			expect(getMetricChange('higher-is-better', 2, 10, true)).toEqual({
+				kind: 'bad',
+				magnitude: 8
+			});
+		});
+
+		it('tones any neutral-metric change as neutral', () => {
+			expect(getMetricChange('neutral', 12, 10, true)).toEqual({
+				kind: 'neutral',
+				magnitude: 2
+			});
+			expect(getMetricChange('neutral', 10, 12, true)).toEqual({
+				kind: 'neutral',
+				magnitude: 2
+			});
+		});
+
+		it('returns null when the value is unchanged', () => {
+			expect(getMetricChange('lower-is-better', 4, 4, true)).toBeNull();
+			expect(getMetricChange('neutral', 4, 4, true)).toBeNull();
+		});
+
+		it('flags only a non-zero lower-is-better value when there is no baseline', () => {
+			expect(getMetricChange('lower-is-better', 5, 0, false)).toEqual({
+				kind: 'bad',
+				magnitude: 5
+			});
+			expect(getMetricChange('lower-is-better', 0, 0, false)).toBeNull();
+			expect(getMetricChange('higher-is-better', 5, 0, false)).toBeNull();
+			expect(getMetricChange('neutral', 5, 0, false)).toBeNull();
+		});
+	});
+
+	describe('getMetricToneClassName', () => {
+		it('scales red intensity with the magnitude of a regression', () => {
+			expect(getMetricToneClassName('lower-is-better', 1, 0, true)).toBe(
+				'bg-[rgba(249,92,120,0.08)]'
+			);
+			expect(getMetricToneClassName('lower-is-better', 2, 0, true)).toBe(
+				'bg-[rgba(249,92,120,0.14)]'
+			);
+			expect(getMetricToneClassName('lower-is-better', 5, 0, true)).toBe(
+				'bg-[rgba(249,92,120,0.22)]'
+			);
+			expect(getMetricToneClassName('lower-is-better', 10, 0, true)).toBe(
+				'bg-[rgba(249,92,120,0.32)]'
+			);
+		});
+
+		it('uses the amber tier for neutral changes and deepens it when boosted', () => {
+			expect(getMetricToneClassName('neutral', 3, 1, true)).toBe(
+				'bg-[hsl(40_60%_52%_/_0.09)]'
+			);
+			expect(getMetricToneClassName('neutral', 3, 1, true, true)).toBe(
+				'bg-[hsl(40_60%_52%_/_0.27)]'
+			);
+		});
+
+		it('returns an empty class when nothing changed', () => {
+			expect(getMetricToneClassName('lower-is-better', 4, 4, true)).toBe('');
+		});
+	});
+
+	describe('getMetricDelta', () => {
+		it('marks a higher-is-better drop as regressed and a rise as improved', () => {
+			expect(getMetricDelta(2, 10, 'higher-is-better')?.status).toBe('regressed');
+			expect(getMetricDelta(10, 2, 'higher-is-better')?.status).toBe('improved');
+		});
+
+		it('marks any neutral change as changed and carries the percent in the title', () => {
+			const delta = getMetricDelta(12, 10, 'neutral');
+
+			expect(delta?.status).toBe('changed');
+			expect(delta?.amount).toBe(2);
+			expect(delta?.increased).toBe(true);
+			expect(delta?.title).toBe('+2 (+20%) vs previous run');
+		});
+
+		it('returns null when the value is unchanged', () => {
+			expect(getMetricDelta(5, 5, 'lower-is-better')).toBeNull();
+		});
 	});
 
 	it('summarizes active filters', () => {

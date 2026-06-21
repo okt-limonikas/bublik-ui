@@ -4,6 +4,13 @@ import { NodeEntity, RunData, RunsData } from '@/shared/types';
 
 type RunsProgressTrend = 'added' | 'removed' | 'improved' | 'regressed' | 'changed' | 'same';
 
+// Whether a higher metric value is better, worse, or carries no good/bad meaning.
+// Drives both the change-aware cell tone and the per-cell trend arrow.
+type RunsProgressTrendDirection =
+	| 'higher-is-better'
+	| 'lower-is-better'
+	| 'neutral';
+
 type RunsProgressCell = {
 	runId: number;
 	node: RunData | null;
@@ -48,5 +55,6 @@ export type {
 	RunsProgressGroup,
 	RunsProgressRow,
 	RunsProgressRun,
-	RunsProgressTrend
+	RunsProgressTrend,
+	RunsProgressTrendDirection
 };

@@ -10,7 +10,8 @@ import {
 	RunsProgressGroup,
 	RunsProgressRow,
 	RunsProgressRun,
-	RunsProgressTrend
+	RunsProgressTrend,
+	RunsProgressTrendDirection
 } from './runs-progress.types';
 
 const OTHER_GROUP_ID = '__other__';
@@ -318,6 +319,178 @@ function sortRunsNewestFirst(runs: RunsData[]): RunsData[] {
 	});
 }
 
+type MetricChangeKind = 'bad' | 'good' | 'neutral';
+
+type MetricChange = { kind: MetricChangeKind; magnitude: number } | null;
+
+/**
+ * Classifies how a metric moved vs the older run so the cell can be toned:
+ * `good` (green) / `bad` (red) for metrics with a real direction, `neutral`
+ * (yellow) for metrics that merely changed. `magnitude` is the absolute count
+ * delta — the number of tests that changed state — which drives tint intensity.
+ *
+ * With no baseline (the oldest run of a group) there is nothing to compare, so
+ * only a bad-type metric with a non-zero value reads as a regression; good/neutral
+ * metrics stay clean rather than lighting up a freshly-appeared column.
+ */
+function getMetricChange(
+	direction: RunsProgressTrendDirection,
+	value: number,
+	previousValue: number,
+	hasPrevious: boolean
+): MetricChange {
+	if (!hasPrevious) {
+		return direction === 'lower-is-better' && value > 0
+			? { kind: 'bad', magnitude: value }
+			: null;
+	}
+
+	if (value === previousValue) return null;
+
+	const rose = value > previousValue;
+	const magnitude = Math.abs(value - previousValue);
+
+	if (direction === 'neutral') return { kind: 'neutral', magnitude };
+
+	// higher-is-better: a rise is the improvement; lower-is-better: a rise is the
+	// regression.
+	const roseIsGood = direction === 'higher-is-better';
+
+	return { kind: rose === roseIsGood ? 'good' : 'bad', magnitude };
+}
+
+// Full literal class strings per kind/intensity so Tailwind's scanner can see
+// them — building the arbitrary value dynamically would not be picked up. `bad`
+// uses the unexpected red (#f95c78), `good` the passed green (#65cd84), `neutral`
+// a muted amber (hsl 40 60% 52%) so an informational change reads softer than a
+// regression. The `boost` set deepens each hue so a selected cell reads as
+// "more red"/"greener"/"more amber".
+const TONE_TIERS: Record<
+	MetricChangeKind,
+	{ base: [string, string, string, string]; boost: [string, string, string, string] }
+> = {
+	bad: {
+		base: [
+			'bg-[rgba(249,92,120,0.08)]',
+			'bg-[rgba(249,92,120,0.14)]',
+			'bg-[rgba(249,92,120,0.22)]',
+			'bg-[rgba(249,92,120,0.32)]'
+		],
+		boost: [
+			'bg-[rgba(249,92,120,0.3)]',
+			'bg-[rgba(249,92,120,0.42)]',
+			'bg-[rgba(249,92,120,0.55)]',
+			'bg-[rgba(249,92,120,0.68)]'
+		]
+	},
+	good: {
+		base: [
+			'bg-[rgba(101,205,132,0.08)]',
+			'bg-[rgba(101,205,132,0.14)]',
+			'bg-[rgba(101,205,132,0.22)]',
+			'bg-[rgba(101,205,132,0.32)]'
+		],
+		boost: [
+			'bg-[rgba(101,205,132,0.3)]',
+			'bg-[rgba(101,205,132,0.42)]',
+			'bg-[rgba(101,205,132,0.55)]',
+			'bg-[rgba(101,205,132,0.68)]'
+		]
+	},
+	neutral: {
+		base: [
+			'bg-[hsl(40_60%_52%_/_0.05)]',
+			'bg-[hsl(40_60%_52%_/_0.09)]',
+			'bg-[hsl(40_60%_52%_/_0.14)]',
+			'bg-[hsl(40_60%_52%_/_0.20)]'
+		],
+		boost: [
+			'bg-[hsl(40_60%_52%_/_0.20)]',
+			'bg-[hsl(40_60%_52%_/_0.27)]',
+			'bg-[hsl(40_60%_52%_/_0.35)]',
+			'bg-[hsl(40_60%_52%_/_0.44)]'
+		]
+	}
+};
+
+// Tiered tint by the magnitude of the change so "a bit worse" reads clearly less
+// intense than "much worse": 1 / 2–4 / 5–9 / 10+ tests changed.
+function toneTierClassName(
+	magnitude: number,
+	kind: MetricChangeKind,
+	boost = false
+): string {
+	const tiers = TONE_TIERS[kind][boost ? 'boost' : 'base'];
+
+	if (magnitude >= 10) return tiers[3];
+	if (magnitude >= 5) return tiers[2];
+	if (magnitude >= 2) return tiers[1];
+
+	return tiers[0];
+}
+
+/** Change-aware background tone for a metric cell; '' when nothing changed. */
+function getMetricToneClassName(
+	direction: RunsProgressTrendDirection,
+	value: number,
+	previousValue: number,
+	hasPrevious: boolean,
+	boost = false
+): string {
+	const change = getMetricChange(direction, value, previousValue, hasPrevious);
+
+	if (!change) return '';
+
+	return toneTierClassName(change.magnitude, change.kind, boost);
+}
+
+type MetricDeltaStatus = 'improved' | 'regressed' | 'changed';
+
+type MetricDelta = {
+	amount: number;
+	increased: boolean;
+	title: string;
+	status: MetricDeltaStatus;
+} | null;
+
+/** The per-cell delta shown as a trend arrow; null when the value is unchanged. */
+function getMetricDelta(
+	value: number,
+	previousValue: number,
+	direction: RunsProgressTrendDirection
+): MetricDelta {
+	if (value === previousValue) return null;
+
+	const diff = value - previousValue;
+	const sign = diff > 0 ? '+' : '';
+
+	let status: MetricDeltaStatus = 'changed';
+
+	if (direction !== 'neutral') {
+		if (value > previousValue) {
+			status = direction === 'higher-is-better' ? 'improved' : 'regressed';
+		} else {
+			status = direction === 'higher-is-better' ? 'regressed' : 'improved';
+		}
+	}
+
+	const percent =
+		previousValue === 0
+			? null
+			: Math.round(((value - previousValue) / previousValue) * 100);
+	const title =
+		percent === null
+			? `${sign}${diff} vs previous run`
+			: `${sign}${diff} (${percent > 0 ? '+' : ''}${percent}%) vs previous run`;
+
+	return {
+		amount: Math.abs(diff),
+		increased: diff > 0,
+		title,
+		status
+	};
+}
+
 function buildFilterSummary(searchParams: URLSearchParams): RunsProgressFilterSummary[] {
 	const summary: RunsProgressFilterSummary[] = [];
 	const runData = searchParams.get('runData');
@@ -338,6 +511,8 @@ function buildFilterSummary(searchParams: URLSearchParams): RunsProgressFilterSu
 	return summary;
 }
 
+export type { MetricChange, MetricDelta, MetricDeltaStatus };
+
 export {
 	buildFilterSummary,
 	buildRunsProgressRows,
@@ -345,11 +520,15 @@ export {
 	filterRunsByDateWindow,
 	getMetadataKey,
 	getMetadataKeys,
+	getMetricChange,
+	getMetricDelta,
+	getMetricToneClassName,
 	getNodeStats,
 	getRunGroupValue,
 	getStatsTotal,
 	getUnexpectedTotal,
 	groupRuns,
 	rowHasChange,
-	sortRunsNewestFirst
+	sortRunsNewestFirst,
+	toneTierClassName
 };

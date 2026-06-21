@@ -59,9 +59,13 @@ import {
 	RunsProgressFilterSummary,
 	RunsProgressGroup,
 	RunsProgressRow,
-	RunsProgressRun
+	RunsProgressRun,
+	RunsProgressTrendDirection
 } from './runs-progress.types';
 import {
+	MetricDelta,
+	getMetricDelta,
+	getMetricToneClassName,
 	getNodeStats,
 	getStatsTotal,
 	getUnexpectedTotal
@@ -111,7 +115,7 @@ type RunsProgressColumn = {
 	id: RunsProgressColumnId;
 	label: string;
 	shortLabel: string;
-	trendDirection: 'higher-is-better' | 'lower-is-better' | 'neutral';
+	trendDirection: RunsProgressTrendDirection;
 	badgeVariant: BadgeVariants;
 	icon: ReactNode;
 };
@@ -1270,6 +1274,9 @@ function Legend() {
 			<span className="inline-flex items-center gap-1">
 				<span className="text-text-unexpected">▼</span> regressed
 			</span>
+			<span className="inline-flex items-center gap-1">
+				<span className="text-[hsl(40_55%_42%)]">●</span> changed
+			</span>
 		</div>
 	);
 }
@@ -1761,12 +1768,12 @@ const ResultColumnValue = memo(function ResultColumnValue({
 		? getMetricDelta(value, previousValue, column.trendDirection)
 		: null;
 	// Selected cells (the clicked cell + its metric strip) deepen their own
-	// change-aware hue — red stays redder, green greener. Cells with no change
-	// tone (neutral/expected metrics) fall back to a blue selection tint so the
-	// strip still reads as selected.
+	// change-aware hue — red redder, green greener, amber more amber. Cells with no
+	// change at all fall back to a blue selection tint so the strip still reads as
+	// selected.
 	const isSelected = rowTint || isClicked;
 	const tintedToneClassName = getMetricToneClassName(
-		column,
+		column.trendDirection,
 		value,
 		previousValue,
 		hasPrevious,
@@ -1815,7 +1822,7 @@ const ResultColumnValue = memo(function ResultColumnValue({
 					<Icon name="BoxArrowRight" size={12} />
 				</LinkWithProject>
 			)}
-			<DeltaPill delta={delta} />
+			<TrendArrow delta={delta} />
 			{value === 0 ? (
 				<span className="px-2 py-0.5 text-text-secondary">0</span>
 			) : (
@@ -1825,151 +1832,26 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	);
 });
 
-// Per-metric change-aware background tone for bad-type metrics (lower-is-better).
-// Red when the metric regressed vs the older run (rose, or appeared with no
-// baseline), green when it improved (fell). Carried-forward and expected/neutral
-// metrics stay clean — the matrix is a progress view, so a stable value is not a
-// change worth highlighting. Intensity scales with the size of the change.
-// The change a bad-type metric (lower-is-better) made vs the older run: `good`
-// when it fell (improved), `bad` when it rose or appeared with no baseline.
-// Neutral/expected metrics and stable values have no change to highlight.
-function getMetricChange(
-	column: RunsProgressColumn,
-	value: number,
-	previousValue: number,
-	hasPrevious: boolean
-): { kind: 'bad' | 'good'; magnitude: number } | null {
-	if (column.trendDirection !== 'lower-is-better') return null;
-
-	// No baseline: a non-zero bad value reads as a regression; there is nothing to
-	// have improved on, so a zero stays clean.
-	if (!hasPrevious) return value > 0 ? { kind: 'bad', magnitude: value } : null;
-
-	if (value === previousValue) return null;
-
-	// lower-is-better: a drop is an improvement (green), a rise is a regression (red).
-	return {
-		kind: value < previousValue ? 'good' : 'bad',
-		magnitude: Math.abs(value - previousValue)
-	};
-}
-
-function getMetricToneClassName(
-	column: RunsProgressColumn,
-	value: number,
-	previousValue: number,
-	hasPrevious: boolean,
-	boost = false
-): string {
-	const change = getMetricChange(column, value, previousValue, hasPrevious);
-
-	if (!change) return '';
-
-	return toneTierClassName(change.magnitude, change.kind, boost);
-}
-
-// Tiered tint by the magnitude of the change. Colors match the legend: bad uses
-// the unexpected red (#f95c78), good uses the passed green (#65cd84). `boost`
-// deepens the same hue so a selected cell reads as "more red"/"more green".
-function toneTierClassName(
-	magnitude: number,
-	kind: 'bad' | 'good',
-	boost = false
-): string {
-	const tiers =
-		kind === 'bad'
-			? boost
-				? [
-						'bg-[rgba(249,92,120,0.3)]',
-						'bg-[rgba(249,92,120,0.4)]',
-						'bg-[rgba(249,92,120,0.55)]'
-				  ]
-				: [
-						'bg-[rgba(249,92,120,0.08)]',
-						'bg-[rgba(249,92,120,0.14)]',
-						'bg-[rgba(249,92,120,0.22)]'
-				  ]
-			: boost
-			? [
-					'bg-[rgba(101,205,132,0.3)]',
-					'bg-[rgba(101,205,132,0.4)]',
-					'bg-[rgba(101,205,132,0.55)]'
-			  ]
-			: [
-					'bg-[rgba(101,205,132,0.08)]',
-					'bg-[rgba(101,205,132,0.14)]',
-					'bg-[rgba(101,205,132,0.22)]'
-			  ];
-
-	if (magnitude >= 5) return tiers[2];
-	if (magnitude >= 2) return tiers[1];
-
-	return tiers[0];
-}
-
-type MetricDeltaStatus = 'improved' | 'regressed' | 'changed';
-
-type MetricDelta = {
-	amount: number;
-	increased: boolean;
-	title: string;
-	status: MetricDeltaStatus;
-} | null;
-
-function getMetricDelta(
-	value: number,
-	previousValue: number,
-	direction: RunsProgressColumn['trendDirection']
-): MetricDelta {
-	if (value === previousValue) return null;
-
-	const diff = value - previousValue;
-	const sign = diff > 0 ? '+' : '';
-
-	let status: MetricDeltaStatus = 'changed';
-
-	if (direction !== 'neutral') {
-		if (value > previousValue) {
-			status = direction === 'higher-is-better' ? 'improved' : 'regressed';
-		} else {
-			status = direction === 'higher-is-better' ? 'regressed' : 'improved';
-		}
-	}
-
-	const percent =
-		previousValue === 0
-			? null
-			: Math.round(((value - previousValue) / previousValue) * 100);
-	const title =
-		percent === null
-			? `${sign}${diff} vs previous run`
-			: `${sign}${diff} (${percent > 0 ? '+' : ''}${percent}%) vs previous run`;
-
-	return {
-		amount: Math.abs(diff),
-		increased: diff > 0,
-		title,
-		status
-	};
-}
-
-function DeltaPill({ delta }: { delta: MetricDelta }) {
+// The per-cell trend indicator: a bigger directional arrow + plain count, colored
+// by status (green improved / red regressed / amber changed) to match the cell
+// tone. The exact "+N (+X%) vs previous run" stays in the tooltip.
+function TrendArrow({ delta }: { delta: MetricDelta }) {
 	if (!delta) return null;
 
 	return (
 		<span
 			title={delta.title}
 			className={cn(
-				'mr-auto inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[0.5625rem] font-semibold leading-none tabular-nums',
-				delta.status === 'improved' && 'bg-diff-added text-text-expected',
-				delta.status === 'regressed' && 'bg-diff-removed text-text-unexpected',
-				delta.status === 'changed' && 'bg-gray-100 text-text-secondary'
+				'mr-auto inline-flex items-center gap-0.5 text-[0.625rem] font-semibold leading-none tabular-nums',
+				delta.status === 'improved' && 'text-text-expected',
+				delta.status === 'regressed' && 'text-text-unexpected',
+				delta.status === 'changed' && 'text-[hsl(40_55%_42%)]'
 			)}
 		>
 			<svg
 				viewBox="0 0 10 10"
 				className={cn(
-					'size-2.5 shrink-0',
+					'size-3.5 shrink-0',
 					delta.increased ? '-rotate-45' : 'rotate-45'
 				)}
 				aria-hidden
