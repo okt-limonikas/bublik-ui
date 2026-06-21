@@ -1596,6 +1596,16 @@ const ResultCell = memo(function ResultCell({
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 			}}
 		>
+			{/* The 2px run separator, drawn as a sibling that stops 1px short of the
+			    bottom so it sits behind the row line instead of mitering with the
+			    cell's bottom border (which used to gap the row line at every run
+			    boundary). Recolors to primary with the highlighted column edge. */}
+			<div
+				className={cn(
+					'pointer-events-none absolute right-0 top-0 bottom-px w-0.5',
+					highlightRunSeparator ? 'bg-primary' : 'bg-gray-500'
+				)}
+			/>
 			{node ? (
 				columns.map((column, columnIndex) => {
 					const highlight = highlights[columnIndex];
