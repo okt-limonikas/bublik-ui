@@ -1643,16 +1643,6 @@ const ResultCell = memo(function ResultCell({
 				gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
 			}}
 		>
-			{/* The 2px run separator, drawn as a sibling that stops 1px short of the
-			    bottom so it sits behind the row line instead of mitering with the
-			    cell's bottom border (which used to gap the row line at every run
-			    boundary). Recolors to primary with the highlighted column edge. */}
-			<div
-				className={cn(
-					'pointer-events-none absolute right-0 top-0 bottom-px w-0.5',
-					highlightRunSeparator ? 'bg-primary' : 'bg-gray-500'
-				)}
-			/>
 			{node ? (
 				columns.map((column, columnIndex) => {
 					const highlight = highlights[columnIndex];
@@ -1689,6 +1679,24 @@ const ResultCell = memo(function ResultCell({
 			) : (
 				<span className="col-span-full px-3 text-text-secondary">No data</span>
 			)}
+			{/* The 2px run separator. Each cell is one row, so this is that row's
+			    segment of the separator; stacking the segments forms the continuous
+			    vertical line. It spans the full cell height (`-bottom-px` reaches over
+			    the cell's bottom border) and is drawn after the columns so it stays
+			    crisp over tinted cells. */}
+			<div
+				className={cn(
+					'pointer-events-none absolute right-0 top-0 -bottom-px w-0.5',
+					highlightRunSeparator ? 'bg-primary' : 'bg-gray-500'
+				)}
+			/>
+			{/* When this cell's bottom row line is highlighted, the separator above
+			    would cover its right 2px and break the (primary) line. Re-draw that
+			    line on top as a full-width 1px bridge so the highlighted row line stays
+			    continuous across every separator while the separators stay gray. */}
+			{highlightBottomBorder ? (
+				<div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-primary" />
+			) : null}
 		</div>
 	);
 });
