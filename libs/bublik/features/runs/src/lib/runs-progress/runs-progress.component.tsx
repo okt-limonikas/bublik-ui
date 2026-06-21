@@ -327,6 +327,21 @@ function RunsProgress(props: RunsProgressProps) {
 		runId: number;
 		columnId: RunsProgressColumnId;
 	} | null>(null);
+	// A jump-to-cell briefly pulses the target so the eye catches where it landed.
+	// Separate from the pin (which persists) so the flash can clear on its own timer.
+	const [flashCell, setFlashCell] = useState<{
+		rowId: string;
+		runId: number;
+		columnId: RunsProgressColumnId;
+	} | null>(null);
+	const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	// Clear any pending flash timer if the matrix unmounts mid-pulse.
+	useEffect(
+		() => () => {
+			if (flashTimeoutRef.current !== null) clearTimeout(flashTimeoutRef.current);
+		},
+		[]
+	);
 
 	// Stable so the memoized matrix cells don't re-render when RunsProgress re-renders
 	// on scroll.
@@ -493,7 +508,19 @@ function RunsProgress(props: RunsProgressProps) {
 				? 'unexpected'
 				: visibleColumns[0]?.id;
 
-			if (columnId) setPinnedCell({ rowId, runId, columnId });
+			if (columnId) {
+				setPinnedCell({ rowId, runId, columnId });
+				// Pulse the landed cell for ~3.6s (row-pulse runs 0.6s × 6), then drop
+				// the flash so a later jump to the same cell can replay it.
+				setFlashCell({ rowId, runId, columnId });
+				if (flashTimeoutRef.current !== null) {
+					clearTimeout(flashTimeoutRef.current);
+				}
+				flashTimeoutRef.current = setTimeout(() => {
+					setFlashCell(null);
+					flashTimeoutRef.current = null;
+				}, 3600);
+			}
 		},
 		[
 			runIndexById,
@@ -704,6 +731,9 @@ function RunsProgress(props: RunsProgressProps) {
 								pinnedColumnId={pinnedCell?.columnId ?? null}
 								pinnedRunId={pinnedCell?.runId ?? null}
 								isPinnedRow={pinnedCell?.rowId === row.id}
+								flashColumnId={flashCell?.columnId ?? null}
+								flashRunId={flashCell?.runId ?? null}
+								isFlashRow={flashCell?.rowId === row.id}
 								hoveredColumnId={hoveredCell?.columnId ?? null}
 								hoveredRunId={hoveredCell?.runId ?? null}
 								isHoveredRow={hoveredCell?.rowId === row.id}
@@ -740,6 +770,9 @@ function ProgressRow({
 	pinnedColumnId,
 	pinnedRunId,
 	isPinnedRow,
+	flashColumnId,
+	flashRunId,
+	isFlashRow,
 	hoveredColumnId,
 	hoveredRunId,
 	isHoveredRow,
@@ -762,6 +795,10 @@ function ProgressRow({
 	pinnedColumnId: RunsProgressColumnId | null;
 	pinnedRunId: number | null;
 	isPinnedRow: boolean;
+	// The just-jumped cell to pulse, mirrored from the pinned-cell props.
+	flashColumnId: RunsProgressColumnId | null;
+	flashRunId: number | null;
+	isFlashRow: boolean;
 	hoveredColumnId: RunsProgressColumnId | null;
 	hoveredRunId: number | null;
 	isHoveredRow: boolean;
@@ -815,6 +852,9 @@ function ProgressRow({
 					pinnedColumnId={pinnedColumnId}
 					pinnedRunId={pinnedRunId}
 					isPinnedRow={isPinnedRow}
+					flashColumnId={flashColumnId}
+					flashRunId={flashRunId}
+					isFlashRow={isFlashRow}
 					hoveredColumnId={hoveredColumnId}
 					hoveredRunId={hoveredRunId}
 					highlightBottomBorder={highlightBottomBorder}
@@ -1494,6 +1534,9 @@ const ResultCell = memo(function ResultCell({
 	pinnedColumnId,
 	pinnedRunId,
 	isPinnedRow,
+	flashColumnId,
+	flashRunId,
+	isFlashRow,
 	hoveredColumnId,
 	hoveredRunId,
 	highlightBottomBorder,
@@ -1510,6 +1553,10 @@ const ResultCell = memo(function ResultCell({
 	pinnedColumnId: RunsProgressColumnId | null;
 	pinnedRunId: number | null;
 	isPinnedRow: boolean;
+	// The just-jumped cell to pulse; only the matching cell animates.
+	flashColumnId: RunsProgressColumnId | null;
+	flashRunId: number | null;
+	isFlashRow: boolean;
 	hoveredColumnId: RunsProgressColumnId | null;
 	hoveredRunId: number | null;
 	// This row's bottom grid line is part of the row highlight (its own bottom edge,
@@ -1614,6 +1661,11 @@ const ResultCell = memo(function ResultCell({
 					// highlighted (both sides of an interior boundary resolve here).
 					const highlightRightBorder =
 						highlight.right || Boolean(highlights[columnIndex + 1]?.left);
+					// Only the exact just-jumped cell pulses.
+					const isFlashing =
+						isFlashRow &&
+						cell.runId === flashRunId &&
+						column.id === flashColumnId;
 
 					return (
 						<ResultColumnValue
@@ -1626,6 +1678,7 @@ const ResultCell = memo(function ResultCell({
 							resultId={node.result_id}
 							rowTint={highlight.rowTint}
 							isClicked={highlight.clicked}
+							isFlashing={isFlashing}
 							isLastColumn={columnIndex === columns.length - 1}
 							highlightRightBorder={highlightRightBorder}
 							onPin={handlePin}
@@ -1649,6 +1702,7 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	resultId,
 	rowTint,
 	isClicked,
+	isFlashing,
 	isLastColumn,
 	highlightRightBorder,
 	onPin,
@@ -1664,6 +1718,8 @@ const ResultColumnValue = memo(function ResultColumnValue({
 	rowTint: boolean;
 	// The exact clicked cell — strongest fill at the centre of the selection.
 	isClicked: boolean;
+	// Briefly true right after a jump lands here — pulses the cell to draw the eye.
+	isFlashing: boolean;
 	// Last column has no right grid line (the cell's run separator owns that edge).
 	isLastColumn: boolean;
 	// This column's right boundary is part of the crosshair/selection, so its grid
@@ -1717,7 +1773,9 @@ const ResultColumnValue = memo(function ResultColumnValue({
 					(highlightRightBorder
 						? 'border-r-primary'
 						: 'border-r-border-primary/60'),
-				tintedToneClassName || selectionFallback
+				tintedToneClassName || selectionFallback,
+				// Pulse the just-jumped cell (row-pulse runs 0.6s × 6 ≈ 3.6s).
+				isFlashing && 'animate-row-pulse'
 			)}
 		>
 			{isHovered && (
