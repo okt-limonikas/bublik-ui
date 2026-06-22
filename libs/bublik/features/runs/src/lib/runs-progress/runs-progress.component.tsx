@@ -56,6 +56,7 @@ import {
 	getRunStatusInfo
 } from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
+import { usePhysicalHotkeys } from '@/shared/hooks';
 
 import {
 	RunsProgressFilterSummary,
@@ -605,6 +606,76 @@ function RunsProgress(props: RunsProgressProps) {
 		setExpandedRows({});
 	}
 
+	// Smooth-scroll the matrix so a group's first run sits just right of the
+	// pinned left column (scrollLeft 0 already shows run 0 there).
+	const scrollToGroupIndex = useCallback(
+		(index: number) => {
+			const scroller = parentRef.current;
+			const group = groups[index];
+
+			if (!scroller || !group) return;
+
+			const maxLeft = scroller.scrollWidth - scroller.clientWidth;
+			const left = Math.max(
+				0,
+				Math.min(group.startIndex * runColumnWidth, maxLeft)
+			);
+
+			scroller.scrollTo({ left, behavior: 'smooth' });
+		},
+		[groups, runColumnWidth]
+	);
+
+	// h/l (and the header buttons) step between groups. "Current" is the group at
+	// the left visible edge; previous first snaps back to the current group's own
+	// start when scrolled past it, for a vim-like feel.
+	const handleGroupNavigate = useCallback(
+		(direction: 'next' | 'previous') => {
+			const scroller = parentRef.current;
+
+			if (!scroller || !groups.length) return;
+
+			const runIndex = Math.round(scroller.scrollLeft / runColumnWidth);
+			let current = 0;
+
+			for (let i = 0; i < groups.length; i++) {
+				if (groups[i].startIndex <= runIndex) current = i;
+				else break;
+			}
+
+			let target: number;
+
+			if (direction === 'next') {
+				target = Math.min(current + 1, groups.length - 1);
+			} else {
+				const currentStart = groups[current].startIndex * runColumnWidth;
+				target =
+					scroller.scrollLeft - currentStart > 4
+						? current
+						: Math.max(current - 1, 0);
+			}
+
+			scrollToGroupIndex(target);
+		},
+		[groups, runColumnWidth, scrollToGroupIndex]
+	);
+
+	usePhysicalHotkeys(
+		[
+			{
+				code: 'KeyL',
+				callback: () => handleGroupNavigate('next'),
+				options: { requireReset: true }
+			},
+			{
+				code: 'KeyH',
+				callback: () => handleGroupNavigate('previous'),
+				options: { requireReset: true }
+			}
+		],
+		{ enabled: groups.length > 0, ignoreInputs: true, preventDefault: true }
+	);
+
 	return (
 		<main className={cn('bg-white rounded-md', isFetching && 'opacity-40')}>
 			<CardHeader
@@ -704,7 +775,7 @@ function RunsProgress(props: RunsProgressProps) {
 							<div
 								key={group.id}
 								className={cn(
-									'absolute top-0 z-10 flex items-center justify-start border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
+									'absolute top-0 z-10 flex items-center justify-start border-b border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
 									GROUP_COLORS[groupIndex % GROUP_COLORS.length]
 								)}
 								style={{
@@ -717,12 +788,30 @@ function RunsProgress(props: RunsProgressProps) {
 								}}
 								title={group.label}
 							>
-								<span
-									className="sticky min-w-0 truncate"
+								<div
+									className="sticky flex min-w-0 items-center gap-1"
 									style={{ left: leftColumnWidth + 8 }}
 								>
-									{group.label}
-								</span>
+									<button
+										type="button"
+										aria-label="Previous group"
+										title="Previous group (h)"
+										onClick={() => handleGroupNavigate('previous')}
+										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
+									>
+										<Icon name="ArrowShortSmall" className="rotate-90 size-3" />h
+									</button>
+									<span className="min-w-0 truncate">{group.label}</span>
+									<button
+										type="button"
+										aria-label="Next group"
+										title="Next group (l)"
+										onClick={() => handleGroupNavigate('next')}
+										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
+									>
+										l<Icon name="ArrowShortSmall" className="-rotate-90 size-3" />
+									</button>
+								</div>
 							</div>
 						))}
 						{virtualColumns.map((virtualColumn) => {
