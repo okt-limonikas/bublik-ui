@@ -775,22 +775,30 @@ function RunsProgress(props: RunsProgressProps) {
 							<div
 								key={group.id}
 								className={cn(
-									'absolute top-0 z-10 flex items-center justify-start border-b border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
+									'absolute top-0 z-10 flex items-center justify-between border-b border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
 									GROUP_COLORS[groupIndex % GROUP_COLORS.length]
 								)}
 								style={{
 									height: GROUP_HEADER_HEIGHT,
 									width: group.runCount * runColumnWidth,
 									// Positioned with `left` (not transform): a transform on the
-									// band would become the sticky label's containing block and
-									// break its horizontal stickiness.
+									// band would become the sticky children's containing block and
+									// break their horizontal stickiness.
 									left: leftColumnWidth + group.startIndex * runColumnWidth
 								}}
 								title={group.label}
 							>
-								<div
-									className="sticky flex min-w-0 items-center gap-1"
+								{/* Name pinned to the left of the viewport, nav buttons to the
+								    right — they stay framing the visible slice of the group. */}
+								<span
+									className="sticky min-w-0 truncate"
 									style={{ left: leftColumnWidth + 8 }}
+								>
+									{group.label}
+								</span>
+								<div
+									className="sticky flex shrink-0 items-center gap-1"
+									style={{ right: 0 }}
 								>
 									<button
 										type="button"
@@ -799,9 +807,9 @@ function RunsProgress(props: RunsProgressProps) {
 										onClick={() => handleGroupNavigate('previous')}
 										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
 									>
-										<Icon name="ArrowShortSmall" className="rotate-90 size-3" />h
+										<Icon name="ArrowShortSmall" className="rotate-90 size-3" />
+										h
 									</button>
-									<span className="min-w-0 truncate">{group.label}</span>
 									<button
 										type="button"
 										aria-label="Next group"
@@ -809,7 +817,8 @@ function RunsProgress(props: RunsProgressProps) {
 										onClick={() => handleGroupNavigate('next')}
 										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
 									>
-										l<Icon name="ArrowShortSmall" className="-rotate-90 size-3" />
+										l
+										<Icon name="ArrowShortSmall" className="-rotate-90 size-3" />
 									</button>
 								</div>
 							</div>
