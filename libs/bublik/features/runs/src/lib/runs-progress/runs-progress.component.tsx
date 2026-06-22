@@ -704,19 +704,25 @@ function RunsProgress(props: RunsProgressProps) {
 							<div
 								key={group.id}
 								className={cn(
-									'absolute top-0 z-10 flex items-center justify-center border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
+									'absolute top-0 z-10 flex items-center justify-start border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
 									GROUP_COLORS[groupIndex % GROUP_COLORS.length]
 								)}
 								style={{
 									height: GROUP_HEADER_HEIGHT,
 									width: group.runCount * runColumnWidth,
-									transform: `translateX(${
-										leftColumnWidth + group.startIndex * runColumnWidth
-									}px)`
+									// Positioned with `left` (not transform): a transform on the
+									// band would become the sticky label's containing block and
+									// break its horizontal stickiness.
+									left: leftColumnWidth + group.startIndex * runColumnWidth
 								}}
 								title={group.label}
 							>
-								<span className="truncate">{group.label}</span>
+								<span
+									className="sticky min-w-0 truncate"
+									style={{ left: leftColumnWidth + 8 }}
+								>
+									{group.label}
+								</span>
 							</div>
 						))}
 						{virtualColumns.map((virtualColumn) => {
