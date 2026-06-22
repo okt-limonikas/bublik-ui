@@ -734,7 +734,7 @@ function RunsProgress(props: RunsProgressProps) {
 			<div
 				ref={parentRef}
 				onMouseLeave={handleClearHover}
-				className="relative h-[calc(100vh-140px)] overflow-auto overscroll-contain"
+				className="relative h-[calc(100vh-120px)] overflow-auto overscroll-contain"
 			>
 				<div
 					className="relative"
@@ -1471,16 +1471,16 @@ function RunHeaderCell({
 						<Icon name="BoxArrowRight" size={16} />
 						{run.id}
 					</LinkWithProject>
-					<div className="mt-0.5 truncate text-[0.6875rem] font-medium text-text-secondary">
-						{formatDate(run.start)}
-						{duration ? (
-							<span className="text-text-secondary/70"> · {duration}</span>
-						) : null}
-					</div>
-					<RunHealthBar stats={run.stats} />
-					<div className="mt-1.5">
+					<div className="mt-0.5 flex items-center justify-between gap-2">
+						<span className="min-w-0 truncate text-[0.6875rem] font-medium text-text-secondary">
+							{formatDate(run.start)}
+							{duration ? (
+								<span className="text-text-secondary/70"> · {duration}</span>
+							) : null}
+						</span>
 						<RunSummaryBadges run={run} />
 					</div>
+					<RunHealthBar stats={run.stats} />
 					{metadata.length ? (
 						<div className="mt-1 min-h-0 flex-1 overflow-y-auto">
 							<BadgeList badges={metadata} className="bg-badge-4" />
