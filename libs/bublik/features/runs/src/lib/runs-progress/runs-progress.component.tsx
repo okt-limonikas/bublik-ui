@@ -10,6 +10,7 @@ import {
 	useRef,
 	useState
 } from 'react';
+import { format } from 'date-fns';
 import { VirtualItem, useVirtualizer } from '@tanstack/react-virtual';
 import {
 	DndContext,
@@ -29,7 +30,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
-import { RUN_STATUS, RunData } from '@/shared/types';
+import { SummaryBadge } from '../runs-table/columns/column-summary/summary-badge';
+import { RUN_STATUS, RunsData } from '@/shared/types';
 import {
 	Badge,
 	BadgeList,
@@ -78,7 +80,7 @@ import {
 
 const ROW_HEIGHT = 34;
 const HEADER_STRIP_HEIGHT = 34;
-const HEADER_HEIGHT = 162;
+const HEADER_HEIGHT = 178;
 // Band drawn above the run headers when runs are grouped by a metadata key.
 const GROUP_HEADER_HEIGHT = 28;
 const LEFT_COLUMN_WIDTH = 380;
@@ -164,7 +166,7 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 	},
 	{
 		id: 'unexpected',
-		label: 'Unexpected (all)',
+		label: 'Unexpected',
 		shortLabel: 'Unexp.',
 		trendDirection: 'lower-is-better',
 		badgeVariant: BadgeVariants.UnexpectedActive,
@@ -188,16 +190,16 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 	},
 	{
 		id: 'passedUnexpected',
-		label: 'Passed unexpected',
-		shortLabel: 'Passed unexp.',
+		label: 'Passed',
+		shortLabel: 'Passed',
 		trendDirection: 'lower-is-better',
 		badgeVariant: BadgeVariants.UnexpectedActive,
 		icon: UNEXPECTED_ICON
 	},
 	{
 		id: 'failedUnexpected',
-		label: 'Failed unexpected',
-		shortLabel: 'Failed unexp.',
+		label: 'Failed',
+		shortLabel: 'Failed',
 		trendDirection: 'lower-is-better',
 		badgeVariant: BadgeVariants.UnexpectedActive,
 		icon: UNEXPECTED_ICON
@@ -212,8 +214,8 @@ const RESULT_COLUMNS: RunsProgressColumn[] = [
 	},
 	{
 		id: 'skippedUnexpected',
-		label: 'Skipped unexpected',
-		shortLabel: 'Skipped unexp.',
+		label: 'Skipped',
+		shortLabel: 'Skipped',
 		trendDirection: 'lower-is-better',
 		badgeVariant: BadgeVariants.UnexpectedActive,
 		icon: UNEXPECTED_ICON
@@ -605,20 +607,39 @@ function RunsProgress(props: RunsProgressProps) {
 
 	return (
 		<main className={cn('bg-white rounded-md', isFetching && 'opacity-40')}>
-			<CardHeader label="Runs Progress">
+			<CardHeader
+				label={
+					<div className="flex items-center gap-3">
+						<span className="text-text-primary text-[0.75rem] font-semibold leading-[0.875rem]">
+							Runs Progress
+						</span>
+						<Legend />
+						{isCapped ? (
+							<span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-unexpected">
+								<Icon name="InformationCircleExclamationMark" size={12} />
+								Showing the latest {cap} of {total} runs — select a date range
+								or duration to view all.
+							</span>
+						) : null}
+					</div>
+				}
+			>
 				<div className="flex items-center gap-3">
-					<Legend />
 					<div className="flex items-center gap-2">
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
 							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
-							Open all levels
+							Expand All
 						</ButtonTw>
 						<ButtonTw
 							variant="secondary"
 							size="xss"
 							onClick={handleCollapseAll}
 						>
-							<Icon name="ChevronDown" size={20} className="mr-1.5" />
+							<Icon
+								name="ArrowLeanUp"
+								size={20}
+								className="mr-1.5 rotate-180"
+							/>
 							Collapse
 						</ButtonTw>
 					</div>
@@ -664,13 +685,6 @@ function RunsProgress(props: RunsProgressProps) {
 								<span className="text-[0.6875rem] font-medium text-text-secondary">
 									{visibleRows.length} visible rows across {runs.length} runs
 								</span>
-								{isCapped ? (
-									<span className="inline-flex items-center gap-1 text-[0.625rem] font-medium text-text-unexpected">
-										<Icon name="InformationCircleExclamationMark" size={12} />
-										Showing the latest {cap} of {total} runs — select a date
-										range or duration to view all.
-									</span>
-								) : null}
 								<span className="text-[0.625rem] font-normal text-text-secondary">
 									{groupKey
 										? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
@@ -712,7 +726,6 @@ function RunsProgress(props: RunsProgressProps) {
 								<RunHeaderCell
 									key={virtualColumn.key}
 									run={progressRun.run}
-									root={progressRun.root}
 									columns={visibleColumns}
 									sorting={sorting}
 									onSort={handleSort}
@@ -1292,7 +1305,6 @@ function Legend() {
 
 function RunHeaderCell({
 	run,
-	root,
 	columns,
 	sorting,
 	onSort,
@@ -1300,7 +1312,6 @@ function RunHeaderCell({
 	style
 }: {
 	run: RunsProgressRun['run'];
-	root: RunData;
 	columns: RunsProgressColumn[];
 	sorting: RunsProgressSort[];
 	onSort: (
@@ -1312,12 +1323,10 @@ function RunHeaderCell({
 	style: CSSProperties;
 }) {
 	const metadata = useMemo<BadgeListItem[]>(() => {
-		return run.metadata
-			.filter(Boolean)
-			.slice(0, 8)
-			.map((tag) => ({ payload: tag }));
+		return run.metadata.filter(Boolean).map((tag) => ({ payload: tag }));
 	}, [run.metadata]);
 
+	const duration = formatRunDuration(run.start, run.finish);
 	const { icon, bg, color } = getRunStatusInfo(run.conclusion as RUN_STATUS);
 
 	return (
@@ -1352,14 +1361,19 @@ function RunHeaderCell({
 					</LinkWithProject>
 					<div className="mt-0.5 truncate text-[0.6875rem] font-medium text-text-secondary">
 						{formatDate(run.start)}
+						{duration ? (
+							<span className="text-text-secondary/70"> · {duration}</span>
+						) : null}
 					</div>
-					<RunHealthBar stats={root.stats} />
-					<div className="mt-1 max-h-[34px] overflow-hidden">
-						<BadgeList
-							badges={metadata}
-							className="bg-badge-4 whitespace-nowrap"
-						/>
+					<RunHealthBar stats={run.stats} />
+					<div className="mt-1.5">
+						<RunSummaryBadges run={run} />
 					</div>
+					{metadata.length ? (
+						<div className="mt-1 min-h-0 flex-1 overflow-y-auto">
+							<BadgeList badges={metadata} className="bg-badge-4" />
+						</div>
+					) : null}
 				</div>
 			</div>
 			<div
@@ -1417,30 +1431,50 @@ function RunHeaderCell({
 	);
 }
 
-function RunHealthBar({ stats }: { stats: RunData['stats'] }) {
-	const total = getStatsTotal(stats);
-	const bad = getUnexpectedTotal(stats) + stats.abnormal;
-	const good = Math.max(0, total - bad);
-	const goodPct = total === 0 ? 0 : (good / total) * 100;
-	const badPct = total === 0 ? 0 : (bad / total) * 100;
+// The thin good/bad ribbon above the Total/OK/NOK badges; widths come from the
+// run's precomputed OK/NOK percentages so the bar agrees with the badges.
+function RunHealthBar({ stats }: { stats: RunsData['stats'] }) {
+	const goodPct = stats.tests_total_ok_percent;
+	const badPct = stats.tests_total_nok_percent;
 
 	return (
-		<div className="mt-1.5">
-			<div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
-				<div className="h-full bg-[#65cd84]" style={{ width: `${goodPct}%` }} />
-				<div className="h-full bg-[#f95c78]" style={{ width: `${badPct}%` }} />
-			</div>
-			<div className="mt-0.5 flex items-center justify-between text-[0.625rem] font-medium leading-none">
-				<span className="text-text-secondary tabular-nums">{total} tests</span>
-				<span
-					className={cn(
-						'tabular-nums',
-						bad > 0 ? 'text-text-unexpected' : 'text-text-secondary'
-					)}
-				>
-					{bad} unexpected
-				</span>
-			</div>
+		<div className="mt-1.5 flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+			<div className="h-full bg-[#65cd84]" style={{ width: `${goodPct}%` }} />
+			<div className="h-full bg-[#f95c78]" style={{ width: `${badPct}%` }} />
+		</div>
+	);
+}
+
+// Total / OK / NOK summary mirroring the runs-table ColumnSummary, fed by the
+// run's precomputed stats. NOK links straight into the run's unexpected view.
+function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
+	const to = routes.run({ runId: run.id });
+	const { stats } = run;
+
+	return (
+		<div className="flex flex-wrap items-center gap-1">
+			<SummaryBadge
+				to={to}
+				label="Total"
+				count={stats.tests_total}
+				percentage={stats.tests_total_plan_percent}
+				className="bg-badge-9"
+			/>
+			<SummaryBadge
+				to={to}
+				label="OK"
+				count={stats.tests_total_ok}
+				percentage={stats.tests_total_ok_percent}
+				className="bg-badge-3"
+			/>
+			<SummaryBadge
+				to={to}
+				state={{ openUnexpected: true }}
+				label="NOK"
+				count={stats.tests_total_nok}
+				percentage={stats.tests_total_nok_percent}
+				className="bg-badge-5"
+			/>
 		</div>
 	);
 }
@@ -1510,6 +1544,7 @@ const RowHeaderCell = memo(function RowHeaderCell({
 						depth={row.depth}
 						onClick={() => canToggle && onToggle(row.id)}
 						isExpanded={canExpand ? isExpanded : undefined}
+						hideExpander={!canExpand}
 						disabled={!canToggle}
 					/>
 				</div>
@@ -1870,7 +1905,10 @@ function TrendArrowGlyph({ increased }: { increased: boolean }) {
 	return (
 		<svg
 			viewBox="0 0 10 10"
-			className={cn('size-3.5 shrink-0', increased ? '-rotate-45' : 'rotate-45')}
+			className={cn(
+				'size-3.5 shrink-0',
+				increased ? '-rotate-45' : 'rotate-45'
+			)}
 			aria-hidden
 		>
 			<path d="M1 4 L5 4 L5 1.5 L9 5 L5 8.5 L5 6 L1 6 Z" fill="currentColor" />
@@ -1916,7 +1954,31 @@ function formatDate(value: string): string {
 
 	if (Number.isNaN(date.getTime())) return value;
 
-	return date.toLocaleString();
+	return format(date, 'MMM dd yyyy, HH:mm');
+}
+
+// Compact start→finish span (e.g. "1h 12m", "12m 04s"); empty when either
+// boundary is missing or unparseable so the header just shows the start time.
+function formatRunDuration(start: string, finish: string): string {
+	const startDate = new Date(start);
+	const finishDate = new Date(finish);
+
+	if (Number.isNaN(startDate.getTime()) || Number.isNaN(finishDate.getTime())) {
+		return '';
+	}
+
+	const totalSeconds = Math.max(
+		0,
+		Math.round((finishDate.getTime() - startDate.getTime()) / 1000)
+	);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+
+	if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+	if (minutes > 0) return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+
+	return `${seconds}s`;
 }
 
 export {

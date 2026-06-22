@@ -39,11 +39,35 @@ export interface TableNodeProps extends ComponentPropsWithRef<'button'> {
 	isExpanded?: boolean;
 	depth: number;
 	trailing?: ReactNode;
+	/**
+	 * Keep the chevron's space but hide it — use for rows that can't expand so the
+	 * arrow doesn't imply the row is clickable, while indent alignment is kept.
+	 */
+	hideExpander?: boolean;
 }
 
 function _TableNode(props: TableNodeProps, ref: Ref<HTMLButtonElement>) {
-	const { nodeName, nodeType, isExpanded, depth, trailing, ...restProps } =
-		props;
+	const {
+		nodeName,
+		nodeType,
+		isExpanded,
+		depth,
+		trailing,
+		hideExpander,
+		...restProps
+	} = props;
+
+	const expander = (
+		<Icon
+			name="ArrowShortSmall"
+			className={cn(
+				'grid place-items-center',
+				hideExpander && 'invisible',
+				isExpanded && 'text-primary',
+				isExpanded ? 'rotate-360' : '-rotate-90'
+			)}
+		/>
+	);
 
 	if (trailing) {
 		return (
@@ -54,14 +78,7 @@ function _TableNode(props: TableNodeProps, ref: Ref<HTMLButtonElement>) {
 					{...restProps}
 					ref={ref}
 				>
-					<Icon
-						name="ArrowShortSmall"
-						className={cn(
-							'grid place-items-center',
-							isExpanded && 'text-primary',
-							isExpanded ? 'rotate-360' : '-rotate-90'
-						)}
-					/>
+					{expander}
 
 					<div className="grid place-items-center">{getIcon(nodeType)}</div>
 					<span className="truncate">{nodeName}</span>
@@ -78,14 +95,7 @@ function _TableNode(props: TableNodeProps, ref: Ref<HTMLButtonElement>) {
 			{...restProps}
 			ref={ref}
 		>
-			<Icon
-				name="ArrowShortSmall"
-				className={cn(
-					'grid place-items-center',
-					isExpanded && 'text-primary',
-					isExpanded ? 'rotate-360' : '-rotate-90'
-				)}
-			/>
+			{expander}
 
 			<div className="grid place-items-center">{getIcon(nodeType)}</div>
 			<span className="truncate">{nodeName}</span>
