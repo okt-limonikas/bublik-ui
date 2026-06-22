@@ -1964,7 +1964,7 @@ const ResultColumnValue = memo(function ResultColumnValue({
 				isFlashing && 'animate-row-pulse'
 			)}
 		>
-			{isHovered && (
+			{isHovered && value !== 0 && (
 				<LinkWithProject
 					to={routes.run({
 						runId,
