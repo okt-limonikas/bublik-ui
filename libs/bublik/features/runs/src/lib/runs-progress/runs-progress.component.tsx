@@ -49,9 +49,11 @@ import {
 	DropdownMenuTrigger,
 	HoverCard,
 	Icon,
+	Kbd,
 	Separator,
 	Skeleton,
 	TableNode,
+	Tooltip,
 	cn,
 	getRunStatusInfo
 } from '@/shared/tailwind-ui';
@@ -798,28 +800,34 @@ function RunsProgress(props: RunsProgressProps) {
 								</span>
 								<div
 									className="sticky flex shrink-0 items-center gap-1"
-									style={{ right: 0 }}
+									style={{ right: 16 }}
 								>
-									<button
-										type="button"
-										aria-label="Previous group"
-										title="Previous group (h)"
-										onClick={() => handleGroupNavigate('previous')}
-										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
-									>
-										<Icon name="ArrowShortSmall" className="rotate-90 size-3" />
-										h
-									</button>
-									<button
-										type="button"
-										aria-label="Next group"
-										title="Next group (l)"
-										onClick={() => handleGroupNavigate('next')}
-										className="flex h-[18px] shrink-0 items-center gap-0.5 rounded bg-white/70 px-1 font-semibold text-text-primary hover:bg-white"
-									>
-										l
-										<Icon name="ArrowShortSmall" className="-rotate-90 size-3" />
-									</button>
+									<Tooltip content="Previous group (h)">
+										<ButtonTw
+											type="button"
+											variant="secondary"
+											size="xss"
+											className="gap-1 px-1.5"
+											aria-label="Previous group"
+											onClick={() => handleGroupNavigate('previous')}
+										>
+											<Icon name="ArrowLeanUp" className="-rotate-90 size-5" />
+											<Kbd>h</Kbd>
+										</ButtonTw>
+									</Tooltip>
+									<Tooltip content="Next group (l)">
+										<ButtonTw
+											type="button"
+											variant="secondary"
+											size="xss"
+											className="gap-1 px-1.5"
+											aria-label="Next group"
+											onClick={() => handleGroupNavigate('next')}
+										>
+											<Kbd>l</Kbd>
+											<Icon name="ArrowLeanUp" className="rotate-90 size-5" />
+										</ButtonTw>
+									</Tooltip>
 								</div>
 							</div>
 						))}
@@ -1356,7 +1364,7 @@ function GroupByMenu({
 					state={(isOpen || Boolean(groupKey)) && 'active'}
 				>
 					<Icon name="Category" size={20} className="mr-1.5" />
-					{groupKey ? `Group: ${groupKey}` : 'Group by'}
+					{groupKey ? `Group: ${groupKey}` : 'Group By'}
 					<Icon name="ArrowShortSmall" className="ml-1.5" />
 				</ButtonTw>
 			</DropdownMenuTrigger>
