@@ -10,7 +10,6 @@ import {
 	useRef,
 	useState
 } from 'react';
-import { format } from 'date-fns';
 import { VirtualItem, useVirtualizer } from '@tanstack/react-virtual';
 import {
 	DndContext,
@@ -59,6 +58,7 @@ import {
 } from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 import { usePhysicalHotkeys } from '@/shared/hooks';
+import { formatTimestampToFull } from '@/shared/utils';
 
 import {
 	RunsProgressFilterSummary,
@@ -1468,24 +1468,24 @@ function RunHeaderCell({
 					</div>
 				</ConclusionHoverCard>
 				<div className="flex min-w-0 flex-1 flex-col px-2 py-1.5">
-					<LinkWithProject
-						to={`/runs/${run.id}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-					>
-						<Icon name="BoxArrowRight" size={16} />
-						{run.id}
-					</LinkWithProject>
-					<div className="mt-0.5 flex items-center justify-between gap-2">
-						<span className="min-w-0 truncate text-[0.6875rem] font-medium text-text-secondary">
-							{formatDate(run.start)}
-							{duration ? (
-								<span className="text-text-secondary/70"> · {duration}</span>
-							) : null}
-						</span>
+					<div className="flex items-center justify-between gap-2">
+						<LinkWithProject
+							to={`/runs/${run.id}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+						>
+							<Icon name="BoxArrowRight" size={16} />
+							Run
+						</LinkWithProject>
 						<RunSummaryBadges run={run} />
 					</div>
+					<span className="mt-0.5 text-[0.6875rem] font-medium leading-tight text-text-secondary">
+						{formatTimestampToFull(run.start)}
+						{duration ? (
+							<span className="text-text-secondary/70"> · {duration}</span>
+						) : null}
+					</span>
 					<RunHealthBar stats={run.stats} />
 					{metadata.length ? (
 						<div className="mt-1 min-h-0 flex-1 overflow-y-auto">
@@ -2073,14 +2073,6 @@ function getMetricValue(
 		case 'abnormal':
 			return stats.abnormal;
 	}
-}
-
-function formatDate(value: string): string {
-	const date = new Date(value);
-
-	if (Number.isNaN(date.getTime())) return value;
-
-	return format(date, 'MMM dd yyyy, HH:mm');
 }
 
 // Compact start→finish span (e.g. "1h 12m", "12m 04s"); empty when either
