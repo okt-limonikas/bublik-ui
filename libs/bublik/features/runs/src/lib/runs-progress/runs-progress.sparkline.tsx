@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { memo, useMemo, useState } from 'react';
 
+import { EChartsOption, Plot, chartStyles } from '@/shared/charts';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
 import { Icon, cn } from '@/shared/tailwind-ui';
@@ -140,59 +141,125 @@ interface SparklineHoverChartProps {
 
 const CHART_WIDTH = 360;
 const CHART_HEIGHT = 132;
-const CHART_PAD_X = 10;
-const CHART_PAD_Y = 10;
+
+/** Minimal echarts event shape we read off click/mouse events. */
+type SparklineChartEvent = { dataIndex?: number };
 
 /**
  * Enlarged, interactive version of the row sparkline, shown inside a hover card.
- * Hovering a run shows its total/unexpected/abnormal counts; clicking jumps the
+ * Rendered with Apache ECharts (via the shared `Plot`): a green total line, a red
+ * unexpected/abnormal (NOK) area, and a transparent full-height bar per run that
+ * serves as the hover/click target. Hovering a run shows its total/unexpected/
+ * abnormal counts in the header; clicking anywhere in a run's column jumps the
  * matrix to that run's cell, and the header carries an "open in run" link so the
  * test can be opened directly at a spike.
  */
 function SparklineHoverChart({ points, onPointClick }: SparklineHoverChartProps) {
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-	const plotWidth = CHART_WIDTH - CHART_PAD_X * 2;
-	const plotHeight = CHART_HEIGHT - CHART_PAD_Y * 2;
+	const hasData = points.some((point) => point.present);
+	const maxTotal = useMemo(
+		() => Math.max(1, ...points.map((point) => point.total)),
+		[points]
+	);
 
-	const geometry = useMemo(() => {
-		if (points.every((point) => !point.present)) return null;
+	// Absent runs are rendered as gaps ('-' is echarts' empty-value marker) so no
+	// line/area segment is drawn across a run that lacks this node, matching the
+	// old `present` handling.
+	const options = useMemo<EChartsOption>(() => {
+		const totalData = points.map((point) => (point.present ? point.total : '-'));
+		const nokData = points.map((point) => (point.present ? point.nok : '-'));
 
-		const maxTotal = Math.max(1, ...points.map((point) => point.total));
-		const stepX = points.length > 1 ? plotWidth / (points.length - 1) : 0;
+		return {
+			animation: false,
+			grid: { left: 6, right: 6, top: 8, bottom: 6, containLabel: false },
+			xAxis: {
+				type: 'category',
+				data: points.map((point) => String(point.runId)),
+				boundaryGap: true,
+				axisLine: { show: false },
+				axisTick: { show: false },
+				axisLabel: { show: false },
+				splitLine: { show: false },
+				axisPointer: { show: true, type: 'line', label: { show: false } }
+			},
+			yAxis: {
+				type: 'value',
+				min: 0,
+				max: maxTotal,
+				axisLine: { show: false },
+				axisTick: { show: false },
+				axisLabel: { show: false },
+				splitLine: { show: false }
+			},
+			tooltip: {
+				trigger: 'axis',
+				// The React header above the chart carries the run info (incl. the Open
+				// link), so the echarts tooltip only draws the vertical axis pointer.
+				showContent: false,
+				axisPointer: { type: 'line' },
+				textStyle: chartStyles.text
+			},
+			series: [
+				{
+					id: 'nok',
+					name: 'Unexpected + abnormal',
+					type: 'line',
+					data: nokData,
+					symbol: 'none',
+					lineStyle: { width: 0 },
+					areaStyle: { color: NOK_COLOR, opacity: 0.18 },
+					silent: true,
+					z: 1
+				},
+				{
+					id: 'total',
+					name: 'Total',
+					type: 'line',
+					data: totalData,
+					symbol: 'circle',
+					symbolSize: 5,
+					showSymbol: false,
+					lineStyle: { color: OK_COLOR, width: 1.5 },
+					itemStyle: { color: OK_COLOR },
+					silent: true,
+					z: 2
+				},
+				{
+					// Transparent full-height bars: the hover/click hit target so a click
+					// anywhere in a run's column resolves to that run's dataIndex.
+					id: 'hit',
+					name: 'hit',
+					type: 'bar',
+					data: points.map(() => maxTotal),
+					barWidth: '100%',
+					barCategoryGap: '0%',
+					itemStyle: { color: 'transparent' },
+					emphasis: { disabled: true },
+					cursor: 'pointer',
+					z: 3
+				}
+			]
+		};
+	}, [points, maxTotal]);
 
-		function toX(index: number): number {
-			return CHART_PAD_X + (points.length > 1 ? index * stepX : plotWidth / 2);
-		}
+	const onEvents = useMemo(
+		() => ({
+			click: (event: SparklineChartEvent) => {
+				if (typeof event.dataIndex === 'number') onPointClick(event.dataIndex);
+			},
+			// The transparent full-width `hit` bar is the only non-silent series, so
+			// its mouseover fires as the pointer crosses into each run's column. The
+			// hovered run stays sticky in the header (no clear on mouse-out) so the
+			// "Open" link remains reachable when the pointer leaves the chart for it.
+			mouseover: (event: SparklineChartEvent) => {
+				if (typeof event.dataIndex === 'number') setHoveredIndex(event.dataIndex);
+			}
+		}),
+		[onPointClick]
+	);
 
-		function toY(value: number): number {
-			return CHART_PAD_Y + plotHeight - (value / maxTotal) * plotHeight;
-		}
-
-		const coords = points.map((point, index) => ({
-			x: toX(index),
-			totalY: toY(point.total),
-			nokY: toY(point.nok)
-		}));
-
-		const totalLine = coords
-			.map((coord, index) => `${index === 0 ? 'M' : 'L'} ${coord.x} ${coord.totalY}`)
-			.join(' ');
-
-		const baseline = CHART_PAD_Y + plotHeight;
-		const nokArea =
-			`M ${coords[0].x} ${baseline} ` +
-			coords.map((coord) => `L ${coord.x} ${coord.nokY}`).join(' ') +
-			` L ${coords[coords.length - 1].x} ${baseline} Z`;
-
-		const bandWidth = plotWidth / Math.max(1, points.length);
-
-		return { coords, totalLine, nokArea, bandWidth };
-	}, [points, plotWidth, plotHeight]);
-
-	const active = hoveredIndex !== null ? points[hoveredIndex] : null;
-	const activeCoord =
-		geometry && hoveredIndex !== null ? geometry.coords[hoveredIndex] : null;
+	const active = hoveredIndex !== null ? points[hoveredIndex] ?? null : null;
 
 	return (
 		<div className="w-[360px] rounded-md border border-border-primary bg-white p-2 shadow-popover">
@@ -230,59 +297,17 @@ function SparklineHoverChart({ points, onPointClick }: SparklineHoverChartProps)
 					</span>
 				)}
 			</div>
-			{geometry ? (
-				<svg
-					width={CHART_WIDTH}
-					height={CHART_HEIGHT}
-					viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-					className="overflow-visible"
-					onMouseLeave={() => setHoveredIndex(null)}
-				>
-					<path
-						d={geometry.nokArea}
-						fill={NOK_COLOR}
-						fillOpacity={0.18}
-						stroke="none"
-					/>
-					<path
-						d={geometry.totalLine}
-						fill="none"
-						stroke={OK_COLOR}
-						strokeWidth={1.5}
-						strokeLinejoin="round"
-						strokeLinecap="round"
-					/>
-					{activeCoord ? (
-						<>
-							<line
-								x1={activeCoord.x}
-								y1={CHART_PAD_Y}
-								x2={activeCoord.x}
-								y2={CHART_PAD_Y + plotHeight}
-								stroke="currentColor"
-								className="text-border-primary"
-								strokeWidth={1}
-							/>
-							<circle cx={activeCoord.x} cy={activeCoord.nokY} r={2.5} fill={NOK_COLOR} />
-							<circle cx={activeCoord.x} cy={activeCoord.totalY} r={2.5} fill={OK_COLOR} />
-						</>
-					) : null}
-					{points.map((point, index) => (
-						<rect
-							key={point.runId}
-							x={geometry.coords[index].x - geometry.bandWidth / 2}
-							y={0}
-							width={geometry.bandWidth}
-							height={CHART_HEIGHT}
-							fill="transparent"
-							className="cursor-pointer"
-							onMouseEnter={() => setHoveredIndex(index)}
-							onClick={() => onPointClick(index)}
-						/>
-					))}
-				</svg>
+			{hasData ? (
+				<Plot
+					options={options}
+					onEvents={onEvents}
+					style={{ width: CHART_WIDTH, height: CHART_HEIGHT }}
+				/>
 			) : (
-				<div className="grid h-[132px] place-items-center text-xs text-text-secondary">
+				<div
+					className="grid place-items-center text-xs text-text-secondary"
+					style={{ height: CHART_HEIGHT }}
+				>
 					No trend data
 				</div>
 			)}
