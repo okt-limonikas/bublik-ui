@@ -445,6 +445,12 @@ function RunsProgress(props: RunsProgressProps) {
 		() => getExpandableRowIds(baseRows),
 		[baseRows]
 	);
+	const allExpanded = useMemo(
+		() =>
+			expandableRowIds.length > 0 &&
+			expandableRowIds.every((rowId) => expandedRows[rowId]),
+		[expandableRowIds, expandedRows]
+	);
 	const visibleColumns = useMemo(
 		() =>
 			columnOrder
@@ -598,14 +604,12 @@ function RunsProgress(props: RunsProgressProps) {
 		}));
 	}, []);
 
-	function handleExpandAll() {
+	function handleToggleExpandAll() {
 		setExpandedRows(
-			Object.fromEntries(expandableRowIds.map((rowId) => [rowId, true]))
+			allExpanded
+				? {}
+				: Object.fromEntries(expandableRowIds.map((rowId) => [rowId, true]))
 		);
-	}
-
-	function handleCollapseAll() {
-		setExpandedRows({});
 	}
 
 	// Smooth-scroll the matrix so a group's first run sits just right of the
@@ -708,21 +712,18 @@ function RunsProgress(props: RunsProgressProps) {
 							availableGroupKeys={availableGroupKeys}
 							onGroupKeyChange={onGroupKeyChange}
 						/>
-						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
-							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
-							Expand All
-						</ButtonTw>
 						<ButtonTw
 							variant="secondary"
 							size="xss"
-							onClick={handleCollapseAll}
+							onClick={handleToggleExpandAll}
+							disabled={expandableRowIds.length === 0}
 						>
 							<Icon
 								name="ArrowLeanUp"
 								size={20}
-								className="mr-1.5 rotate-180"
+								className={cn('mr-1.5', !allExpanded && 'rotate-180')}
 							/>
-							Collapse
+							{allExpanded ? 'Collapse All' : 'Expand All'}
 						</ButtonTw>
 					</div>
 					<ColumnsVisibility
