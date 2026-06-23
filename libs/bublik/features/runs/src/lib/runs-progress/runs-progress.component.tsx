@@ -1470,6 +1470,8 @@ function RunHeaderCell({
 				<div className="flex min-w-0 flex-1 flex-col px-2 py-1.5">
 					<LinkWithProject
 						to={`/runs/${run.id}`}
+						target="_blank"
+						rel="noopener noreferrer"
 						className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
 					>
 						<Icon name="BoxArrowRight" size={16} />
@@ -1571,6 +1573,8 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 		<div className="flex shrink-0 flex-wrap items-center gap-1">
 			<SummaryBadge
 				to={to}
+				target="_blank"
+				rel="noopener noreferrer"
 				label="Total"
 				count={stats.tests_total}
 				percentage={stats.tests_total_plan_percent}
@@ -1578,6 +1582,8 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 			/>
 			<SummaryBadge
 				to={to}
+				target="_blank"
+				rel="noopener noreferrer"
 				label="OK"
 				count={stats.tests_total_ok}
 				percentage={stats.tests_total_ok_percent}
@@ -1585,6 +1591,8 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 			/>
 			<SummaryBadge
 				to={to}
+				target="_blank"
+				rel="noopener noreferrer"
 				state={{ openUnexpected: true }}
 				label="NOK"
 				count={stats.tests_total_nok}
@@ -1975,6 +1983,8 @@ const ResultColumnValue = memo(function ResultColumnValue({
 						targetIterationId: resultId,
 						resultFilter: RUNS_PROGRESS_COL_TO_RUN_COLUMN_ID[column.id]
 					})}
+					target="_blank"
+					rel="noopener noreferrer"
 					onClick={(event) => event.stopPropagation()}
 					title={`Open ${column.label} in run ${runId}`}
 					className="absolute left-1.5 top-1/2 z-10 grid size-6 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
