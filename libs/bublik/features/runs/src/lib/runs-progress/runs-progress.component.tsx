@@ -26,6 +26,8 @@ import {
 	verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { PopoverPortal } from '@radix-ui/react-popover';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 
 import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
@@ -49,6 +51,8 @@ import {
 	HoverCard,
 	Icon,
 	Kbd,
+	Popover,
+	PopoverTrigger,
 	Separator,
 	Skeleton,
 	TableNode,
@@ -697,8 +701,8 @@ function RunsProgress(props: RunsProgressProps) {
 								<Separator orientation="vertical" className="h-4" />
 								<span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-unexpected">
 									<Icon name="InformationCircleExclamationMark" size={12} />
-									Showing the latest {cap} of {total} runs — select a date
-									range or duration to view all.
+									Showing the latest {cap} of {total} runs — select a date range
+									or duration to view all.
 								</span>
 							</>
 						) : null}
@@ -739,7 +743,7 @@ function RunsProgress(props: RunsProgressProps) {
 			<div
 				ref={parentRef}
 				onMouseLeave={handleClearHover}
-				className="relative h-[calc(100vh-120px)] overflow-auto overscroll-contain"
+				className="relative h-[calc(100vh-128px)] overflow-auto overscroll-contain"
 			>
 				<div
 					className="relative"
@@ -1604,6 +1608,63 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 	);
 }
 
+function ObjectiveCell({
+	objective,
+	width
+}: {
+	objective?: string;
+	width: number;
+}) {
+	if (!objective) {
+		return (
+			<div
+				className="h-full shrink-0 border-l-2 border-gray-500"
+				style={{ width }}
+			/>
+		);
+	}
+
+	return (
+		<div
+			className="h-full shrink-0 border-l-2 border-gray-500"
+			style={{ width }}
+		>
+			<Popover modal>
+				<PopoverTrigger asChild>
+					<button className="group relative flex h-full w-full items-center px-2 text-left hover:bg-primary-wash">
+						<div className="absolute right-0 top-1/2 z-10 flex h-full -translate-y-1/2 items-center opacity-0 transition-opacity group-hover:opacity-100">
+							<div className="h-full w-6 bg-gradient-to-r from-transparent to-white" />
+							<div className="grid h-full w-6 place-items-center bg-white pr-2">
+								<Icon name="ChevronDown" size={16} className="text-primary" />
+							</div>
+						</div>
+						<pre className="relative min-w-0 flex-1 truncate font-body text-xs">
+							{objective}
+						</pre>
+					</button>
+				</PopoverTrigger>
+				<PopoverPortal>
+					<PopoverPrimitive.Content
+						align="start"
+						sideOffset={0}
+						className={cn(
+							'z-50 rounded-lg bg-white p-1 shadow-popover outline-none transition-none',
+							'rdx-state-open:animate-fade-in rdx-state-closed:animate-fade-out'
+						)}
+						style={{ transform: 'translateY(-67px) translateX(-4px)' }}
+					>
+						<h2 className="px-2 py-1.5 text-xs font-semibold">Objective</h2>
+						<Separator className="my-1 h-px" />
+						<pre className="whitespace-pre-wrap p-2 font-body text-xs">
+							{objective}
+						</pre>
+					</PopoverPrimitive.Content>
+				</PopoverPortal>
+			</Popover>
+		</div>
+	);
+}
+
 const RowHeaderCell = memo(function RowHeaderCell({
 	row,
 	runs,
@@ -1704,13 +1765,10 @@ const RowHeaderCell = memo(function RowHeaderCell({
 				</HoverCard>
 			</div>
 			{showObjective ? (
-				<div
-					className="flex h-full shrink-0 items-center border-l-2 border-gray-500 px-2 font-normal text-text-secondary"
-					style={{ width: OBJECTIVE_COLUMN_WIDTH }}
-					title={row.objective}
-				>
-					<span className="truncate">{row.objective}</span>
-				</div>
+				<ObjectiveCell
+					objective={row.objective}
+					width={OBJECTIVE_COLUMN_WIDTH}
+				/>
 			) : null}
 		</div>
 	);
