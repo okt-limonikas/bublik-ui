@@ -26,6 +26,8 @@ import {
 	verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { PopoverPortal } from '@radix-ui/react-popover';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 
 import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
@@ -49,6 +51,8 @@ import {
 	HoverCard,
 	Icon,
 	Kbd,
+	Popover,
+	PopoverTrigger,
 	Separator,
 	Skeleton,
 	TableNode,
@@ -92,6 +96,9 @@ const GROUP_HEADER_HEIGHT = 28;
 const TIME_GROUP_HEADER_HEIGHT = 28;
 const LEFT_COLUMN_WIDTH = 380;
 const SPARKLINE_WIDTH = 76;
+// Objective is rendered as its own divider-separated column after the sparkline;
+// it widens the pinned left area only while toggled on.
+const OBJECTIVE_COLUMN_WIDTH = 200;
 // Cycled per group so neighbouring groups stay visually distinct.
 const GROUP_COLORS = [
 	'bg-badge-1',
@@ -348,6 +355,9 @@ function RunsProgress(props: RunsProgressProps) {
 	} = props;
 	const parentRef = useRef<HTMLDivElement>(null);
 	const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+	// Objective is per-test text shown in the pinned left column; off by default
+	// and toggled from the Columns dropdown.
+	const [showObjective, setShowObjective] = useState(false);
 	// Active sort keys, newest click last. Each key targets one run's metric column
 	// so the same metric can be sorted independently per run (Shift adds keys).
 	const [sorting, setSorting] = useState<RunsProgressSort[]>([]);
@@ -484,7 +494,10 @@ function RunsProgress(props: RunsProgressProps) {
 		[columnOrder, visibleColumnIds]
 	);
 	const runColumnWidth = visibleColumns.length * METRIC_COLUMN_WIDTH;
-	const leftColumnWidth = LEFT_COLUMN_WIDTH;
+	// The pinned left area grows when the Objective column is shown; every matrix
+	// offset is measured from this width.
+	const leftColumnWidth =
+		LEFT_COLUMN_WIDTH + (showObjective ? OBJECTIVE_COLUMN_WIDTH : 0);
 	// Each band only takes space while its level is active. The time band (outer)
 	// stacks above the leaf band, so leaf headers and run headers shift down by the
 	// combined height.
@@ -767,6 +780,8 @@ function RunsProgress(props: RunsProgressProps) {
 						onVisibleColumnIdsChange={setVisibleColumnIds}
 						columnOrder={columnOrder}
 						onColumnOrderChange={setColumnOrder}
+						showObjective={showObjective}
+						onShowObjectiveChange={setShowObjective}
 					/>
 				</div>
 			</CardHeader>
@@ -803,6 +818,19 @@ function RunsProgress(props: RunsProgressProps) {
 										: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
 								</span>
 							</div>
+							{showObjective ? (
+								<div
+									className="relative flex h-full flex-col justify-end gap-1 px-2 py-2"
+									style={{ width: OBJECTIVE_COLUMN_WIDTH }}
+								>
+									{/* Left divider drawn as an overlay (not border-l) so it lines
+									    up with the row dividers below, which also use overlays.
+									    `-bottom-px` carries it over the header's bottom border so the
+									    vertical line joins the rows with no gap. */}
+									<div className="pointer-events-none absolute left-0 top-0 -bottom-px w-0.5 bg-gray-500" />
+									<span className="uppercase text-text-primary">Objective</span>
+								</div>
+							) : null}
 							{/* Right divider (boundary with the run header columns). Overlay,
 							    not border-r, so it doesn't shrink the flex-1 area and stays
 							    aligned with the row dividers below. `-bottom-px` carries it over
@@ -927,6 +955,7 @@ function RunsProgress(props: RunsProgressProps) {
 								runs={runs}
 								columns={visibleColumns}
 								virtualColumns={virtualColumns}
+								showObjective={showObjective}
 								leftColumnWidth={leftColumnWidth}
 								onJumpToCell={handleJumpToCell}
 								isExpanded={isRowExpanded(row, expandedRows)}
@@ -965,6 +994,7 @@ function ProgressRow({
 	runs,
 	columns,
 	virtualColumns,
+	showObjective,
 	leftColumnWidth,
 	isExpanded,
 	isGrouped,
@@ -989,6 +1019,7 @@ function ProgressRow({
 	runs: RunsProgressRun[];
 	columns: RunsProgressColumn[];
 	virtualColumns: VirtualItem[];
+	showObjective: boolean;
 	leftColumnWidth: number;
 	isExpanded: boolean;
 	isGrouped: boolean;
@@ -1038,6 +1069,7 @@ function ProgressRow({
 				runs={runs}
 				isExpanded={isExpanded}
 				isGrouped={isGrouped}
+				showObjective={showObjective}
 				leftColumnWidth={leftColumnWidth}
 				highlightBottomBorder={highlightBottomBorder}
 				onToggle={onToggle}
@@ -1290,12 +1322,16 @@ function ColumnsVisibility({
 	visibleColumnIds,
 	onVisibleColumnIdsChange,
 	columnOrder,
-	onColumnOrderChange
+	onColumnOrderChange,
+	showObjective,
+	onShowObjectiveChange
 }: {
 	visibleColumnIds: RunsProgressColumnId[];
 	onVisibleColumnIdsChange: (columnIds: RunsProgressColumnId[]) => void;
 	columnOrder: RunsProgressColumnId[];
 	onColumnOrderChange: (columnOrder: RunsProgressColumnId[]) => void;
+	showObjective: boolean;
+	onShowObjectiveChange: (showObjective: boolean) => void;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const sensors = useSensors(
@@ -1339,6 +1375,16 @@ function ColumnsVisibility({
 				</ButtonTw>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
+				<DropdownMenuLabel className="text-xs">Test Info</DropdownMenuLabel>
+				<Separator className="h-px my-1 -mx-1" />
+				<div
+					className="flex cursor-pointer items-center gap-2 rounded py-1.5 pl-[26px] pr-2 text-xs hover:bg-primary-wash"
+					onClick={() => onShowObjectiveChange(!showObjective)}
+				>
+					<ColumnCheckmark checked={showObjective} />
+					<span className="select-none">Objective</span>
+				</div>
+				<Separator className="h-px my-1 -mx-1" />
 				<DropdownMenuLabel className="text-xs">
 					Result Columns
 				</DropdownMenuLabel>
@@ -1677,11 +1723,66 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 	);
 }
 
+function ObjectiveCell({
+	objective,
+	width
+}: {
+	objective?: string;
+	width: number;
+}) {
+	if (!objective) {
+		return (
+			<div className="relative h-full shrink-0" style={{ width }}>
+				<div className="pointer-events-none absolute left-0 top-0 -bottom-px z-10 w-0.5 bg-gray-500" />
+			</div>
+		);
+	}
+
+	return (
+		<div className="relative h-full shrink-0" style={{ width }}>
+			<div className="pointer-events-none absolute left-0 top-0 -bottom-px z-10 w-0.5 bg-gray-500" />
+			<Popover modal>
+				<PopoverTrigger asChild>
+					<button className="group relative flex h-full w-full items-center px-2 text-left hover:bg-primary-wash">
+						<div className="absolute right-0 top-1/2 z-10 flex h-full -translate-y-1/2 items-center opacity-0 transition-opacity group-hover:opacity-100">
+							<div className="h-full w-6 bg-gradient-to-r from-transparent to-white" />
+							<div className="grid h-full w-6 place-items-center bg-white pr-2">
+								<Icon name="ChevronDown" size={16} className="text-primary" />
+							</div>
+						</div>
+						<pre className="relative min-w-0 flex-1 truncate font-body text-xs">
+							{objective}
+						</pre>
+					</button>
+				</PopoverTrigger>
+				<PopoverPortal>
+					<PopoverPrimitive.Content
+						align="start"
+						sideOffset={0}
+						className={cn(
+							'z-50 rounded-lg bg-white p-1 shadow-popover outline-none transition-none',
+							'rdx-state-open:animate-fade-in rdx-state-closed:animate-fade-out'
+						)}
+						style={{ transform: 'translateY(-67px) translateX(-4px)' }}
+					>
+						<h2 className="px-2 py-1.5 text-xs font-semibold">Objective</h2>
+						<Separator className="my-1 h-px" />
+						<pre className="whitespace-pre-wrap p-2 font-body text-xs">
+							{objective}
+						</pre>
+					</PopoverPrimitive.Content>
+				</PopoverPortal>
+			</Popover>
+		</div>
+	);
+}
+
 const RowHeaderCell = memo(function RowHeaderCell({
 	row,
 	runs,
 	isExpanded,
 	isGrouped,
+	showObjective,
 	leftColumnWidth,
 	highlightBottomBorder,
 	onToggle,
@@ -1691,6 +1792,7 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	runs: RunsProgressRun[];
 	isExpanded: boolean;
 	isGrouped: boolean;
+	showObjective: boolean;
 	leftColumnWidth: number;
 	// Mirrors the matrix cells: recolor the bottom grid line to primary when the row
 	// highlight owns this boundary, so the sticky header column joins the row line.
@@ -1774,6 +1876,12 @@ const RowHeaderCell = memo(function RowHeaderCell({
 					</div>
 				</HoverCard>
 			</div>
+			{showObjective ? (
+				<ObjectiveCell
+					objective={row.objective}
+					width={OBJECTIVE_COLUMN_WIDTH}
+				/>
+			) : null}
 			{/* The 2px right divider (boundary with the matrix). Drawn as an overlay
 			    rather than a `border-r` so it never miters against this cell's bottom
 			    row line — stacked per row it forms a continuous, crisp vertical line,
