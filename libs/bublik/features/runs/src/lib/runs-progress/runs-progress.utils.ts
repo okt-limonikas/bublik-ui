@@ -147,7 +147,6 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 					type: node.type,
 					path: node.path,
 					depth,
-					objective: node.objective,
 					cells: [],
 					children: []
 				});
