@@ -722,6 +722,14 @@ function RunsProgress(props: RunsProgressProps) {
 						</span>
 						<Separator orientation="vertical" className="h-4" />
 						<Legend />
+						<Separator orientation="vertical" className="h-4" />
+						<GroupByMenu
+							groupKey={groupKey}
+							timeFrameDays={timeFrameDays}
+							onTimeFrameDaysChange={onTimeFrameDaysChange}
+							availableGroupKeys={availableGroupKeys}
+							onGroupKeyChange={onGroupKeyChange}
+						/>
 						{isCapped ? (
 							<>
 								<Separator orientation="vertical" className="h-4" />
@@ -737,13 +745,6 @@ function RunsProgress(props: RunsProgressProps) {
 			>
 				<div className="flex items-center gap-3">
 					<div className="flex items-center gap-2">
-						<GroupByMenu
-							groupKey={groupKey}
-							timeFrameDays={timeFrameDays}
-							onTimeFrameDaysChange={onTimeFrameDaysChange}
-							availableGroupKeys={availableGroupKeys}
-							onGroupKeyChange={onGroupKeyChange}
-						/>
 						<ButtonTw
 							variant="secondary"
 							size="xss"
