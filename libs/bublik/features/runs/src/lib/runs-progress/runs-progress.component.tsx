@@ -122,7 +122,10 @@ const TIME_FRAME_OPTIONS: { days: number; label: string; short: string }[] = [
 	{ days: 14, label: '14 days', short: '14d' }
 ];
 
-function getTimeFrameLabel(days: number | null, key: 'label' | 'short'): string {
+function getTimeFrameLabel(
+	days: number | null,
+	key: 'label' | 'short'
+): string {
 	return TIME_FRAME_OPTIONS.find((option) => option.days === days)?.[key] ?? '';
 }
 
@@ -499,7 +502,8 @@ function RunsProgress(props: RunsProgressProps) {
 	// stacks above the leaf band, so leaf headers and run headers shift down by the
 	// combined height.
 	const timeBandHeight = timeGroups.length ? TIME_GROUP_HEADER_HEIGHT : 0;
-	const groupBandHeight = (groups.length ? GROUP_HEADER_HEIGHT : 0) + timeBandHeight;
+	const groupBandHeight =
+		(groups.length ? GROUP_HEADER_HEIGHT : 0) + timeBandHeight;
 	const headerHeight = HEADER_HEIGHT + groupBandHeight;
 	// Human description of the active grouping, e.g. "1 week then CFG", "3 days",
 	// "CFG" — drives the left-column hint. Empty when nothing is grouped.
@@ -801,13 +805,13 @@ function RunsProgress(props: RunsProgressProps) {
 								className="flex h-full flex-1 flex-col justify-end gap-1 px-2 py-2"
 								style={{ width: LEFT_COLUMN_WIDTH }}
 							>
-								<span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-menu">
+								<span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-primary">
 									Test procedures
 								</span>
-								<span className="text-[0.6875rem] font-medium text-text-secondary">
+								<span className="text-[0.6875rem] font-medium text-text-primary">
 									{visibleRows.length} visible rows across {runs.length} runs
 								</span>
-								<span className="text-[0.6875rem] font-normal text-text-secondary">
+								<span className="text-[0.6875rem] font-normal text-text-primary">
 									{groupLabel
 										? `Grouped by ${groupLabel}. Hold Ctrl to scroll sideways.`
 										: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
@@ -818,7 +822,7 @@ function RunsProgress(props: RunsProgressProps) {
 									className="flex h-full flex-col justify-end gap-1 border-l-2 border-gray-500 px-2 py-2"
 									style={{ width: OBJECTIVE_COLUMN_WIDTH }}
 								>
-									<span className="uppercase text-text-menu">Objective</span>
+									<span className="uppercase text-text-primary">Objective</span>
 								</div>
 							) : null}
 						</div>
@@ -1363,7 +1367,7 @@ function ColumnsVisibility({
 				</ButtonTw>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
-				<DropdownMenuLabel className="text-xs">Test info</DropdownMenuLabel>
+				<DropdownMenuLabel className="text-xs">Test Info</DropdownMenuLabel>
 				<Separator className="h-px my-1 -mx-1" />
 				<div
 					className="flex cursor-pointer items-center gap-2 rounded py-1.5 pl-[26px] pr-2 text-xs hover:bg-primary-wash"
@@ -1453,7 +1457,7 @@ function GroupByMenu({
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
 				<DropdownMenuLabel className="text-xs">
-					Group runs by time frame
+					Group Runs By Time Frame
 				</DropdownMenuLabel>
 				<Separator className="h-px my-1 -mx-1" />
 				<DropdownMenuRadioGroup
@@ -1483,7 +1487,7 @@ function GroupByMenu({
 					<>
 						<Separator className="h-px my-1 -mx-1" />
 						<DropdownMenuLabel className="text-xs">
-							Then by metadata
+							Then By Metadata
 						</DropdownMenuLabel>
 						<Separator className="h-px my-1 -mx-1" />
 						<DropdownMenuRadioGroup
@@ -1496,7 +1500,7 @@ function GroupByMenu({
 								value={NO_GROUPING_VALUE}
 								className="text-xs"
 							>
-								No grouping
+								Off
 							</DropdownMenuRadioItem>
 							{availableGroupKeys.map((key) => (
 								<DropdownMenuRadioItem
