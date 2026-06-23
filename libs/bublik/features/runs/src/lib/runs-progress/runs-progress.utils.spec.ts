@@ -89,7 +89,10 @@ function createRoot(testStats = baseStats): RunData {
 	};
 }
 
-function createRootWithRepeatedTests(firstExecSeqno: number, secondExecSeqno: number): RunData {
+function createRootWithRepeatedTests(
+	firstExecSeqno: number,
+	secondExecSeqno: number
+): RunData {
 	const root = createRoot(baseStats);
 
 	root.children = [
@@ -317,7 +320,10 @@ describe('runs progress utils', () => {
 				run: createRunWithMeta(2, '2024-01-02T00:00:00Z', ['CFG=a']),
 				root: createRoot()
 			},
-			{ run: createRunWithMeta(1, '2024-01-01T00:00:00Z', []), root: createRoot() }
+			{
+				run: createRunWithMeta(1, '2024-01-01T00:00:00Z', []),
+				root: createRoot()
+			}
 		];
 		const { orderedRuns, groups } = groupRuns(runs, {
 			timeFrameDays: null,
@@ -510,8 +516,12 @@ describe('runs progress utils', () => {
 
 	describe('getMetricDelta', () => {
 		it('marks a higher-is-better drop as regressed and a rise as improved', () => {
-			expect(getMetricDelta(2, 10, 'higher-is-better')?.status).toBe('regressed');
-			expect(getMetricDelta(10, 2, 'higher-is-better')?.status).toBe('improved');
+			expect(getMetricDelta(2, 10, 'higher-is-better')?.status).toBe(
+				'regressed'
+			);
+			expect(getMetricDelta(10, 2, 'higher-is-better')?.status).toBe(
+				'improved'
+			);
 		});
 
 		it('marks any neutral change as changed and carries the percent in the title', () => {

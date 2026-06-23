@@ -156,7 +156,11 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 			const row = rowByKey.get(key);
 			const parent = parentKey ? rowByKey.get(parentKey) : null;
 
-			if (row && parent && !parent.children.some((child) => child.id === row.id)) {
+			if (
+				row &&
+				parent &&
+				!parent.children.some((child) => child.id === row.id)
+			) {
 				parent.children.push(row);
 			}
 		});
@@ -166,25 +170,23 @@ function buildRunsProgressRows(runs: RunsProgressRun[]): RunsProgressRow[] {
 
 	rowByKey.forEach((row) => {
 		row.cells = runs.map(({ run, groupId }, runIndex) => {
-				const node = nodeMaps[runIndex].get(row.id) ?? null;
-				// The trend baseline is the next (older) run, but only when it shares
-				// this run's group, so grouped views compare like-for-like and the
-				// oldest run of a group has no baseline.
-				const previousRun = runs[runIndex + 1];
-				const sameGroup = previousRun
-					? previousRun.groupId === groupId
-					: false;
-				const previousNode = sameGroup
-					? nodeMaps[runIndex + 1]?.get(row.id) ?? null
-					: null;
+			const node = nodeMaps[runIndex].get(row.id) ?? null;
+			// The trend baseline is the next (older) run, but only when it shares
+			// this run's group, so grouped views compare like-for-like and the
+			// oldest run of a group has no baseline.
+			const previousRun = runs[runIndex + 1];
+			const sameGroup = previousRun ? previousRun.groupId === groupId : false;
+			const previousNode = sameGroup
+				? nodeMaps[runIndex + 1]?.get(row.id) ?? null
+				: null;
 
-				return {
-					runId: run.id,
-					node,
-					previousNode,
-					trend: getNodeTrend(node, previousNode)
-				};
-			});
+			return {
+				runId: run.id,
+				node,
+				previousNode,
+				trend: getNodeTrend(node, previousNode)
+			};
+		});
 	});
 
 	return Array.from(rowByKey.values()).filter((row) => row.depth === 0);
@@ -210,9 +212,7 @@ function filterChangedRows(rows: RunsProgressRow[]): RunsProgressRow[] {
 		return { ...row, children };
 	}
 
-	return rows
-		.map(visit)
-		.filter((row): row is RunsProgressRow => row !== null);
+	return rows.map(visit).filter((row): row is RunsProgressRow => row !== null);
 }
 
 /** Metadata/tag items are `KEY=VALUE`; the key is the part before the first `=`. */
@@ -335,8 +335,7 @@ function groupRuns(
 				groupId,
 				timeId: time.id,
 				timeLabel: time.label,
-				metaLabel:
-					metaValue === OTHER_GROUP_ID ? `No ${metaKey}` : metaValue,
+				metaLabel: metaValue === OTHER_GROUP_ID ? `No ${metaKey}` : metaValue,
 				members: []
 			});
 			leafOrder.push(groupId);
@@ -482,7 +481,10 @@ function getMetricChange(
 // "more red"/"greener"/"more amber".
 const TONE_TIERS: Record<
 	MetricChangeKind,
-	{ base: [string, string, string, string]; boost: [string, string, string, string] }
+	{
+		base: [string, string, string, string];
+		boost: [string, string, string, string];
+	}
 > = {
 	bad: {
 		base: [
@@ -606,7 +608,9 @@ function getMetricDelta(
 	};
 }
 
-function buildFilterSummary(searchParams: URLSearchParams): RunsProgressFilterSummary[] {
+function buildFilterSummary(
+	searchParams: URLSearchParams
+): RunsProgressFilterSummary[] {
 	const summary: RunsProgressFilterSummary[] = [];
 	const runData = searchParams.get('runData');
 	const tagExpr = searchParams.get('tagExpr');
@@ -615,12 +619,16 @@ function buildFilterSummary(searchParams: URLSearchParams): RunsProgressFilterSu
 	const startDate = searchParams.get('startDate');
 	const finishDate = searchParams.get('finishDate');
 
-	if (runData) summary.push({ label: 'Metas', value: runData.split(';').join(', ') });
+	if (runData)
+		summary.push({ label: 'Metas', value: runData.split(';').join(', ') });
 	if (tagExpr) summary.push({ label: 'Tag expression', value: tagExpr });
 	if (calendarMode === 'duration' && duration) {
 		summary.push({ label: 'Range', value: duration });
 	} else if (startDate || finishDate) {
-		summary.push({ label: 'Range', value: `${startDate || '...'} - ${finishDate || '...'}` });
+		summary.push({
+			label: 'Range',
+			value: `${startDate || '...'} - ${finishDate || '...'}`
+		});
 	}
 
 	return summary;

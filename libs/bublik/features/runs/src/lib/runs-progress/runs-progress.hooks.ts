@@ -42,7 +42,13 @@ function useRunsProgressRuns(): RunsProgressRunsResult {
 			tagExpr: query.tagExpr,
 			projects: query.projects
 		}),
-		[query.startDate, query.finishDate, query.runData, query.tagExpr, query.projects]
+		[
+			query.startDate,
+			query.finishDate,
+			query.runData,
+			query.tagExpr,
+			query.projects
+		]
 	);
 
 	// Probe: smallest possible page just to read pagination.count for the filters.
@@ -59,7 +65,11 @@ function useRunsProgressRuns(): RunsProgressRunsResult {
 	// so capping page 1 keeps the newest runs. Skipped until the count is known.
 	const fullQuery = useGetRunsTablePageQuery(
 		{ ...baseQuery, page: '1', pageSize: effectiveSize.toString() },
-		{ skip: effectiveSize === 0, refetchOnFocus: true, refetchOnMountOrArgChange: true }
+		{
+			skip: effectiveSize === 0,
+			refetchOnFocus: true,
+			refetchOnMountOrArgChange: true
+		}
 	);
 
 	const runs = fullQuery.currentData?.results ?? [];

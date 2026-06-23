@@ -48,8 +48,7 @@ function SparklineImpl(props: SparklineProps) {
 		if (present.length === 0) return null;
 
 		const maxTotal = Math.max(1, ...points.map((point) => point.total));
-		const stepX =
-			points.length > 1 ? width / (points.length - 1) : 0;
+		const stepX = points.length > 1 ? width / (points.length - 1) : 0;
 
 		function toX(index: number): number {
 			return points.length > 1 ? index * stepX : width / 2;
@@ -70,7 +69,10 @@ function SparklineImpl(props: SparklineProps) {
 		}));
 
 		const totalLine = coords
-			.map((coord, index) => `${index === 0 ? 'M' : 'L'} ${coord.x} ${coord.totalY}`)
+			.map(
+				(coord, index) =>
+					`${index === 0 ? 'M' : 'L'} ${coord.x} ${coord.totalY}`
+			)
 			.join(' ');
 
 		const nokArea =
@@ -154,7 +156,10 @@ type SparklineChartEvent = { dataIndex?: number };
  * matrix to that run's cell, and the header carries an "open in run" link so the
  * test can be opened directly at a spike.
  */
-function SparklineHoverChart({ points, onPointClick }: SparklineHoverChartProps) {
+function SparklineHoverChart({
+	points,
+	onPointClick
+}: SparklineHoverChartProps) {
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
 	const hasData = points.some((point) => point.present);
@@ -167,7 +172,9 @@ function SparklineHoverChart({ points, onPointClick }: SparklineHoverChartProps)
 	// line/area segment is drawn across a run that lacks this node, matching the
 	// old `present` handling.
 	const options = useMemo<EChartsOption>(() => {
-		const totalData = points.map((point) => (point.present ? point.total : '-'));
+		const totalData = points.map((point) =>
+			point.present ? point.total : '-'
+		);
 		const nokData = points.map((point) => (point.present ? point.nok : '-'));
 
 		return {
@@ -253,7 +260,8 @@ function SparklineHoverChart({ points, onPointClick }: SparklineHoverChartProps)
 			// hovered run stays sticky in the header (no clear on mouse-out) so the
 			// "Open" link remains reachable when the pointer leaves the chart for it.
 			mouseover: (event: SparklineChartEvent) => {
-				if (typeof event.dataIndex === 'number') setHoveredIndex(event.dataIndex);
+				if (typeof event.dataIndex === 'number')
+					setHoveredIndex(event.dataIndex);
 			}
 		}),
 		[onPointClick]

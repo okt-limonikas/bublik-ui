@@ -2,7 +2,11 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { RunTableColumnConfig, ColumnId } from '../types';
 
-import { RESULT_PROPERTIES, RESULT_TYPE, ResultTableFilter } from '@/shared/types';
+import {
+	RESULT_PROPERTIES,
+	RESULT_TYPE,
+	ResultTableFilter
+} from '@/shared/types';
 import { BadgeVariants, Icon } from '@/shared/tailwind-ui';
 import {
 	getAbnormal,

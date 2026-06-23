@@ -434,10 +434,13 @@ export const runEndpoints = {
 				try {
 					const requestsResults = await Promise.all(
 						params.map(async ({ runId, requirements }) => {
-							const queryRequirements = requirements?.join(config.queryDelimiter);
+							const queryRequirements = requirements?.join(
+								config.queryDelimiter
+							);
 							const queryParams = {} as Record<string, string>;
 
-							if (queryRequirements) queryParams.requirements = queryRequirements;
+							if (queryRequirements)
+								queryParams.requirements = queryRequirements;
 
 							const result = (await fetchWithBQ({
 								url: withApiV2(`/runs/${runId}/stats`),

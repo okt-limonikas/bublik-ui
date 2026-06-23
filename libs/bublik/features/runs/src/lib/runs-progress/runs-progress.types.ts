@@ -2,7 +2,13 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { NodeEntity, RunData, RunsData } from '@/shared/types';
 
-type RunsProgressTrend = 'added' | 'removed' | 'improved' | 'regressed' | 'changed' | 'same';
+type RunsProgressTrend =
+	| 'added'
+	| 'removed'
+	| 'improved'
+	| 'regressed'
+	| 'changed'
+	| 'same';
 
 // Whether a higher metric value is better, worse, or carries no good/bad meaning.
 // Drives both the change-aware cell tone and the per-cell trend arrow.

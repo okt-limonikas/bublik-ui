@@ -80,10 +80,7 @@ function RunsProgressContainer() {
 		() => groupRuns(progressRuns, { timeFrameDays, metaKey: groupKey }),
 		[progressRuns, timeFrameDays, groupKey]
 	);
-	const rows = useMemo(
-		() => buildRunsProgressRows(orderedRuns),
-		[orderedRuns]
-	);
+	const rows = useMemo(() => buildRunsProgressRows(orderedRuns), [orderedRuns]);
 	const filters = useMemo(
 		() => buildFilterSummary(searchParams),
 		[searchParams]
