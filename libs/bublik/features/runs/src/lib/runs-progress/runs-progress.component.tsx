@@ -686,13 +686,17 @@ function RunsProgress(props: RunsProgressProps) {
 						<span className="text-text-primary text-[0.75rem] font-semibold leading-[0.875rem]">
 							Runs Progress
 						</span>
+						<Separator orientation="vertical" className="h-4" />
 						<Legend />
 						{isCapped ? (
-							<span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-unexpected">
-								<Icon name="InformationCircleExclamationMark" size={12} />
-								Showing the latest {cap} of {total} runs — select a date range
-								or duration to view all.
-							</span>
+							<>
+								<Separator orientation="vertical" className="h-4" />
+								<span className="inline-flex items-center gap-1 text-[11px] font-medium text-text-unexpected">
+									<Icon name="InformationCircleExclamationMark" size={12} />
+									Showing the latest {cap} of {total} runs — select a date
+									range or duration to view all.
+								</span>
+							</>
 						) : null}
 					</div>
 				}
