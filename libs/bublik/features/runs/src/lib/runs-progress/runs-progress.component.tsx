@@ -1535,16 +1535,10 @@ function Legend() {
 	return (
 		<div className="flex items-center gap-2.5 text-[0.6875rem] font-medium text-text-secondary">
 			<span className="inline-flex items-center gap-1">
-				<span className="inline-flex text-text-expected">
-					<TrendArrowGlyph increased />
-				</span>{' '}
-				Improved
+				<span className="text-text-expected">●</span> Improved
 			</span>
 			<span className="inline-flex items-center gap-1">
-				<span className="inline-flex text-text-unexpected">
-					<TrendArrowGlyph increased={false} />
-				</span>{' '}
-				Regressed
+				<span className="text-text-unexpected">●</span> Regressed
 			</span>
 			<span className="inline-flex items-center gap-1">
 				<span className="text-[hsl(40_55%_42%)]">●</span> Changed
