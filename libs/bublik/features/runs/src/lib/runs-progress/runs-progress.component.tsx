@@ -798,7 +798,7 @@ function RunsProgress(props: RunsProgressProps) {
 						style={{ width: totalWidth, height: headerHeight }}
 					>
 						<div
-							className="sticky left-0 z-40 flex h-full bg-white border-r-2 border-gray-500"
+							className="sticky left-0 z-40 flex h-full bg-white"
 							style={{ width: leftColumnWidth }}
 						>
 							<div
@@ -819,12 +819,22 @@ function RunsProgress(props: RunsProgressProps) {
 							</div>
 							{showObjective ? (
 								<div
-									className="flex h-full flex-col justify-end gap-1 border-l-2 border-gray-500 px-2 py-2"
+									className="relative flex h-full flex-col justify-end gap-1 px-2 py-2"
 									style={{ width: OBJECTIVE_COLUMN_WIDTH }}
 								>
+									{/* Left divider drawn as an overlay (not border-l) so it lines
+									    up with the row dividers below, which also use overlays.
+									    `-bottom-px` carries it over the header's bottom border so the
+									    vertical line joins the rows with no gap. */}
+									<div className="pointer-events-none absolute left-0 top-0 -bottom-px w-0.5 bg-gray-500" />
 									<span className="uppercase text-text-primary">Objective</span>
 								</div>
 							) : null}
+							{/* Right divider (boundary with the run header columns). Overlay,
+							    not border-r, so it doesn't shrink the flex-1 area and stays
+							    aligned with the row dividers below. `-bottom-px` carries it over
+							    the header's bottom border so it joins the rows with no gap. */}
+							<div className="pointer-events-none absolute right-0 top-0 -bottom-px w-0.5 bg-gray-500" />
 						</div>
 						{/* Outer time band, above the leaf band; no nav (h/l steps leaf
 						    groups). Each window spans its metadata groups. */}
@@ -1735,18 +1745,15 @@ function ObjectiveCell({
 }) {
 	if (!objective) {
 		return (
-			<div
-				className="h-full shrink-0 border-l-2 border-gray-500"
-				style={{ width }}
-			/>
+			<div className="relative h-full shrink-0" style={{ width }}>
+				<div className="pointer-events-none absolute left-0 top-0 -bottom-px z-10 w-0.5 bg-gray-500" />
+			</div>
 		);
 	}
 
 	return (
-		<div
-			className="h-full shrink-0 border-l-2 border-gray-500"
-			style={{ width }}
-		>
+		<div className="relative h-full shrink-0" style={{ width }}>
+			<div className="pointer-events-none absolute left-0 top-0 -bottom-px z-10 w-0.5 bg-gray-500" />
 			<Popover modal>
 				<PopoverTrigger asChild>
 					<button className="group relative flex h-full w-full items-center px-2 text-left hover:bg-primary-wash">
@@ -1835,7 +1842,7 @@ const RowHeaderCell = memo(function RowHeaderCell({
 	return (
 		<div
 			className={cn(
-				'sticky left-0 z-20 flex h-full items-center border-b border-r-2 border-r-gray-500 bg-white text-[0.75rem] font-medium text-text-primary',
+				'sticky left-0 z-20 flex h-full items-center border-b bg-white text-[0.75rem] font-medium text-text-primary',
 				highlightBottomBorder ? 'border-b-primary' : 'border-b-border-primary'
 			)}
 			style={{ width: leftColumnWidth }}
@@ -1887,6 +1894,16 @@ const RowHeaderCell = memo(function RowHeaderCell({
 					objective={row.objective}
 					width={OBJECTIVE_COLUMN_WIDTH}
 				/>
+			) : null}
+			{/* The 2px right divider (boundary with the matrix). Drawn as an overlay
+			    rather than a `border-r` so it never miters against this cell's bottom
+			    row line — stacked per row it forms a continuous, crisp vertical line,
+			    matching the matrix run separator. */}
+			<div className="pointer-events-none absolute right-0 top-0 -bottom-px w-0.5 bg-gray-500" />
+			{/* When this row is highlighted, bridge the primary row line back over the
+			    divider overlay so it stays continuous across the boundary. */}
+			{highlightBottomBorder ? (
+				<div className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-primary" />
 			) : null}
 		</div>
 	);
