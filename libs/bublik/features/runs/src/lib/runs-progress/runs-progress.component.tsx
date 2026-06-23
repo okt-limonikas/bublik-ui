@@ -719,6 +719,7 @@ function RunsProgress(props: RunsProgressProps) {
 						<ButtonTw
 							variant="secondary"
 							size="xss"
+							state={allExpanded ? 'active' : 'default'}
 							onClick={handleToggleExpandAll}
 							disabled={expandableRowIds.length === 0}
 						>
