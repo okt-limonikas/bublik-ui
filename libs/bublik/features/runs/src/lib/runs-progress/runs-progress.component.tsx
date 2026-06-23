@@ -38,7 +38,7 @@ import {
 	BadgeVariants,
 	ButtonTw,
 	CardHeader,
-	Checkbox,
+	ColumnCheckmark,
 	ConclusionHoverCard,
 	DropdownMenu,
 	DropdownMenuContent,
@@ -1274,12 +1274,7 @@ function SortableColumnItem({
 				className="flex flex-1 cursor-pointer items-center gap-2 py-0.5"
 				onClick={() => onToggle(!checked)}
 			>
-				<Checkbox
-					checked={checked}
-					className="pointer-events-none"
-					tabIndex={-1}
-					aria-hidden
-				/>
+				<ColumnCheckmark checked={checked} />
 				<span className="flex flex-1 select-none items-center gap-1.5">
 					{column.label}
 					{column.icon ? (
