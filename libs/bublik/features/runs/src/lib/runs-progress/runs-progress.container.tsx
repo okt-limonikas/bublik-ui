@@ -56,7 +56,10 @@ function RunsProgressContainer() {
 
 	const progressRuns = useMemo(() => {
 		const statsByRunId = new Map(
-			(statsQuery.data?.runs ?? []).map((run) => [run.runId, run.results[0]])
+			(statsQuery.currentData?.runs ?? []).map((run) => [
+				run.runId,
+				run.results[0]
+			])
 		);
 
 		return sortedRuns
@@ -66,7 +69,7 @@ function RunsProgressContainer() {
 				return root ? { run, root } : null;
 			})
 			.filter((run): run is RunsProgressRun => run !== null);
-	}, [sortedRuns, statsQuery.data?.runs]);
+	}, [sortedRuns, statsQuery.currentData?.runs]);
 
 	const availableGroupKeys = useMemo(
 		() => getMetadataKeys(sortedRuns),
@@ -85,11 +88,17 @@ function RunsProgressContainer() {
 		[searchParams]
 	);
 
+	// Stats for the current runs haven't arrived yet. Use `currentData` (scoped to the
+	// current args) so a project/filter switch doesn't leave stale stats from the
+	// previous selection looking "ready" — that mismatch is what flashed the empty
+	// state. Treat as loading until the current stats resolve.
+	const statsPending = statsParams.length > 0 && !statsQuery.currentData;
+
 	if (runsQuery.error || statsQuery.error) {
 		return <RunsProgressError error={runsQuery.error || statsQuery.error} />;
 	}
 
-	if (runsQuery.isLoading || statsQuery.isLoading) return <RunsProgressLoading />;
+	if (runsQuery.isLoading || statsPending) return <RunsProgressLoading />;
 
 	if (!progressRuns.length || !rows.length) return <RunsProgressEmpty />;
 

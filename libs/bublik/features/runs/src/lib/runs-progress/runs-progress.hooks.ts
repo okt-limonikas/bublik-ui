@@ -51,7 +51,7 @@ function useRunsProgressRuns(): RunsProgressRunsResult {
 		{ refetchOnFocus: true, refetchOnMountOrArgChange: true }
 	);
 
-	const total = probeQuery.data?.pagination.count ?? 0;
+	const total = probeQuery.currentData?.pagination.count ?? 0;
 	const isCapped = !hasDateBoundary && total > SAFETY_CAP;
 	const effectiveSize = hasDateBoundary ? total : Math.min(total, SAFETY_CAP);
 
@@ -62,11 +62,15 @@ function useRunsProgressRuns(): RunsProgressRunsResult {
 		{ skip: effectiveSize === 0, refetchOnFocus: true, refetchOnMountOrArgChange: true }
 	);
 
-	const runs = fullQuery.data?.results ?? [];
-	// Once the probe resolves with 0 runs the full query is skipped, so loading must
-	// not hang on the skipped query — fall back to the probe's state in that case.
+	const runs = fullQuery.currentData?.results ?? [];
+	// Drive loading off `currentData` (the result for the *current* args), not `data`
+	// (the last result regardless of args, which RTK retains across an arg change). On a
+	// project/filter switch `currentData` is undefined until the new request resolves, so
+	// loading stays true through the transition and we never render stale or empty data.
+	// A genuine empty result keeps `probeQuery.currentData` defined (count 0), so loading
+	// ends correctly.
 	const isLoading =
-		probeQuery.isLoading || (effectiveSize > 0 && fullQuery.isLoading);
+		!probeQuery.currentData || (effectiveSize > 0 && !fullQuery.currentData);
 	const isFetching = probeQuery.isFetching || fullQuery.isFetching;
 
 	return {
