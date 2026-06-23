@@ -753,21 +753,21 @@ function RunsProgress(props: RunsProgressProps) {
 							availableGroupKeys={availableGroupKeys}
 							onGroupKeyChange={onGroupKeyChange}
 						/>
-						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
-							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
-							Expand All
-						</ButtonTw>
 						<ButtonTw
 							variant="secondary"
 							size="xss"
-							onClick={handleCollapseAll}
+							state={allExpanded && 'active'}
+							onClick={allExpanded ? handleCollapseAll : handleExpandAll}
 						>
 							<Icon
 								name="ArrowLeanUp"
 								size={20}
-								className="mr-1.5 rotate-180"
+								className={cn(
+									'mr-1.5 transition-transform',
+									!allExpanded && 'rotate-180'
+								)}
 							/>
-							Collapse
+							{allExpanded ? 'Collapse All' : 'Expand All'}
 						</ButtonTw>
 					</div>
 					<ColumnsVisibility
