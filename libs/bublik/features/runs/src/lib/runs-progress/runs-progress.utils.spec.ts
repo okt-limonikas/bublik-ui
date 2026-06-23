@@ -263,14 +263,18 @@ describe('runs progress utils', () => {
 		expect(getRunGroupValue(run, 'MISSING')).toBeNull();
 	});
 
-	it('passes runs through unchanged when no group key is given', () => {
+	it('passes runs through unchanged when neither dimension is given', () => {
 		const runs = [
 			{ run: createRun(1, '2024-01-01T00:00:00Z'), root: createRoot() }
 		];
-		const { orderedRuns, groups } = groupRuns(runs, null);
+		const { orderedRuns, groups, timeGroups } = groupRuns(runs, {
+			timeFrameDays: null,
+			metaKey: null
+		});
 
 		expect(orderedRuns).toBe(runs);
 		expect(groups).toEqual([]);
+		expect(timeGroups).toEqual([]);
 	});
 
 	it('groups runs by metadata value, ordering groups by first appearance', () => {
@@ -288,14 +292,23 @@ describe('runs progress utils', () => {
 				root: createRoot()
 			}
 		];
-		const { orderedRuns, groups } = groupRuns(runs, 'CFG');
+		const { orderedRuns, groups, timeGroups } = groupRuns(runs, {
+			timeFrameDays: null,
+			metaKey: 'CFG'
+		});
 
 		expect(orderedRuns.map((entry) => entry.run.id)).toEqual([3, 1, 2]);
-		expect(orderedRuns.map((entry) => entry.groupId)).toEqual(['a', 'a', 'b']);
-		expect(groups).toEqual([
-			{ id: 'a', label: 'a', startIndex: 0, runCount: 2 },
-			{ id: 'b', label: 'b', startIndex: 2, runCount: 1 }
+		expect(orderedRuns.map((entry) => entry.groupId)).toEqual([
+			'|a',
+			'|a',
+			'|b'
 		]);
+		expect(groups).toEqual([
+			{ id: '|a', label: 'a', startIndex: 0, runCount: 2 },
+			{ id: '|b', label: 'b', startIndex: 2, runCount: 1 }
+		]);
+		// Metadata-only grouping keeps a single band; no outer time band.
+		expect(timeGroups).toEqual([]);
 	});
 
 	it('buckets runs without the key into a "No <key>" group', () => {
@@ -306,14 +319,94 @@ describe('runs progress utils', () => {
 			},
 			{ run: createRunWithMeta(1, '2024-01-01T00:00:00Z', []), root: createRoot() }
 		];
-		const { orderedRuns, groups } = groupRuns(runs, 'CFG');
+		const { orderedRuns, groups } = groupRuns(runs, {
+			timeFrameDays: null,
+			metaKey: 'CFG'
+		});
 
-		expect(orderedRuns.map((entry) => entry.groupId)).toEqual(['a', '__other__']);
+		expect(orderedRuns.map((entry) => entry.groupId)).toEqual([
+			'|a',
+			'|__other__'
+		]);
 		expect(groups[1]).toEqual({
-			id: '__other__',
+			id: '|__other__',
 			label: 'No CFG',
 			startIndex: 1,
 			runCount: 1
+		});
+	});
+
+	describe('grouping by time frame', () => {
+		// Local-time starts keep the day boundary deterministic across timezones.
+		it('buckets runs into one band per calendar day (1-day window)', () => {
+			const runs = [
+				{ run: createRun(3, '2024-01-10T09:00:00'), root: createRoot() },
+				{ run: createRun(2, '2024-01-10T20:00:00'), root: createRoot() },
+				{ run: createRun(1, '2024-01-09T12:00:00'), root: createRoot() }
+			];
+			const { orderedRuns, groups, timeGroups } = groupRuns(runs, {
+				timeFrameDays: 1,
+				metaKey: null
+			});
+
+			// Same-day runs share a leaf; newest day first.
+			expect(orderedRuns.map((entry) => entry.run.id)).toEqual([3, 2, 1]);
+			expect(groups).toHaveLength(2);
+			expect(groups[0].runCount).toBe(2);
+			expect(groups[1].runCount).toBe(1);
+			expect(groups[0].label).toBe('Jan 10');
+			expect(groups[1].label).toBe('Jan 9');
+			// Time-only grouping uses the single leaf band; no outer band.
+			expect(timeGroups).toEqual([]);
+		});
+
+		it('aligns a 7-day window to ISO weeks (Mon–Sun)', () => {
+			// 2024-01-07 is a Sunday, 2024-01-08 the next Monday — different weeks.
+			const runs = [
+				{ run: createRun(2, '2024-01-08T12:00:00'), root: createRoot() },
+				{ run: createRun(1, '2024-01-07T12:00:00'), root: createRoot() }
+			];
+			const { groups } = groupRuns(runs, { timeFrameDays: 7, metaKey: null });
+
+			expect(groups).toHaveLength(2);
+			expect(groups[0].label).toBe('Jan 8 – Jan 14');
+			expect(groups[1].label).toBe('Jan 1 – Jan 7');
+		});
+
+		it('nests metadata groups under each time window with a composite id', () => {
+			const runs = [
+				{
+					run: createRunWithMeta(3, '2024-01-10T10:00:00', ['CFG=a']),
+					root: createRoot()
+				},
+				{
+					run: createRunWithMeta(2, '2024-01-10T11:00:00', ['CFG=b']),
+					root: createRoot()
+				},
+				{
+					run: createRunWithMeta(1, '2024-01-09T10:00:00', ['CFG=a']),
+					root: createRoot()
+				}
+			];
+			const { orderedRuns, groups, timeGroups } = groupRuns(runs, {
+				timeFrameDays: 1,
+				metaKey: 'CFG'
+			});
+
+			// Composite leaf id keeps same-CFG runs in different days apart, and resets
+			// the trend baseline at the inner-most boundary.
+			expect(orderedRuns.map((entry) => entry.groupId)).toEqual([
+				'9|a',
+				'9|b',
+				'8|a'
+			]);
+			// Leaf band reads as just the metadata value when the time band is shown.
+			expect(groups.map((group) => group.label)).toEqual(['a', 'b', 'a']);
+			// Outer band: one entry per day spanning its metadata leaves.
+			expect(timeGroups).toHaveLength(2);
+			expect(timeGroups[0]).toMatchObject({ runCount: 2, startIndex: 0 });
+			expect(timeGroups[0].label).toBe('Jan 10');
+			expect(timeGroups[1]).toMatchObject({ runCount: 1, startIndex: 2 });
 		});
 	});
 

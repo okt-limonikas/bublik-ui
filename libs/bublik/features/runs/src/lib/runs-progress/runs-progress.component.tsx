@@ -88,8 +88,12 @@ import {
 const ROW_HEIGHT = 34;
 const HEADER_STRIP_HEIGHT = 34;
 const HEADER_HEIGHT = 178;
-// Band drawn above the run headers when runs are grouped by a metadata key.
+// Band drawn above the run headers for the finest grouping level (metadata value,
+// or time window when grouping by time alone).
 const GROUP_HEADER_HEIGHT = 28;
+// Outer band stacked above GROUP_HEADER_HEIGHT, shown only when grouping by both a
+// time window and a metadata key.
+const TIME_GROUP_HEADER_HEIGHT = 28;
 const LEFT_COLUMN_WIDTH = 380;
 const SPARKLINE_WIDTH = 76;
 // Objective is rendered as its own divider-separated column after the sparkline;
@@ -107,6 +111,20 @@ const GROUP_COLORS = [
 // Each metric keeps a constant width so cell content never compresses/overflows as
 // columns are shown/hidden; the run column simply grows with the metric count.
 const METRIC_COLUMN_WIDTH = 104;
+
+// Time-frame presets for the outer (time) grouping band: a day count and the label
+// shown in the menu and trigger. Day-count windows are calendar-aligned in
+// `groupRuns` (7 → ISO weeks).
+const TIME_FRAME_OPTIONS: { days: number; label: string; short: string }[] = [
+	{ days: 1, label: '1 day', short: '1d' },
+	{ days: 3, label: '3 days', short: '3d' },
+	{ days: 7, label: '1 week', short: '1w' },
+	{ days: 14, label: '14 days', short: '14d' }
+];
+
+function getTimeFrameLabel(days: number | null, key: 'label' | 'short'): string {
+	return TIME_FRAME_OPTIONS.find((option) => option.days === days)?.[key] ?? '';
+}
 
 type RunsProgressColumnId =
 	| 'total'
@@ -300,7 +318,11 @@ interface RunsProgressProps {
 	runs: RunsProgressRun[];
 	rows: RunsProgressRow[];
 	groups: RunsProgressGroup[];
+	// Outer time band; non-empty only when grouping by both time and metadata.
+	timeGroups: RunsProgressGroup[];
 	groupKey: string | null;
+	timeFrameDays: number | null;
+	onTimeFrameDaysChange: (timeFrameDays: number | null) => void;
 	availableGroupKeys: string[];
 	onGroupKeyChange: (groupKey: string | null) => void;
 	filters: RunsProgressFilterSummary[];
@@ -317,7 +339,10 @@ function RunsProgress(props: RunsProgressProps) {
 		runs,
 		rows,
 		groups,
+		timeGroups,
 		groupKey,
+		timeFrameDays,
+		onTimeFrameDaysChange,
 		availableGroupKeys,
 		onGroupKeyChange,
 		isFetching,
@@ -470,9 +495,17 @@ function RunsProgress(props: RunsProgressProps) {
 	// offset is measured from this width.
 	const leftColumnWidth =
 		LEFT_COLUMN_WIDTH + (showObjective ? OBJECTIVE_COLUMN_WIDTH : 0);
-	// The group band only takes space while grouping is active.
-	const groupBandHeight = groups.length ? GROUP_HEADER_HEIGHT : 0;
+	// Each band only takes space while its level is active. The time band (outer)
+	// stacks above the leaf band, so leaf headers and run headers shift down by the
+	// combined height.
+	const timeBandHeight = timeGroups.length ? TIME_GROUP_HEADER_HEIGHT : 0;
+	const groupBandHeight = (groups.length ? GROUP_HEADER_HEIGHT : 0) + timeBandHeight;
 	const headerHeight = HEADER_HEIGHT + groupBandHeight;
+	// Human description of the active grouping, e.g. "1 week then CFG", "3 days",
+	// "CFG" — drives the left-column hint. Empty when nothing is grouped.
+	const groupLabel = [getTimeFrameLabel(timeFrameDays, 'label'), groupKey]
+		.filter(Boolean)
+		.join(' then ');
 
 	const rowVirtualizer = useVirtualizer({
 		count: visibleRows.length,
@@ -608,12 +641,14 @@ function RunsProgress(props: RunsProgressProps) {
 		}));
 	}, []);
 
-	function handleToggleExpandAll() {
+	function handleExpandAll() {
 		setExpandedRows(
-			allExpanded
-				? {}
-				: Object.fromEntries(expandableRowIds.map((rowId) => [rowId, true]))
+			Object.fromEntries(expandableRowIds.map((rowId) => [rowId, true]))
 		);
+	}
+
+	function handleCollapseAll() {
+		setExpandedRows({});
 	}
 
 	// Smooth-scroll the matrix so a group's first run sits just right of the
@@ -713,22 +748,26 @@ function RunsProgress(props: RunsProgressProps) {
 					<div className="flex items-center gap-2">
 						<GroupByMenu
 							groupKey={groupKey}
+							timeFrameDays={timeFrameDays}
+							onTimeFrameDaysChange={onTimeFrameDaysChange}
 							availableGroupKeys={availableGroupKeys}
 							onGroupKeyChange={onGroupKeyChange}
 						/>
+						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
+							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
+							Expand All
+						</ButtonTw>
 						<ButtonTw
 							variant="secondary"
 							size="xss"
-							state={allExpanded ? 'active' : 'default'}
-							onClick={handleToggleExpandAll}
-							disabled={expandableRowIds.length === 0}
+							onClick={handleCollapseAll}
 						>
 							<Icon
 								name="ArrowLeanUp"
 								size={20}
-								className={cn('mr-1.5', !allExpanded && 'rotate-180')}
+								className="mr-1.5 rotate-180"
 							/>
-							{allExpanded ? 'Collapse All' : 'Expand All'}
+							Collapse
 						</ButtonTw>
 					</div>
 					<ColumnsVisibility
@@ -762,15 +801,15 @@ function RunsProgress(props: RunsProgressProps) {
 								className="flex h-full flex-1 flex-col justify-end gap-1 px-2 py-2"
 								style={{ width: LEFT_COLUMN_WIDTH }}
 							>
-								<span className="uppercase text-text-menu">
+								<span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-menu">
 									Test procedures
 								</span>
 								<span className="text-[0.6875rem] font-medium text-text-secondary">
 									{visibleRows.length} visible rows across {runs.length} runs
 								</span>
-								<span className="text-[0.625rem] font-normal text-text-secondary">
-									{groupKey
-										? `Grouped by ${groupKey}. Hold Ctrl to scroll sideways.`
+								<span className="text-[0.6875rem] font-normal text-text-secondary">
+									{groupLabel
+										? `Grouped by ${groupLabel}. Hold Ctrl to scroll sideways.`
 										: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
 								</span>
 							</div>
@@ -783,15 +822,38 @@ function RunsProgress(props: RunsProgressProps) {
 								</div>
 							) : null}
 						</div>
+						{/* Outer time band, above the leaf band; no nav (h/l steps leaf
+						    groups). Each window spans its metadata groups. */}
+						{timeGroups.map((group) => (
+							<div
+								key={group.id}
+								className="absolute top-0 z-10 flex items-center border-b border-r-2 border-border-primary bg-badge-0 px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary"
+								style={{
+									height: TIME_GROUP_HEADER_HEIGHT,
+									width: group.runCount * runColumnWidth,
+									left: leftColumnWidth + group.startIndex * runColumnWidth
+								}}
+								title={group.label}
+							>
+								<span
+									className="sticky inline-flex min-w-0 items-center gap-1 truncate"
+									style={{ left: leftColumnWidth + 8 }}
+								>
+									<Icon name="Calendar" className="size-4 shrink-0" />
+									{group.label}
+								</span>
+							</div>
+						))}
 						{groups.map((group, groupIndex) => (
 							<div
 								key={group.id}
 								className={cn(
-									'absolute top-0 z-10 flex items-center justify-between border-b border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
+									'absolute z-10 flex items-center justify-between border-b border-r-2 border-border-primary px-2 text-[0.625rem] font-semibold uppercase tracking-wide text-text-primary',
 									GROUP_COLORS[groupIndex % GROUP_COLORS.length]
 								)}
 								style={{
 									height: GROUP_HEADER_HEIGHT,
+									top: timeBandHeight,
 									width: group.runCount * runColumnWidth,
 									// Positioned with `left` (not transform): a transform on the
 									// band would become the sticky children's containing block and
@@ -882,7 +944,7 @@ function RunsProgress(props: RunsProgressProps) {
 								leftColumnWidth={leftColumnWidth}
 								onJumpToCell={handleJumpToCell}
 								isExpanded={isRowExpanded(row, expandedRows)}
-								isGrouped={Boolean(groupKey)}
+								isGrouped={Boolean(groupKey) || Boolean(timeFrameDays)}
 								onToggle={handleRowToggle}
 								isPinned={pinnedCell !== null}
 								pinnedColumnId={pinnedCell?.columnId ?? null}
@@ -1354,16 +1416,25 @@ const NO_GROUPING_VALUE = '__none__';
 
 function GroupByMenu({
 	groupKey,
+	timeFrameDays,
+	onTimeFrameDaysChange,
 	availableGroupKeys,
 	onGroupKeyChange
 }: {
 	groupKey: string | null;
+	timeFrameDays: number | null;
+	onTimeFrameDaysChange: (timeFrameDays: number | null) => void;
 	availableGroupKeys: string[];
 	onGroupKeyChange: (groupKey: string | null) => void;
 }) {
 	const [isOpen, setIsOpen] = useState(false);
 
-	if (!availableGroupKeys.length) return null;
+	// The trigger reflects the active dimensions: time frame (short) then metadata,
+	// e.g. "1w · CFG", "3d", "CFG", falling back to "Group By".
+	const triggerLabel =
+		[getTimeFrameLabel(timeFrameDays, 'short'), groupKey]
+			.filter(Boolean)
+			.join(' · ') || 'Group By';
 
 	return (
 		<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -1371,33 +1442,74 @@ function GroupByMenu({
 				<ButtonTw
 					variant="secondary"
 					size="xss"
-					state={(isOpen || Boolean(groupKey)) && 'active'}
+					state={
+						(isOpen || Boolean(groupKey) || Boolean(timeFrameDays)) && 'active'
+					}
 				>
 					<Icon name="Category" size={20} className="mr-1.5" />
-					{groupKey ? `Group: ${groupKey}` : 'Group By'}
+					{triggerLabel === 'Group By' ? 'Group By' : `Group: ${triggerLabel}`}
 					<Icon name="ArrowShortSmall" className="ml-1.5" />
 				</ButtonTw>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent collisionPadding={{ right: 15 }} className="w-56">
 				<DropdownMenuLabel className="text-xs">
-					Group runs by metadata
+					Group runs by time frame
 				</DropdownMenuLabel>
 				<Separator className="h-px my-1 -mx-1" />
 				<DropdownMenuRadioGroup
-					value={groupKey ?? NO_GROUPING_VALUE}
+					value={
+						timeFrameDays === null ? NO_GROUPING_VALUE : String(timeFrameDays)
+					}
 					onValueChange={(value) =>
-						onGroupKeyChange(value === NO_GROUPING_VALUE ? null : value)
+						onTimeFrameDaysChange(
+							value === NO_GROUPING_VALUE ? null : Number(value)
+						)
 					}
 				>
 					<DropdownMenuRadioItem value={NO_GROUPING_VALUE} className="text-xs">
-						No grouping
+						Off
 					</DropdownMenuRadioItem>
-					{availableGroupKeys.map((key) => (
-						<DropdownMenuRadioItem key={key} value={key} className="text-xs">
-							{key}
+					{TIME_FRAME_OPTIONS.map((option) => (
+						<DropdownMenuRadioItem
+							key={option.days}
+							value={String(option.days)}
+							className="text-xs"
+						>
+							{option.label}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>
+				{availableGroupKeys.length ? (
+					<>
+						<Separator className="h-px my-1 -mx-1" />
+						<DropdownMenuLabel className="text-xs">
+							Then by metadata
+						</DropdownMenuLabel>
+						<Separator className="h-px my-1 -mx-1" />
+						<DropdownMenuRadioGroup
+							value={groupKey ?? NO_GROUPING_VALUE}
+							onValueChange={(value) =>
+								onGroupKeyChange(value === NO_GROUPING_VALUE ? null : value)
+							}
+						>
+							<DropdownMenuRadioItem
+								value={NO_GROUPING_VALUE}
+								className="text-xs"
+							>
+								No grouping
+							</DropdownMenuRadioItem>
+							{availableGroupKeys.map((key) => (
+								<DropdownMenuRadioItem
+									key={key}
+									value={key}
+									className="text-xs"
+								>
+									{key}
+								</DropdownMenuRadioItem>
+							))}
+						</DropdownMenuRadioGroup>
+					</>
+				) : null}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -1475,15 +1587,16 @@ function RunHeaderCell({
 				</ConclusionHoverCard>
 				<div className="flex min-w-0 flex-1 flex-col px-2 py-1.5">
 					<div className="flex items-center justify-between gap-2">
-						<LinkWithProject
-							to={`/runs/${run.id}`}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-						>
-							<Icon name="BoxArrowRight" size={16} />
-							Run
-						</LinkWithProject>
+						<ButtonTw asChild variant="secondary" size="xss">
+							<LinkWithProject
+								to={`/runs/${run.id}`}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								<Icon name="BoxArrowRight" className="mr-1.5" />
+								Run
+							</LinkWithProject>
+						</ButtonTw>
 						<RunSummaryBadges run={run} />
 					</div>
 					<span className="mt-0.5 text-[0.6875rem] font-medium leading-tight text-text-secondary">
@@ -2047,7 +2160,7 @@ const ResultColumnValue = memo(function ResultColumnValue({
 					rel="noopener noreferrer"
 					onClick={(event) => event.stopPropagation()}
 					title={`Open ${column.label} in run ${runId}`}
-					className="absolute left-1.5 top-1/2 z-10 grid size-6 -translate-y-1/2 place-items-center rounded bg-white text-primary shadow-[0_0_0_1px_hsl(var(--colors-border-primary))] transition-colors hover:bg-primary hover:text-white"
+					className="absolute left-1.5 top-1/2 z-10 grid size-6 -translate-y-1/2 place-items-center border border-border-primary hover:border-primary rounded bg-white text-primary transition-colors hover:bg-primary hover:text-white"
 				>
 					<Icon name="BoxArrowRight" size={16} />
 				</LinkWithProject>

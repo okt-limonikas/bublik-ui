@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 
 import { RunData, RunsData, RunStats } from '@/shared/types';
 import { formatTimeToAPI } from '@/shared/utils';
@@ -243,50 +243,165 @@ function getRunGroupValue(run: RunsData, key: string): string | null {
 	return item ? item.slice(prefix.length) : null;
 }
 
+// Calendar anchor for time-frame bucketing: 1 Jan 2024 is a Monday, so a 7-day
+// window aligns to ISO weeks (Mon–Sun). Bucket boundaries are derived from the
+// calendar alone (not from the present run set), so the same run always lands in
+// the same window regardless of the selected date range.
+const GROUP_TIME_ANCHOR = new Date(2024, 0, 1);
+
+type TimeBucket = { id: string; label: string };
+
 /**
- * Buckets runs by the value of a metadata key so same-configuration runs sit
- * together under one group header. Runs keep their incoming (newest-first) order
- * within a group, and groups follow first appearance — so the group holding the
- * newest run comes first. Runs missing the key fall into a trailing-by-appearance
- * "No <key>" bucket. When key is null the runs pass through unchanged.
+ * Maps a run to its fixed N-day calendar window. The run's local start day is
+ * measured in whole days from {@link GROUP_TIME_ANCHOR}; flooring by `days` keeps
+ * windows calendar-stable. The label is a single day (`Jun 23`) for 1-day windows
+ * and a span (`Jun 16 – 22`) otherwise.
+ */
+function getTimeBucket(run: RunsData, days: number): TimeBucket {
+	const runDay = parseISO(formatTimeToAPI(parseISO(run.start)));
+	const index = Math.floor(
+		differenceInCalendarDays(runDay, GROUP_TIME_ANCHOR) / days
+	);
+	const start = addDays(GROUP_TIME_ANCHOR, index * days);
+	const end = addDays(start, days - 1);
+	const label =
+		days === 1
+			? format(start, 'MMM d')
+			: `${format(start, 'MMM d')} – ${format(end, 'MMM d')}`;
+
+	return { id: String(index), label };
+}
+
+type GroupByOptions = {
+	/** N-day calendar window for the outer band; null disables time grouping. */
+	timeFrameDays: number | null;
+	/** Metadata key for the inner partition; null disables metadata grouping. */
+	metaKey: string | null;
+};
+
+type GroupRunsResult = {
+	orderedRuns: RunsProgressRun[];
+	/** Finest partition: drives the lower band, trend baselines, and h/l nav. */
+	groups: RunsProgressGroup[];
+	/** Outer time band, populated only when both dimensions are active. */
+	timeGroups: RunsProgressGroup[];
+};
+
+/**
+ * Buckets runs into up to two nested levels: an outer calendar time window and an
+ * inner metadata-value partition. Same-window/same-configuration runs sit together
+ * so runs can be reviewed in dated batches.
+ *
+ * The leaf `groups` is always the *finest* partition present — meta-only behaves
+ * exactly as the original single-key grouping, time-only yields one band of dated
+ * windows, and both yields metadata groups nested under each window. Each run's
+ * composite `groupId` (`time|meta`) resets the trend baseline at the inner-most
+ * boundary. `timeGroups` (the outer band) is only filled when both dimensions are
+ * active. Runs keep their incoming (newest-first) order within a leaf; time windows
+ * order newest-first, metadata values by first appearance, with a trailing
+ * "No <key>" bucket for runs missing the key. With neither dimension the runs pass
+ * through unchanged.
  */
 function groupRuns(
 	runs: RunsProgressRun[],
-	key: string | null
-): { orderedRuns: RunsProgressRun[]; groups: RunsProgressGroup[] } {
-	if (!key) return { orderedRuns: runs, groups: [] };
+	{ timeFrameDays, metaKey }: GroupByOptions
+): GroupRunsResult {
+	if (!timeFrameDays && !metaKey) {
+		return { orderedRuns: runs, groups: [], timeGroups: [] };
+	}
 
-	const buckets = new Map<string, RunsProgressRun[]>();
-	const order: string[] = [];
+	type Leaf = {
+		groupId: string;
+		timeId: string;
+		timeLabel: string;
+		metaLabel: string;
+		members: RunsProgressRun[];
+	};
+
+	const leaves = new Map<string, Leaf>();
+	const leafOrder: string[] = [];
 
 	runs.forEach((progressRun) => {
-		const value = getRunGroupValue(progressRun.run, key);
-		const groupId = value ?? OTHER_GROUP_ID;
+		const time = timeFrameDays
+			? getTimeBucket(progressRun.run, timeFrameDays)
+			: { id: '', label: '' };
+		const metaValue = metaKey
+			? getRunGroupValue(progressRun.run, metaKey) ?? OTHER_GROUP_ID
+			: '';
+		const groupId = `${time.id}|${metaValue}`;
 
-		if (!buckets.has(groupId)) {
-			buckets.set(groupId, []);
-			order.push(groupId);
+		if (!leaves.has(groupId)) {
+			leaves.set(groupId, {
+				groupId,
+				timeId: time.id,
+				timeLabel: time.label,
+				metaLabel:
+					metaValue === OTHER_GROUP_ID ? `No ${metaKey}` : metaValue,
+				members: []
+			});
+			leafOrder.push(groupId);
 		}
 
-		buckets.get(groupId)?.push({ ...progressRun, groupId });
+		leaves.get(groupId)?.members.push({ ...progressRun, groupId });
 	});
+
+	// Time windows newest-first; metadata values keep first-appearance order within
+	// a window. The incoming runs are already newest-first, so a stable sort by the
+	// numeric (descending) time index alone reorders windows without disturbing the
+	// metadata order inside each one.
+	const orderedLeaves = timeFrameDays
+		? [...leafOrder].sort((left, right) => {
+				const leftTime = Number(leaves.get(left)?.timeId);
+				const rightTime = Number(leaves.get(right)?.timeId);
+
+				return rightTime - leftTime;
+		  })
+		: leafOrder;
 
 	const orderedRuns: RunsProgressRun[] = [];
 	const groups: RunsProgressGroup[] = [];
+	const timeGroups: RunsProgressGroup[] = [];
+	const showTimeBand = Boolean(timeFrameDays) && Boolean(metaKey);
 
-	order.forEach((groupId) => {
-		const members = buckets.get(groupId) ?? [];
+	orderedLeaves.forEach((groupId) => {
+		const leaf = leaves.get(groupId);
+
+		if (!leaf) return;
+
+		const startIndex = orderedRuns.length;
 
 		groups.push({
 			id: groupId,
-			label: groupId === OTHER_GROUP_ID ? `No ${key}` : groupId,
-			startIndex: orderedRuns.length,
-			runCount: members.length
+			// With both dimensions the time is shown in the outer band, so the leaf
+			// reads as just the metadata value; otherwise it carries the active label.
+			label: showTimeBand
+				? leaf.metaLabel
+				: timeFrameDays
+				? leaf.timeLabel
+				: leaf.metaLabel,
+			startIndex,
+			runCount: leaf.members.length
 		});
-		orderedRuns.push(...members);
+
+		if (showTimeBand) {
+			const lastTimeGroup = timeGroups[timeGroups.length - 1];
+
+			if (lastTimeGroup && lastTimeGroup.id === leaf.timeId) {
+				lastTimeGroup.runCount += leaf.members.length;
+			} else {
+				timeGroups.push({
+					id: leaf.timeId,
+					label: leaf.timeLabel,
+					startIndex,
+					runCount: leaf.members.length
+				});
+			}
+		}
+
+		orderedRuns.push(...leaf.members);
 	});
 
-	return { orderedRuns, groups };
+	return { orderedRuns, groups, timeGroups };
 }
 
 /**

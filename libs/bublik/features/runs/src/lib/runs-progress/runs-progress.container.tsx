@@ -26,6 +26,7 @@ import type { RunsProgressRun } from './runs-progress.types';
 function RunsProgressContainer() {
 	const [searchParams] = useSearchParams();
 	const [groupKey, setGroupKey] = useState<string | null>(null);
+	const [timeFrameDays, setTimeFrameDays] = useState<number | null>(null);
 	const runsQuery = useRunsProgressRuns();
 	const { query } = useRunsQuery();
 
@@ -75,9 +76,9 @@ function RunsProgressContainer() {
 		() => getMetadataKeys(sortedRuns),
 		[sortedRuns]
 	);
-	const { orderedRuns, groups } = useMemo(
-		() => groupRuns(progressRuns, groupKey),
-		[progressRuns, groupKey]
+	const { orderedRuns, groups, timeGroups } = useMemo(
+		() => groupRuns(progressRuns, { timeFrameDays, metaKey: groupKey }),
+		[progressRuns, timeFrameDays, groupKey]
 	);
 	const rows = useMemo(
 		() => buildRunsProgressRows(orderedRuns),
@@ -107,7 +108,10 @@ function RunsProgressContainer() {
 			runs={orderedRuns}
 			rows={rows}
 			groups={groups}
+			timeGroups={timeGroups}
 			groupKey={groupKey}
+			timeFrameDays={timeFrameDays}
+			onTimeFrameDaysChange={setTimeFrameDays}
 			availableGroupKeys={availableGroupKeys}
 			onGroupKeyChange={setGroupKey}
 			filters={filters}
