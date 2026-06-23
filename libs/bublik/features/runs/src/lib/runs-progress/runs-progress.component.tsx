@@ -703,6 +703,11 @@ function RunsProgress(props: RunsProgressProps) {
 			>
 				<div className="flex items-center gap-3">
 					<div className="flex items-center gap-2">
+						<GroupByMenu
+							groupKey={groupKey}
+							availableGroupKeys={availableGroupKeys}
+							onGroupKeyChange={onGroupKeyChange}
+						/>
 						<ButtonTw variant="secondary" size="xss" onClick={handleExpandAll}>
 							<Icon name="ExpandSelection" size={20} className="mr-1.5" />
 							Expand All
@@ -720,11 +725,6 @@ function RunsProgress(props: RunsProgressProps) {
 							Collapse
 						</ButtonTw>
 					</div>
-					<GroupByMenu
-						groupKey={groupKey}
-						availableGroupKeys={availableGroupKeys}
-						onGroupKeyChange={onGroupKeyChange}
-					/>
 					<ColumnsVisibility
 						visibleColumnIds={visibleColumnIds}
 						onVisibleColumnIdsChange={setVisibleColumnIds}
