@@ -1547,8 +1547,8 @@ function RunHeaderCell({
 	);
 }
 
-// The thin good/bad ribbon above the Total/OK/NOK badges; widths come from the
-// run's precomputed OK/NOK percentages so the bar agrees with the badges.
+// The thin good/bad ribbon under the run id row; widths come from the run's
+// precomputed OK/NOK percentages so the bar agrees with the Total/OK/NOK badges.
 function RunHealthBar({ stats }: { stats: RunsData['stats'] }) {
 	const goodPct = stats.tests_total_ok_percent;
 	const badPct = stats.tests_total_nok_percent;
@@ -1568,7 +1568,7 @@ function RunSummaryBadges({ run }: { run: RunsProgressRun['run'] }) {
 	const { stats } = run;
 
 	return (
-		<div className="flex flex-wrap items-center gap-1">
+		<div className="flex shrink-0 flex-wrap items-center gap-1">
 			<SummaryBadge
 				to={to}
 				label="Total"
