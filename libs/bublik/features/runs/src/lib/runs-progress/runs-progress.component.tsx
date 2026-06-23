@@ -1311,9 +1311,11 @@ function SortableColumnItem({
 					tabIndex={-1}
 					aria-hidden
 				/>
-				<span className="flex select-none items-center gap-1.5">
+				<span className="flex flex-1 select-none items-center gap-1.5">
 					{column.label}
-					{column.icon}
+					{column.icon ? (
+						<span className="ml-auto inline-flex">{column.icon}</span>
+					) : null}
 				</span>
 			</div>
 		</div>
