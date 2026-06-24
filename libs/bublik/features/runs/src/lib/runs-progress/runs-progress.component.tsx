@@ -1586,8 +1586,8 @@ function RunHeaderCell({
 						{icon}
 					</div>
 				</ConclusionHoverCard>
-				<div className="flex min-w-0 flex-1 flex-col px-2 py-1.5">
-					<div className="flex items-center justify-between gap-2">
+				<div className="flex min-w-0 flex-1 flex-col gap-2 px-2 py-1.5">
+					<div className="flex items-center gap-2">
 						<ButtonTw asChild variant="secondary" size="xss">
 							<LinkWithProject
 								to={`/runs/${run.id}`}
@@ -1598,17 +1598,17 @@ function RunHeaderCell({
 								Run
 							</LinkWithProject>
 						</ButtonTw>
-						<RunSummaryBadges run={run} />
+						<span className="text-[0.75rem] font-medium leading-tight text-text-primary">
+							{formatTimestampToFull(run.start)}
+							{duration ? (
+								<span className="text-text-secondary/70"> · {duration}</span>
+							) : null}
+						</span>
 					</div>
-					<span className="mt-0.5 text-[0.6875rem] font-medium leading-tight text-text-secondary">
-						{formatTimestampToFull(run.start)}
-						{duration ? (
-							<span className="text-text-secondary/70"> · {duration}</span>
-						) : null}
-					</span>
+					<RunSummaryBadges run={run} />
 					<RunHealthBar stats={run.stats} />
 					{metadata.length ? (
-						<div className="mt-1 min-h-0 flex-1 overflow-y-auto">
+						<div className="min-h-0 flex-1 overflow-y-auto">
 							<BadgeList badges={metadata} className="bg-badge-4" />
 						</div>
 					) : null}
@@ -1676,7 +1676,7 @@ function RunHealthBar({ stats }: { stats: RunsData['stats'] }) {
 	const badPct = stats.tests_total_nok_percent;
 
 	return (
-		<div className="mt-1.5 flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
+		<div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
 			<div className="h-full bg-[#65cd84]" style={{ width: `${goodPct}%` }} />
 			<div className="h-full bg-[#f95c78]" style={{ width: `${badPct}%` }} />
 		</div>
