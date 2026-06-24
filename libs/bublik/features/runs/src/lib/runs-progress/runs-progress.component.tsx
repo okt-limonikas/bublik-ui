@@ -806,13 +806,13 @@ function RunsProgress(props: RunsProgressProps) {
 								className="flex h-full flex-1 flex-col justify-end gap-1 px-2 py-2"
 								style={{ width: LEFT_COLUMN_WIDTH }}
 							>
-								<span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-text-primary">
+								<span className="text-[0.75rem] font-semibold uppercase tracking-wide text-text-primary">
 									Test procedures
 								</span>
-								<span className="text-[0.6875rem] font-medium text-text-primary">
+								<span className="text-[0.75rem] font-medium text-text-primary">
 									{visibleRows.length} visible rows across {runs.length} runs
 								</span>
-								<span className="text-[0.6875rem] font-normal text-text-primary">
+								<span className="text-[0.75rem] font-normal text-text-primary">
 									{groupLabel
 										? `Grouped by ${groupLabel}. Hold Ctrl to scroll sideways.`
 										: 'Trend reads newest → oldest. Hold Ctrl to scroll sideways.'}
