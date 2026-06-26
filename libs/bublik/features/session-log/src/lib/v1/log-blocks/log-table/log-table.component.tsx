@@ -131,6 +131,7 @@ export const BlockLogTable = (props: LogTableBlock & { id: string }) => {
 			<SettingsContextProvider>
 				<div
 					data-block-type={props.type}
+					data-testid="log-table-block"
 					className="flex flex-col items-center"
 				>
 					<h2 className="w-full text-lg font-semibold text-text-primary mb-2">
@@ -234,6 +235,9 @@ export function LogRow({ row, table, isLast }: LogRowProps) {
 		<tr
 			id={row.id}
 			data-depth={row.depth}
+			data-testid="log-table-row"
+			data-log-row-id={row.id}
+			data-log-row-level={row.original.level}
 			className={cn(
 				'border-border-primary [&>*:not(:last-child)]:border-r',
 				shouldAddBorder && !isLast
@@ -277,6 +281,7 @@ function LogPagination(props: LogPaginationProps) {
 				variant="outline"
 				state={pageIndex === -1 ? 'active' : 'default'}
 				onClick={() => onPageClick?.(id, 0)}
+				data-testid="log-all-pages"
 			>
 				All pages
 			</ButtonTw>
