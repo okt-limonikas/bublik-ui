@@ -9,6 +9,10 @@ import { useRunSidebarState } from './use-run-sidebar-state';
 const setSearchParamsMock = vi.fn();
 const locationState = { openUnexpected: true };
 
+// Values returned by the mocked getSidebarStateString, keyed by sidebar key.
+// Tests mutate this to simulate different `_s` contents.
+const sidebarStateValues: Record<string, string | null> = {};
+
 vi.mock('react-router-dom', async () => {
 	const actual = await vi.importActual<typeof import('react-router-dom')>(
 		'react-router-dom'
@@ -35,7 +39,8 @@ vi.mock('@/bublik/features/sidebar', () => ({
 		CURRENT_RUN_ID: 'sidebar.currentRunId',
 		LAST_RUN_RUN_ID: 'sidebar.lastRunRunId'
 	},
-	getSidebarStateString: () => null,
+	getSidebarStateString: (_params: URLSearchParams, key: string) =>
+		sidebarStateValues[key] ?? null,
 	setSidebarStateValue: (
 		sidebarState: Record<string, string>,
 		key: string,
@@ -77,9 +82,24 @@ function HookRunner() {
 	return null;
 }
 
+function AvailabilityRunner({
+	onState
+}: {
+	onState: (isDetailsAvailable: boolean) => void;
+}) {
+	const { isDetailsAvailable } = useRunSidebarState();
+
+	onState(isDetailsAvailable);
+
+	return null;
+}
+
 describe('useRunSidebarState', () => {
 	beforeEach(() => {
 		setSearchParamsMock.mockClear();
+		for (const key of Object.keys(sidebarStateValues)) {
+			delete sidebarStateValues[key];
+		}
 	});
 
 	it('preserves navigation state while updating sidebar params', async () => {
@@ -91,5 +111,27 @@ describe('useRunSidebarState', () => {
 				state: locationState
 			});
 		});
+	});
+
+	it('keeps details available when the cached URL is pruned but the run id survives', () => {
+		// Simulates `lastDetails` dropped by prune while `cr` (currentRunId) remains.
+		sidebarStateValues['sidebar.run.lastDetails'] = null;
+		sidebarStateValues['sidebar.currentRunId'] = '42';
+
+		let isDetailsAvailable = false;
+		render(
+			<AvailabilityRunner onState={(value) => (isDetailsAvailable = value)} />
+		);
+
+		expect(isDetailsAvailable).toBe(true);
+	});
+
+	it('marks details unavailable when neither cached URL nor run id is present', () => {
+		let isDetailsAvailable = true;
+		render(
+			<AvailabilityRunner onState={(value) => (isDetailsAvailable = value)} />
+		);
+
+		expect(isDetailsAvailable).toBe(false);
 	});
 });

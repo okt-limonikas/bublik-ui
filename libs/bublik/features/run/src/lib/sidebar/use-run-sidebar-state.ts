@@ -82,7 +82,7 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 		);
 	}, [reportConfigsData]);
 
-	const isDetailsAvailable = !!lastDetailsUrl;
+	const isDetailsAvailable = !!lastDetailsUrl || !!currentRunId;
 	const isReportAvailable =
 		!!lastReportUrl ||
 		(!!currentRunId && !!reportConfigsData?.run_report_configs?.length);
