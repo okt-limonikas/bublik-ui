@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	DASHBOARD_SIDEBAR_KEYS,
+	HISTORY_SIDEBAR_KEYS,
+	LOG_SIDEBAR_KEYS,
 	RUNS_SIDEBAR_KEYS,
+	RUN_SIDEBAR_KEYS,
 	SHARED_SIDEBAR_KEYS,
 	SIDEBAR_STATE_PARAM
 } from './sidebar-state.constants';
@@ -20,41 +23,48 @@ import {
 	updateSidebarStateSearchParams
 } from './sidebar-url.utils';
 
-describe('sidebar URL state', () => {
-	it('stores sidebar state in compact v2 format and reads it through logical keys', () => {
-		const params = updateSidebarStateSearchParams(
-			new URLSearchParams(),
-			(sidebarState) => {
-				setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.LAST_MODE, 'list');
-				setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.SELECTED, [
-					'11',
-					'22'
-				]);
-				setSidebarStateValue(
-					sidebarState,
-					DASHBOARD_SIDEBAR_KEYS.LAST_URL,
-					'/dashboard?project=1&mode=default&_s=old&filter=failed'
-				);
-			}
-		);
+function updateState(
+	initial: URLSearchParams,
+	updater: Parameters<typeof updateSidebarStateSearchParams>[1]
+): URLSearchParams {
+	const params = updateSidebarStateSearchParams(initial, updater);
 
-		expect(params).not.toBeNull();
-		if (!params) {
-			throw new Error('Expected sidebar params to be updated');
-		}
+	expect(params).not.toBeNull();
+	if (!params) {
+		throw new Error('Expected sidebar params to be updated');
+	}
+
+	return params;
+}
+
+describe('sidebar URL state', () => {
+	it('stores sidebar state in compact v3 format and reads it through logical keys', () => {
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.LAST_MODE, 'charts');
+			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.SELECTED, [
+				'11',
+				'22'
+			]);
+			setSidebarStateValue(
+				sidebarState,
+				DASHBOARD_SIDEBAR_KEYS.LAST_URL,
+				'/dashboard?project=1&mode=default&_s=old&filter=failed'
+			);
+		});
 
 		const encodedState = params.get(SIDEBAR_STATE_PARAM);
 		expect(encodedState).toBeTruthy();
+		// Fixed-pathname URLs are stored as bare search strings.
 		expect(decodeCompressedState<unknown>(encodedState ?? '')).toEqual([
-			2,
+			3,
 			{
-				du: '/dashboard?filter=failed',
-				rm: 'list',
+				du: 'filter=failed',
+				rm: 'charts',
 				rs: ['11', '22']
 			}
 		]);
 		expect(getSidebarStateString(params, RUNS_SIDEBAR_KEYS.LAST_MODE)).toBe(
-			'list'
+			'charts'
 		);
 		expect(
 			getSidebarStateStringArray(params, RUNS_SIDEBAR_KEYS.SELECTED)
@@ -62,6 +72,102 @@ describe('sidebar URL state', () => {
 		expect(getSidebarStateString(params, DASHBOARD_SIDEBAR_KEYS.LAST_URL)).toBe(
 			'/dashboard?filter=failed'
 		);
+	});
+
+	it('omits default-equal entries so default browsing produces no _s at all', () => {
+		const params = updateSidebarStateSearchParams(
+			new URLSearchParams(),
+			(sidebarState) => {
+				setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.LAST_MODE, 'list');
+				setSidebarStateValue(
+					sidebarState,
+					RUNS_SIDEBAR_KEYS.LAST_LIST,
+					'/runs'
+				);
+				setSidebarStateValue(
+					sidebarState,
+					RUNS_SIDEBAR_KEYS.LAST_CHARTS,
+					'/runs?mode=charts'
+				);
+				setSidebarStateValue(
+					sidebarState,
+					HISTORY_SIDEBAR_KEYS.LAST_MODE,
+					'linear'
+				);
+				setSidebarStateValue(
+					sidebarState,
+					DASHBOARD_SIDEBAR_KEYS.LAST_URL,
+					'/dashboard'
+				);
+			}
+		);
+
+		// Nothing survives encoding, so the params are unchanged.
+		expect(params).toBeNull();
+	});
+
+	it('removes an existing _s when the state collapses to defaults', () => {
+		const initial = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				RUNS_SIDEBAR_KEYS.LAST_LIST,
+				'/runs?page=2'
+			);
+		});
+
+		const params = updateState(initial, (sidebarState) => {
+			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.LAST_LIST, '/runs');
+		});
+
+		expect(params.get(SIDEBAR_STATE_PARAM)).toBeNull();
+	});
+
+	it('omits run and log URLs reconstructible from the current run id', () => {
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
+				'86793'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				RUN_SIDEBAR_KEYS.LAST_DETAILS,
+				'/runs/86793'
+			);
+			setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_LOG, '/log/86793');
+			setSidebarStateValue(
+				sidebarState,
+				RUN_SIDEBAR_KEYS.LAST_REPORT,
+				'/runs/86793/report?config=5'
+			);
+		});
+
+		expect(decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')).toEqual(
+			[3, { cr: '86793', rr: '/runs/86793/report?config=5' }]
+		);
+	});
+
+	it('preserves explicitly-empty query params through the compact round trip', () => {
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				RUNS_SIDEBAR_KEYS.LAST_LIST,
+				'/runs?tagExpr=&runData=abc'
+			);
+		});
+
+		expect(getSidebarStateString(params, RUNS_SIDEBAR_KEYS.LAST_LIST)).toBe(
+			'/runs?tagExpr=&runData=abc'
+		);
+	});
+
+	it('treats undecodable _s values as empty state instead of crashing', () => {
+		const params = new URLSearchParams();
+		params.set(SIDEBAR_STATE_PARAM, 'not-a-compressed-value');
+
+		expect(
+			getSidebarStateString(params, DASHBOARD_SIDEBAR_KEYS.LAST_URL)
+		).toBeNull();
 	});
 
 	it('does not read old plain sidebar maps from _s', () => {
@@ -92,34 +198,65 @@ describe('sidebar URL state', () => {
 		).toBe('/runs?tagExpr=&runData=abc#section');
 	});
 
-	it('prunes optional sidebar URLs to keep _s under budget', () => {
-		const longUrl = `/dashboard?filter=${'x'.repeat(
-			SIDEBAR_STATE_MAX_LENGTH * 3
-		)}`;
-		const params = updateSidebarStateSearchParams(
-			new URLSearchParams(),
-			(sidebarState) => {
-				setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.SELECTED, [
-					'101',
-					'102'
-				]);
-				setSidebarStateValue(
-					sidebarState,
-					SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
-					'101'
-				);
-				setSidebarStateValue(
-					sidebarState,
-					DASHBOARD_SIDEBAR_KEYS.LAST_URL,
-					longUrl
-				);
-			}
-		);
+	it('keeps a realistic multi-feature state within a shareable length', () => {
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				RUNS_SIDEBAR_KEYS.LAST_LIST,
+				'/runs?startDate=2026-06-01&finishDate=2026-07-01&runData=label%3Dvalue&page=2'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				RUNS_SIDEBAR_KEYS.LAST_CHARTS,
+				'/runs?mode=charts&startDate=2026-06-01&finishDate=2026-07-01'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				HISTORY_SIDEBAR_KEYS.LAST_LINEAR,
+				'/history?testName=some_test_name&startDate=2026-06-01&finishDate=2026-07-01&results=PASSED&results=FAILED&page=1'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				DASHBOARD_SIDEBAR_KEYS.LAST_URL,
+				'/dashboard?date=2026-07-01'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
+				'86793'
+			);
+		});
 
-		expect(params).not.toBeNull();
-		if (!params) {
-			throw new Error('Expected sidebar params to be updated');
-		}
+		const encodedState = params.get(SIDEBAR_STATE_PARAM) ?? '';
+		expect(encodedState.length).toBeGreaterThan(0);
+		expect(encodedState.length).toBeLessThan(320);
+	});
+
+	it('prunes optional sidebar URLs to keep _s under budget', () => {
+		// Pseudo-random payload — repetitive content would compress away and
+		// never exceed the budget.
+		let seed = 1;
+		const noise = Array.from({ length: SIDEBAR_STATE_MAX_LENGTH * 3 }, () => {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			return (seed % 36).toString(36);
+		}).join('');
+		const longUrl = `/dashboard?filter=${noise}`;
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.SELECTED, [
+				'101',
+				'102'
+			]);
+			setSidebarStateValue(
+				sidebarState,
+				SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
+				'101'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				DASHBOARD_SIDEBAR_KEYS.LAST_URL,
+				longUrl
+			);
+		});
 
 		const encodedState = params.get(SIDEBAR_STATE_PARAM);
 		expect(encodedState?.length).toBeLessThanOrEqual(SIDEBAR_STATE_MAX_LENGTH);

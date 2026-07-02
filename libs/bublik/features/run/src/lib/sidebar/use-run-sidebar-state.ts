@@ -117,8 +117,12 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 					lastReportUrl ||
 					(currentRunId ? `/runs/${currentRunId}/report` : '/runs')
 				);
+			// `lastMode` is omitted from `_s` when it equals the default
+			// ('details'), so the default branch must mirror the 'details' case.
 			default:
-				return currentRunId ? `/runs/${currentRunId}` : '/runs';
+				return (
+					lastDetailsUrl || (currentRunId ? `/runs/${currentRunId}` : '/runs')
+				);
 		}
 	}, [lastMode, lastDetailsUrl, lastReportUrl, currentRunId]);
 

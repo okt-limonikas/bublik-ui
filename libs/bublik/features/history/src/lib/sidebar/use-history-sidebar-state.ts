@@ -188,8 +188,10 @@ export function useHistorySidebarState(): UseHistorySidebarStateReturn {
 				return lastSeriesUrl || seriesUrl;
 			case 'stacked':
 				return lastStackedUrl || stackedUrl || linearUrl;
+			// `lastMode` is omitted from `_s` when it equals the default
+			// ('linear'), so the default branch must mirror the 'linear' case.
 			default:
-				return linearUrl;
+				return lastLinearUrl || linearUrl;
 		}
 	}, [
 		lastMode,

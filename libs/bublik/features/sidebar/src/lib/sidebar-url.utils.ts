@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 
-import { parse, stringify } from 'zipson';
+import { createPath, parsePath } from 'react-router-dom';
+import {
+	compressToEncodedURIComponent,
+	decompressFromEncodedURIComponent
+} from 'lz-string';
 
 import { SIDEBAR_PREFIX } from '@/shared/types';
 
@@ -19,9 +23,16 @@ import {
 type SidebarStateValue = string | string[];
 type SidebarState = Record<string, SidebarStateValue>;
 type EncodedParamInput = string | (string | null)[] | null | undefined;
-type CompactSidebarState = [2, Record<string, SidebarStateValue>];
+type CompactSidebarState = [number, Record<string, SidebarStateValue>];
 
 export const SIDEBAR_STATE_MAX_LENGTH = 1500;
+
+/**
+ * Value convention: a value starting with `/` is a full URL, anything else
+ * for a URL key is a search string for that key's fixed pathname.
+ * Default-equal entries are omitted entirely.
+ */
+const SIDEBAR_STATE_VERSION = 3;
 
 const SIDEBAR_KEY_ALIASES = {
 	[RUNS_SIDEBAR_KEYS.SELECTED]: 'rs',
@@ -45,8 +56,6 @@ const SIDEBAR_KEY_ALIASES = {
 	[HISTORY_SIDEBAR_KEYS.LAST_STACKED]: 'hk',
 	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: 'hm',
 	[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID]: 'cr',
-	[SHARED_SIDEBAR_KEYS.LAST_LOG_RUN_ID]: 'lr',
-	[SHARED_SIDEBAR_KEYS.LAST_RUN_RUN_ID]: 'rrid',
 	[DASHBOARD_SIDEBAR_KEYS.LAST_URL]: 'du'
 } as const;
 
@@ -74,6 +83,40 @@ const URL_STATE_KEYS = new Set<string>([
 	DASHBOARD_SIDEBAR_KEYS.LAST_URL
 ]);
 
+/**
+ * Keys whose pathname never changes are stored as bare search strings — the
+ * pathname is re-attached on decode. Values that do start with `/` (dynamic
+ * paths, unexpected pathnames, old payloads) pass through untouched.
+ */
+const SIDEBAR_KEY_PATHNAMES: Record<string, string> = {
+	[RUNS_SIDEBAR_KEYS.LAST_LIST]: '/runs',
+	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: '/runs',
+	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: '/runs',
+	[RUNS_SIDEBAR_KEYS.LAST_COMPARE]: '/compare',
+	[RUNS_SIDEBAR_KEYS.LAST_MULTIPLE]: '/multiple',
+	[HISTORY_SIDEBAR_KEYS.LAST_LINEAR]: '/history',
+	[HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION]: '/history',
+	[HISTORY_SIDEBAR_KEYS.LAST_TREND]: '/history',
+	[HISTORY_SIDEBAR_KEYS.LAST_SERIES]: '/history',
+	[HISTORY_SIDEBAR_KEYS.LAST_STACKED]: '/history',
+	[DASHBOARD_SIDEBAR_KEYS.LAST_URL]: '/dashboard'
+};
+
+/**
+ * Compact-form values that the per-feature hooks reconstruct on their own
+ * (`lastListUrl || '/runs'`, `lastMode || 'linear'`, …) — storing them in `_s`
+ * adds length without adding information, so they are dropped on encode.
+ */
+const SIDEBAR_KEY_DEFAULTS: Record<string, string> = {
+	[RUNS_SIDEBAR_KEYS.LAST_MODE]: 'list',
+	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: 'mode=charts',
+	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: 'mode=progress',
+	[RUN_SIDEBAR_KEYS.LAST_MODE]: 'details',
+	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: 'linear',
+	[LOG_SIDEBAR_KEYS.LAST_MODE]: 'treeAndinfoAndlog',
+	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE]: 'default'
+};
+
 const SIDEBAR_STATE_PRUNE_ORDER = [
 	DASHBOARD_SIDEBAR_KEYS.LAST_URL,
 	HISTORY_SIDEBAR_KEYS.LAST_STACKED,
@@ -90,8 +133,6 @@ const SIDEBAR_STATE_PRUNE_ORDER = [
 	RUNS_SIDEBAR_KEYS.LAST_PROGRESS,
 	RUNS_SIDEBAR_KEYS.LAST_CHARTS,
 	RUNS_SIDEBAR_KEYS.LAST_LIST,
-	SHARED_SIDEBAR_KEYS.LAST_LOG_RUN_ID,
-	SHARED_SIDEBAR_KEYS.LAST_RUN_RUN_ID,
 	HISTORY_SIDEBAR_KEYS.LAST_MODE,
 	MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE,
 	LOG_SIDEBAR_KEYS.LAST_MODE,
@@ -100,81 +141,6 @@ const SIDEBAR_STATE_PRUNE_ORDER = [
 	RUNS_SIDEBAR_KEYS.SELECTED,
 	SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID
 ];
-
-interface GlobalWithBuffer {
-	Buffer?: {
-		from: (
-			value: string | Uint8Array,
-			encoding?: string
-		) => {
-			toString: (encoding?: string) => string;
-		};
-	};
-}
-
-function bytesToBinary(bytes: Uint8Array): string {
-	let binary = '';
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-	return binary;
-}
-
-function binaryToBytes(binary: string): Uint8Array {
-	return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-
-function toBase64(value: string): string | null {
-	const bytes = new TextEncoder().encode(value);
-
-	if (typeof globalThis.btoa === 'function') {
-		return globalThis.btoa(bytesToBinary(bytes));
-	}
-
-	const buffer = (globalThis as GlobalWithBuffer).Buffer;
-	if (buffer) {
-		return buffer.from(bytes).toString('base64');
-	}
-
-	return null;
-}
-
-function fromBase64(value: string): string | null {
-	if (typeof globalThis.atob === 'function') {
-		const binary = globalThis.atob(value);
-		return new TextDecoder().decode(binaryToBytes(binary));
-	}
-
-	const buffer = (globalThis as GlobalWithBuffer).Buffer;
-	if (buffer) {
-		const binary = buffer.from(value, 'base64').toString('binary');
-		return new TextDecoder().decode(binaryToBytes(binary));
-	}
-
-	return null;
-}
-
-function encodeBase64Url(value: string): string | null {
-	const base64 = toBase64(value);
-	if (!base64) {
-		return null;
-	}
-
-	return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/u, '');
-}
-
-function decodeBase64Url(value: string): string | null {
-	const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-	const padding = normalized.length % 4;
-	const base64 =
-		padding === 0 ? normalized : `${normalized}${'='.repeat(4 - padding)}`;
-
-	try {
-		return fromBase64(base64);
-	} catch {
-		return null;
-	}
-}
 
 function getEncodedValue(input: EncodedParamInput): string | null | undefined {
 	if (Array.isArray(input)) {
@@ -210,7 +176,7 @@ function isCompactSidebarState(value: unknown): value is CompactSidebarState {
 	return (
 		Array.isArray(value) &&
 		value.length === 2 &&
-		value[0] === 2 &&
+		value[0] === SIDEBAR_STATE_VERSION &&
 		!!value[1] &&
 		typeof value[1] === 'object' &&
 		!Array.isArray(value[1])
@@ -233,6 +199,58 @@ function normalizeSidebarStateValue(
 	return normalizedValue ? normalizedValue : null;
 }
 
+function toCompactValue(key: string, value: string): string {
+	const pathname = SIDEBAR_KEY_PATHNAMES[key];
+	if (!pathname) {
+		return value;
+	}
+
+	if (value === pathname) {
+		return '';
+	}
+
+	if (value.startsWith(`${pathname}?`)) {
+		return value.slice(pathname.length + 1);
+	}
+
+	return value;
+}
+
+function fromCompactValue(key: string, value: string): string {
+	if (value.startsWith('/')) {
+		return value;
+	}
+
+	const pathname = SIDEBAR_KEY_PATHNAMES[key];
+	if (!pathname) {
+		return value;
+	}
+
+	return value ? `${pathname}?${value}` : pathname;
+}
+
+function getCompactDefault(
+	key: string,
+	sidebarState: SidebarState
+): string | null {
+	const staticDefault = SIDEBAR_KEY_DEFAULTS[key];
+	if (staticDefault !== undefined) {
+		return staticDefault;
+	}
+
+	const runId = sidebarState[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID];
+	if (typeof runId === 'string' && runId) {
+		if (key === RUN_SIDEBAR_KEYS.LAST_DETAILS) {
+			return `/runs/${runId}`;
+		}
+		if (key === LOG_SIDEBAR_KEYS.LAST_LOG) {
+			return `/log/${runId}`;
+		}
+	}
+
+	return null;
+}
+
 function decodeSidebarState(value: string): SidebarState {
 	const decodedState = decodeCompressedState<unknown>(value);
 	if (!isCompactSidebarState(decodedState)) {
@@ -247,7 +265,9 @@ function decodeSidebarState(value: string): SidebarState {
 			continue;
 		}
 
-		const normalizedValue = normalizeSidebarStateValue(key, entry);
+		const expandedValue =
+			typeof entry === 'string' ? fromCompactValue(key, entry) : entry;
+		const normalizedValue = normalizeSidebarStateValue(key, expandedValue);
 		if (normalizedValue) {
 			normalized[key] = normalizedValue;
 		}
@@ -266,12 +286,31 @@ function compactSidebarState(sidebarState: SidebarState): CompactSidebarState {
 		}
 
 		const normalizedValue = normalizeSidebarStateValue(key, value);
-		if (normalizedValue) {
-			compactState[alias] = normalizedValue;
+		if (!normalizedValue) {
+			continue;
 		}
+
+		if (isStringArray(normalizedValue)) {
+			compactState[alias] = normalizedValue;
+			continue;
+		}
+
+		const compactValue = toCompactValue(key, normalizedValue);
+		if (
+			!compactValue ||
+			compactValue === getCompactDefault(key, sidebarState)
+		) {
+			continue;
+		}
+
+		compactState[alias] = compactValue;
 	}
 
-	return [2, compactState];
+	return [SIDEBAR_STATE_VERSION, compactState];
+}
+
+function isEmptyCompactState(sidebarState: SidebarState): boolean {
+	return Object.keys(compactSidebarState(sidebarState)[1]).length === 0;
 }
 
 function encodeSidebarState(sidebarState: SidebarState): string {
@@ -328,46 +367,47 @@ function removeLegacySidebarParams(searchParams: URLSearchParams): void {
 }
 
 /**
- * Encodes any serializable value to base64url(zipson(value)).
+ * Encodes any serializable value to a URI-safe compressed string.
  */
 export function encodeCompressedState(value: unknown): string {
-	const zipped = stringify(value);
-	const encoded = encodeBase64Url(zipped);
-
-	if (!encoded) {
-		throw new Error('Failed to encode compressed URL state');
-	}
-
-	return encoded;
+	return compressToEncodedURIComponent(JSON.stringify(value));
 }
 
 /**
- * Decodes base64url(zipson(value)) to original value.
+ * Decodes a URI-safe lz-string compressed state value.
  */
 export function decodeCompressedState<T>(value: string): T | null {
-	const decoded = decodeBase64Url(value);
-	if (!decoded) {
+	const json = decompressFromEncodedURIComponent(value);
+	if (!json) {
 		return null;
 	}
 
-	try {
-		return parse(decoded) as T;
-	} catch {
-		return null;
-	}
+	const parsed = tryParseJson<T>(json);
+	return parsed === undefined ? null : parsed;
 }
 
+let cachedEncodedState: string | null = null;
+let cachedSidebarState: SidebarState = {};
+
 /**
- * Reads compressed sidebar state from `_s` URL param.
+ * Reads compressed sidebar state from `_s` URL param. The same encoded value
+ * is read many times per render across the nav hooks, so the last decode is
+ * memoized; callers get a copy because `updateSidebarStateSearchParams`
+ * mutates the returned map.
  */
 export function getSidebarState(searchParams: URLSearchParams): SidebarState {
 	const encodedState = searchParams.get(SIDEBAR_STATE_PARAM);
 
-	if (encodedState) {
-		return decodeSidebarState(encodedState);
+	if (!encodedState) {
+		return {};
 	}
 
-	return {};
+	if (encodedState !== cachedEncodedState) {
+		cachedSidebarState = decodeSidebarState(encodedState);
+		cachedEncodedState = encodedState;
+	}
+
+	return { ...cachedSidebarState };
 }
 
 /**
@@ -410,6 +450,8 @@ export function setSidebarStateValue(
 
 /**
  * Applies updater to compressed sidebar state and writes back to `_s`.
+ * States that compact to nothing (only default-equal entries) remove the
+ * param entirely, so default browsing produces clean URLs.
  */
 export function updateSidebarStateSearchParams(
 	searchParams: URLSearchParams,
@@ -422,7 +464,7 @@ export function updateSidebarStateSearchParams(
 		updater(sidebarState);
 		const prunedState = pruneSidebarState(normalizeSidebarState(sidebarState));
 
-		if (Object.keys(prunedState).length === 0) {
+		if (isEmptyCompactState(prunedState)) {
 			newParams.delete(SIDEBAR_STATE_PARAM);
 			return;
 		}
@@ -445,11 +487,12 @@ export function getUpdatedSearchParams(
  * Strips sidebar params from a URL to avoid recursive state growth.
  */
 export function stripSidebarParamsFromUrl(url: string): string {
-	if (!url.includes('?')) return url;
+	const path = parsePath(url);
+	if (!path.search) {
+		return url;
+	}
 
-	const [pathname, searchAndHash] = url.split('?');
-	const [searchStr, hash] = searchAndHash.split('#');
-	const params = new URLSearchParams(searchStr);
+	const params = new URLSearchParams(path.search);
 
 	const keysToRemove: string[] = [];
 	params.forEach((value, key) => {
@@ -464,9 +507,12 @@ export function stripSidebarParamsFromUrl(url: string): string {
 	});
 	keysToRemove.forEach((key) => params.delete(key));
 
-	const cleanedSearch = params.toString();
-	const cleanedPath = cleanedSearch ? `${pathname}?${cleanedSearch}` : pathname;
-	return hash ? `${cleanedPath}#${hash}` : cleanedPath;
+	const search = params.toString();
+	return createPath({
+		pathname: path.pathname ?? '',
+		search: search ? `?${search}` : '',
+		hash: path.hash
+	});
 }
 
 /**
@@ -487,30 +533,40 @@ export function getModeFromSearch<T extends string>(
  * Gets base URL without mode parameter.
  */
 export function getBaseUrl(url: string): string {
-	if (!url.includes('?')) return url;
-	const [pathname, searchStr] = url.split('?');
-	const params = new URLSearchParams(searchStr);
+	const path = parsePath(url);
+	if (!path.search) {
+		return url;
+	}
+
+	const params = new URLSearchParams(path.search);
 	params.delete('mode');
 	const search = params.toString();
-	return search ? `${pathname}?${search}` : pathname;
+	return createPath({
+		pathname: path.pathname ?? '',
+		search: search ? `?${search}` : '',
+		hash: path.hash
+	});
 }
 
 /**
  * Adds mode parameter to URL.
  */
 export function addModeToUrl(baseUrl: string, mode: string): string {
-	if (!baseUrl.includes('?')) {
-		return mode === 'default' ? baseUrl : `${baseUrl}?mode=${mode}`;
-	}
-	const [pathname, searchStr] = baseUrl.split('?');
-	const params = new URLSearchParams(searchStr);
+	const path = parsePath(baseUrl);
+	const params = new URLSearchParams(path.search ?? '');
+
 	if (mode === 'default') {
 		params.delete('mode');
 	} else {
 		params.set('mode', mode);
 	}
+
 	const search = params.toString();
-	return search ? `${pathname}?${search}` : pathname;
+	return createPath({
+		pathname: path.pathname ?? '',
+		search: search ? `?${search}` : '',
+		hash: path.hash
+	});
 }
 
 /**
@@ -556,7 +612,7 @@ export function decodeCompressedOrJsonState<T>(
 }
 
 /**
- * Returns true if value is encoded as base64url(zipson(...)).
+ * Returns true if value is encoded as compressed state.
  */
 export function isCompressedStateValue(value: string): boolean {
 	return decodeCompressedState<unknown>(value) !== null;

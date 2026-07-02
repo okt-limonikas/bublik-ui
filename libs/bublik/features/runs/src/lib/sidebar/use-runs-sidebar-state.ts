@@ -153,8 +153,10 @@ export function useRunsSidebarState(): UseRunsSidebarStateReturn {
 				return lastCompareUrl || '/compare';
 			case 'multiple':
 				return lastMultipleUrl || '/multiple';
+			// `lastMode` is omitted from `_s` when it equals the default ('list'),
+			// so the default branch must mirror the 'list' case.
 			default:
-				return '/runs';
+				return lastListUrl || '/runs';
 		}
 	}, [
 		lastMode,
