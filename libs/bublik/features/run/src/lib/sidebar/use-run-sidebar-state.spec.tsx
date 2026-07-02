@@ -36,8 +36,7 @@ vi.mock('@/bublik/features/sidebar', () => ({
 		LAST_MODE: 'sidebar.run.lastMode'
 	},
 	SHARED_SIDEBAR_KEYS: {
-		CURRENT_RUN_ID: 'sidebar.currentRunId',
-		LAST_RUN_RUN_ID: 'sidebar.lastRunRunId'
+		CURRENT_RUN_ID: 'sidebar.currentRunId'
 	},
 	getSidebarStateString: (_params: URLSearchParams, key: string) =>
 		sidebarStateValues[key] ?? null,

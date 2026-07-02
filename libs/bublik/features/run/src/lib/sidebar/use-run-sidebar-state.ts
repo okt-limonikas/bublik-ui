@@ -157,11 +157,6 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 						SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
 						extractedRunId
 					);
-					setSidebarStateValue(
-						sidebarState,
-						SHARED_SIDEBAR_KEYS.LAST_RUN_RUN_ID,
-						extractedRunId
-					);
 				}
 			});
 		},

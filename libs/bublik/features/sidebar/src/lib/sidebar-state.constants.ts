@@ -69,9 +69,7 @@ export type HistorySidebarMode =
 	| 'stacked';
 
 export const SHARED_SIDEBAR_KEYS = {
-	CURRENT_RUN_ID: `${SIDEBAR_PREFIX}.shared.currentRunId`,
-	LAST_LOG_RUN_ID: `${SIDEBAR_PREFIX}.shared.lastLogRunId`,
-	LAST_RUN_RUN_ID: `${SIDEBAR_PREFIX}.shared.lastRunRunId`
+	CURRENT_RUN_ID: `${SIDEBAR_PREFIX}.shared.currentRunId`
 } as const;
 
 export const DASHBOARD_SIDEBAR_KEYS = {

@@ -120,11 +120,6 @@ export function useLogSidebarState(): UseLogSidebarStateReturn {
 						SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
 						extractedRunId
 					);
-					setSidebarStateValue(
-						sidebarState,
-						SHARED_SIDEBAR_KEYS.LAST_LOG_RUN_ID,
-						extractedRunId
-					);
 				}
 			});
 		},
