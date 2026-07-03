@@ -43,113 +43,135 @@ export const SIDEBAR_STATE_MAX_LENGTH = 1500;
  */
 const SIDEBAR_STATE_VERSION = 3;
 
-const SIDEBAR_KEY_ALIASES = {
-	[RUNS_SIDEBAR_KEYS.SELECTED]: 'rs',
-	[RUNS_SIDEBAR_KEYS.LAST_LIST]: 'rll',
-	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: 'rlc',
-	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: 'rlpr',
-	[RUNS_SIDEBAR_KEYS.LAST_COMPARE]: 'rlp',
-	[RUNS_SIDEBAR_KEYS.LAST_MULTIPLE]: 'rlm',
-	[RUNS_SIDEBAR_KEYS.LAST_MODE]: 'rm',
-	[RUN_SIDEBAR_KEYS.LAST_DETAILS]: 'rd',
-	[RUN_SIDEBAR_KEYS.LAST_REPORT]: 'rr',
-	[RUN_SIDEBAR_KEYS.LAST_MODE]: 'rnm',
-	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MEASUREMENTS]: 'mmu',
-	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE]: 'mm',
-	[LOG_SIDEBAR_KEYS.LAST_LOG]: 'll',
-	[LOG_SIDEBAR_KEYS.LAST_MODE]: 'lm',
-	[HISTORY_SIDEBAR_KEYS.LAST_LINEAR]: 'hl',
-	[HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION]: 'ha',
-	[HISTORY_SIDEBAR_KEYS.LAST_TREND]: 'ht',
-	[HISTORY_SIDEBAR_KEYS.LAST_SERIES]: 'hs',
-	[HISTORY_SIDEBAR_KEYS.LAST_STACKED]: 'hk',
-	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: 'hm',
-	[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID]: 'cr',
-	[DASHBOARD_SIDEBAR_KEYS.LAST_URL]: 'du'
-} as const;
-
-const SIDEBAR_KEY_ALIAS_MAP: Record<string, string> = SIDEBAR_KEY_ALIASES;
-
-const SIDEBAR_ALIAS_KEYS = Object.fromEntries(
-	Object.entries(SIDEBAR_KEY_ALIAS_MAP).map(([key, alias]) => [alias, key])
-) as Record<string, string>;
-
-const URL_STATE_KEYS = new Set<string>([
-	RUNS_SIDEBAR_KEYS.LAST_LIST,
-	RUNS_SIDEBAR_KEYS.LAST_CHARTS,
-	RUNS_SIDEBAR_KEYS.LAST_PROGRESS,
-	RUNS_SIDEBAR_KEYS.LAST_COMPARE,
-	RUNS_SIDEBAR_KEYS.LAST_MULTIPLE,
-	RUN_SIDEBAR_KEYS.LAST_DETAILS,
-	RUN_SIDEBAR_KEYS.LAST_REPORT,
-	MEASUREMENTS_SIDEBAR_KEYS.LAST_MEASUREMENTS,
-	LOG_SIDEBAR_KEYS.LAST_LOG,
-	HISTORY_SIDEBAR_KEYS.LAST_LINEAR,
-	HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION,
-	HISTORY_SIDEBAR_KEYS.LAST_TREND,
-	HISTORY_SIDEBAR_KEYS.LAST_SERIES,
-	HISTORY_SIDEBAR_KEYS.LAST_STACKED,
-	DASHBOARD_SIDEBAR_KEYS.LAST_URL
-]);
+interface SidebarKeyConfig {
+	key: string;
+	/** Short name the key is stored under inside the compact `_s` payload. */
+	alias: string;
+	/** URL-valued key: stripped of recursive sidebar params on read/write. */
+	isUrl?: boolean;
+	/**
+	 * Fixed pathname (implies `isUrl`): the value is stored as a bare search
+	 * string and the pathname is re-attached on decode. Values that do start
+	 * with `/` (dynamic paths, unexpected pathnames, old payloads) pass
+	 * through untouched.
+	 */
+	pathname?: string;
+	/**
+	 * Full-form value the per-feature hooks reconstruct on their own from the
+	 * shared defaults in sidebar-state.constants — storing it in `_s` adds
+	 * length without adding information, so it is dropped on encode.
+	 */
+	defaultValue?: string;
+}
 
 /**
- * Keys whose pathname never changes are stored as bare search strings — the
- * pathname is re-attached on decode. Values that do start with `/` (dynamic
- * paths, unexpected pathnames, old payloads) pass through untouched.
+ * Everything the encoder knows about a key lives in this one registry.
+ * Entries are ordered by prune priority: when `_s` exceeds the length
+ * budget, keys are dropped front to back. Exported for the registry
+ * invariant spec only.
  */
-const SIDEBAR_KEY_PATHNAMES: Record<string, string> = {
-	[RUNS_SIDEBAR_KEYS.LAST_LIST]: '/runs',
-	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: '/runs',
-	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: '/runs',
-	[RUNS_SIDEBAR_KEYS.LAST_COMPARE]: '/compare',
-	[RUNS_SIDEBAR_KEYS.LAST_MULTIPLE]: '/multiple',
-	[HISTORY_SIDEBAR_KEYS.LAST_LINEAR]: '/history',
-	[HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION]: '/history',
-	[HISTORY_SIDEBAR_KEYS.LAST_TREND]: '/history',
-	[HISTORY_SIDEBAR_KEYS.LAST_SERIES]: '/history',
-	[HISTORY_SIDEBAR_KEYS.LAST_STACKED]: '/history',
-	[DASHBOARD_SIDEBAR_KEYS.LAST_URL]: '/dashboard'
-};
-
-/**
- * Full-form values that the per-feature hooks reconstruct on their own from
- * the shared defaults in sidebar-state.constants — storing them in `_s` adds
- * length without adding information, so they are dropped on encode.
- */
-const SIDEBAR_KEY_DEFAULTS: Record<string, string> = {
-	[RUNS_SIDEBAR_KEYS.LAST_MODE]: RUNS_MODE_DEFAULT,
-	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: RUNS_CHARTS_DEFAULT_URL,
-	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: RUNS_PROGRESS_DEFAULT_URL,
-	[RUN_SIDEBAR_KEYS.LAST_MODE]: RUN_MODE_DEFAULT,
-	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: HISTORY_MODE_DEFAULT,
-	[LOG_SIDEBAR_KEYS.LAST_MODE]: LOG_MODE_DEFAULT,
-	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE]: MEASUREMENTS_MODE_DEFAULT
-};
-
-const SIDEBAR_STATE_PRUNE_ORDER = [
-	DASHBOARD_SIDEBAR_KEYS.LAST_URL,
-	HISTORY_SIDEBAR_KEYS.LAST_STACKED,
-	HISTORY_SIDEBAR_KEYS.LAST_SERIES,
-	HISTORY_SIDEBAR_KEYS.LAST_TREND,
-	HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION,
-	HISTORY_SIDEBAR_KEYS.LAST_LINEAR,
-	MEASUREMENTS_SIDEBAR_KEYS.LAST_MEASUREMENTS,
-	LOG_SIDEBAR_KEYS.LAST_LOG,
-	RUN_SIDEBAR_KEYS.LAST_REPORT,
-	RUN_SIDEBAR_KEYS.LAST_DETAILS,
-	RUNS_SIDEBAR_KEYS.LAST_MULTIPLE,
-	RUNS_SIDEBAR_KEYS.LAST_COMPARE,
-	RUNS_SIDEBAR_KEYS.LAST_PROGRESS,
-	RUNS_SIDEBAR_KEYS.LAST_CHARTS,
-	RUNS_SIDEBAR_KEYS.LAST_LIST,
-	HISTORY_SIDEBAR_KEYS.LAST_MODE,
-	MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE,
-	LOG_SIDEBAR_KEYS.LAST_MODE,
-	RUN_SIDEBAR_KEYS.LAST_MODE,
-	RUNS_SIDEBAR_KEYS.LAST_MODE,
-	RUNS_SIDEBAR_KEYS.SELECTED,
-	SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID
+export const SIDEBAR_KEY_REGISTRY: readonly SidebarKeyConfig[] = [
+	{
+		key: DASHBOARD_SIDEBAR_KEYS.LAST_URL,
+		alias: 'du',
+		pathname: '/dashboard'
+	},
+	{
+		key: HISTORY_SIDEBAR_KEYS.LAST_STACKED,
+		alias: 'hk',
+		pathname: '/history'
+	},
+	{ key: HISTORY_SIDEBAR_KEYS.LAST_SERIES, alias: 'hs', pathname: '/history' },
+	{ key: HISTORY_SIDEBAR_KEYS.LAST_TREND, alias: 'ht', pathname: '/history' },
+	{
+		key: HISTORY_SIDEBAR_KEYS.LAST_AGGREGATION,
+		alias: 'ha',
+		pathname: '/history'
+	},
+	{ key: HISTORY_SIDEBAR_KEYS.LAST_LINEAR, alias: 'hl', pathname: '/history' },
+	{
+		key: MEASUREMENTS_SIDEBAR_KEYS.LAST_MEASUREMENTS,
+		alias: 'mmu',
+		isUrl: true
+	},
+	{ key: LOG_SIDEBAR_KEYS.LAST_LOG, alias: 'll', isUrl: true },
+	{ key: RUN_SIDEBAR_KEYS.LAST_REPORT, alias: 'rr', isUrl: true },
+	{ key: RUN_SIDEBAR_KEYS.LAST_DETAILS, alias: 'rd', isUrl: true },
+	{
+		key: RUNS_SIDEBAR_KEYS.LAST_MULTIPLE,
+		alias: 'rlm',
+		pathname: '/multiple'
+	},
+	{ key: RUNS_SIDEBAR_KEYS.LAST_COMPARE, alias: 'rlp', pathname: '/compare' },
+	{
+		key: RUNS_SIDEBAR_KEYS.LAST_PROGRESS,
+		alias: 'rlpr',
+		pathname: '/runs',
+		defaultValue: RUNS_PROGRESS_DEFAULT_URL
+	},
+	{
+		key: RUNS_SIDEBAR_KEYS.LAST_CHARTS,
+		alias: 'rlc',
+		pathname: '/runs',
+		defaultValue: RUNS_CHARTS_DEFAULT_URL
+	},
+	{ key: RUNS_SIDEBAR_KEYS.LAST_LIST, alias: 'rll', pathname: '/runs' },
+	{
+		key: HISTORY_SIDEBAR_KEYS.LAST_MODE,
+		alias: 'hm',
+		defaultValue: HISTORY_MODE_DEFAULT
+	},
+	{
+		key: MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE,
+		alias: 'mm',
+		defaultValue: MEASUREMENTS_MODE_DEFAULT
+	},
+	{
+		key: LOG_SIDEBAR_KEYS.LAST_MODE,
+		alias: 'lm',
+		defaultValue: LOG_MODE_DEFAULT
+	},
+	{
+		key: RUN_SIDEBAR_KEYS.LAST_MODE,
+		alias: 'rnm',
+		defaultValue: RUN_MODE_DEFAULT
+	},
+	{
+		key: RUNS_SIDEBAR_KEYS.LAST_MODE,
+		alias: 'rm',
+		defaultValue: RUNS_MODE_DEFAULT
+	},
+	{ key: RUNS_SIDEBAR_KEYS.SELECTED, alias: 'rs' },
+	{ key: SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID, alias: 'cr' }
 ];
+
+const SIDEBAR_KEY_ALIAS_MAP: Record<string, string> = Object.fromEntries(
+	SIDEBAR_KEY_REGISTRY.map(({ key, alias }) => [key, alias])
+);
+
+const SIDEBAR_ALIAS_KEYS: Record<string, string> = Object.fromEntries(
+	SIDEBAR_KEY_REGISTRY.map(({ key, alias }) => [alias, key])
+);
+
+const URL_STATE_KEYS = new Set<string>(
+	SIDEBAR_KEY_REGISTRY.filter(({ isUrl, pathname }) => isUrl || pathname).map(
+		({ key }) => key
+	)
+);
+
+const SIDEBAR_KEY_PATHNAMES: Record<string, string> = Object.fromEntries(
+	SIDEBAR_KEY_REGISTRY.flatMap(({ key, pathname }) =>
+		pathname ? [[key, pathname]] : []
+	)
+);
+
+const SIDEBAR_KEY_DEFAULTS: Record<string, string> = Object.fromEntries(
+	SIDEBAR_KEY_REGISTRY.flatMap(({ key, defaultValue }) =>
+		defaultValue !== undefined ? [[key, defaultValue]] : []
+	)
+);
+
+const SIDEBAR_STATE_PRUNE_ORDER = SIDEBAR_KEY_REGISTRY.map(({ key }) => key);
 
 function getEncodedValue(input: EncodedParamInput): string | null | undefined {
 	if (Array.isArray(input)) {

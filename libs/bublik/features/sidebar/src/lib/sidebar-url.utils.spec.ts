@@ -17,6 +17,7 @@ import {
 	encodeCompressedState,
 	getSidebarStateString,
 	getSidebarStateStringArray,
+	SIDEBAR_KEY_REGISTRY,
 	SIDEBAR_STATE_MAX_LENGTH,
 	setSidebarStateValue,
 	stripSidebarParamsFromUrl,
@@ -38,6 +39,14 @@ function updateState(
 }
 
 describe('sidebar URL state', () => {
+	it('registers every key exactly once with a unique alias', () => {
+		const keys = SIDEBAR_KEY_REGISTRY.map(({ key }) => key);
+		const aliases = SIDEBAR_KEY_REGISTRY.map(({ alias }) => alias);
+
+		expect(new Set(keys).size).toBe(keys.length);
+		expect(new Set(aliases).size).toBe(aliases.length);
+	});
+
 	it('stores sidebar state in compact v3 format and reads it through logical keys', () => {
 		const params = updateState(new URLSearchParams(), (sidebarState) => {
 			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.LAST_MODE, 'charts');
