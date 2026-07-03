@@ -147,6 +147,41 @@ describe('sidebar URL state', () => {
 		);
 	});
 
+	it('keeps run-id-derived URLs pointing at their run after the current run changes', () => {
+		// /runs/123 and /log/123 are omitted from _s while cr is '123'.
+		const initial = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
+				'123'
+			);
+			setSidebarStateValue(
+				sidebarState,
+				RUN_SIDEBAR_KEYS.LAST_DETAILS,
+				'/runs/123'
+			);
+			setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_LOG, '/log/123');
+		});
+
+		// Visiting another run's log rewrites cr without touching the run URLs.
+		const params = updateState(initial, (sidebarState) => {
+			setSidebarStateValue(
+				sidebarState,
+				SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID,
+				'456'
+			);
+			setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_LOG, '/log/456');
+		});
+
+		expect(getSidebarStateString(params, RUN_SIDEBAR_KEYS.LAST_DETAILS)).toBe(
+			'/runs/123'
+		);
+		// The previously-omitted URL is now stored explicitly.
+		expect(decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')).toEqual(
+			[3, { cr: '456', rd: '/runs/123' }]
+		);
+	});
+
 	it('preserves explicitly-empty query params through the compact round trip', () => {
 		const params = updateState(new URLSearchParams(), (sidebarState) => {
 			setSidebarStateValue(

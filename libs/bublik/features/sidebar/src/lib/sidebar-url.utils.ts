@@ -273,6 +273,15 @@ function decodeSidebarState(value: string): SidebarState {
 		}
 	}
 
+	// URLs omitted on encode as equal to the CURRENT_RUN_ID-derived default
+	// must be re-materialized: the run id is mutable, so once it changes the
+	// omitted URL would otherwise be re-derived from the wrong run.
+	const runId = normalized[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID];
+	if (typeof runId === 'string' && runId) {
+		normalized[RUN_SIDEBAR_KEYS.LAST_DETAILS] ??= `/runs/${runId}`;
+		normalized[LOG_SIDEBAR_KEYS.LAST_LOG] ??= `/log/${runId}`;
+	}
+
 	return normalized;
 }
 
