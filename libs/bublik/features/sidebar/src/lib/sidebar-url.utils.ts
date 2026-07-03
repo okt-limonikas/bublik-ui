@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 
-import { createPath, parsePath } from 'react-router-dom';
+import { parsePath } from 'react-router-dom';
 import {
 	compressToEncodedURIComponent,
 	decompressFromEncodedURIComponent
 } from 'lz-string';
 
 import { SIDEBAR_PREFIX } from '@/shared/types';
+import { transformUrlSearch } from '@/shared/utils';
 
 import {
 	DASHBOARD_SIDEBAR_KEYS,
@@ -309,7 +310,8 @@ function decodeSidebarState(value: string): SidebarState {
 	// omitted URL would otherwise be re-derived from the wrong run.
 	const runId = normalized[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID];
 	if (typeof runId === 'string' && runId) {
-		normalized[RUN_SIDEBAR_KEYS.LAST_DETAILS] ??= getRunDetailsDefaultUrl(runId);
+		normalized[RUN_SIDEBAR_KEYS.LAST_DETAILS] ??=
+			getRunDetailsDefaultUrl(runId);
 		normalized[LOG_SIDEBAR_KEYS.LAST_LOG] ??= getLogDefaultUrl(runId);
 	}
 
@@ -537,31 +539,25 @@ export function getUpdatedSearchParams(
  * Strips sidebar params from a URL to avoid recursive state growth.
  */
 export function stripSidebarParamsFromUrl(url: string): string {
-	const path = parsePath(url);
-	if (!path.search) {
+	// Runs per URL key on every encode, so skip the rewrite when there is
+	// nothing to strip.
+	if (!parsePath(url).search) {
 		return url;
 	}
 
-	const params = new URLSearchParams(path.search);
-
-	const keysToRemove: string[] = [];
-	params.forEach((value, key) => {
-		if (
-			key.startsWith(`${SIDEBAR_PREFIX}.`) ||
-			key === SIDEBAR_STATE_PARAM ||
-			key === 'project' ||
-			(key === 'mode' && value === 'default')
-		) {
-			keysToRemove.push(key);
-		}
-	});
-	keysToRemove.forEach((key) => params.delete(key));
-
-	const search = params.toString();
-	return createPath({
-		pathname: path.pathname ?? '',
-		search: search ? `?${search}` : '',
-		hash: path.hash
+	return transformUrlSearch(url, (params) => {
+		const keysToRemove: string[] = [];
+		params.forEach((value, key) => {
+			if (
+				key.startsWith(`${SIDEBAR_PREFIX}.`) ||
+				key === SIDEBAR_STATE_PARAM ||
+				key === 'project' ||
+				(key === 'mode' && value === 'default')
+			) {
+				keysToRemove.push(key);
+			}
+		});
+		keysToRemove.forEach((key) => params.delete(key));
 	});
 }
 
@@ -583,39 +579,23 @@ export function getModeFromSearch<T extends string>(
  * Gets base URL without mode parameter.
  */
 export function getBaseUrl(url: string): string {
-	const path = parsePath(url);
-	if (!path.search) {
+	if (!parsePath(url).search) {
 		return url;
 	}
 
-	const params = new URLSearchParams(path.search);
-	params.delete('mode');
-	const search = params.toString();
-	return createPath({
-		pathname: path.pathname ?? '',
-		search: search ? `?${search}` : '',
-		hash: path.hash
-	});
+	return transformUrlSearch(url, (params) => params.delete('mode'));
 }
 
 /**
  * Adds mode parameter to URL.
  */
 export function addModeToUrl(baseUrl: string, mode: string): string {
-	const path = parsePath(baseUrl);
-	const params = new URLSearchParams(path.search ?? '');
-
-	if (mode === 'default') {
-		params.delete('mode');
-	} else {
-		params.set('mode', mode);
-	}
-
-	const search = params.toString();
-	return createPath({
-		pathname: path.pathname ?? '',
-		search: search ? `?${search}` : '',
-		hash: path.hash
+	return transformUrlSearch(baseUrl, (params) => {
+		if (mode === 'default') {
+			params.delete('mode');
+		} else {
+			params.set('mode', mode);
+		}
 	});
 }
 

@@ -143,7 +143,11 @@ describe('sidebar URL state', () => {
 				RUN_SIDEBAR_KEYS.LAST_DETAILS,
 				'/runs/86793'
 			);
-			setSidebarStateValue(sidebarState, LOG_SIDEBAR_KEYS.LAST_LOG, '/log/86793');
+			setSidebarStateValue(
+				sidebarState,
+				LOG_SIDEBAR_KEYS.LAST_LOG,
+				'/log/86793'
+			);
 			setSidebarStateValue(
 				sidebarState,
 				RUN_SIDEBAR_KEYS.LAST_REPORT,
@@ -151,9 +155,9 @@ describe('sidebar URL state', () => {
 			);
 		});
 
-		expect(decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')).toEqual(
-			[3, { cr: '86793', rr: '/runs/86793/report?config=5' }]
-		);
+		expect(
+			decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')
+		).toEqual([3, { cr: '86793', rr: '/runs/86793/report?config=5' }]);
 	});
 
 	it('keeps run-id-derived URLs pointing at their run after the current run changes', () => {
@@ -186,9 +190,9 @@ describe('sidebar URL state', () => {
 			'/runs/123'
 		);
 		// The previously-omitted URL is now stored explicitly.
-		expect(decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')).toEqual(
-			[3, { cr: '456', rd: '/runs/123' }]
-		);
+		expect(
+			decodeCompressedState<unknown>(params.get(SIDEBAR_STATE_PARAM) ?? '')
+		).toEqual([3, { cr: '456', rd: '/runs/123' }]);
 	});
 
 	it('preserves explicitly-empty query params through the compact round trip', () => {
