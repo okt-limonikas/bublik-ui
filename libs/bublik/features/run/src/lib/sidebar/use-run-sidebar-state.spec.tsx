@@ -68,7 +68,9 @@ vi.mock('@/bublik/features/sidebar', () => ({
 			setSearchParamsMock(next, { replace: true, state: locationState });
 		},
 	stripSidebarParamsFromUrl: (url: string) => url,
-	extractRunIdFromUrl: () => '42'
+	extractRunIdFromUrl: () => '42',
+	RUN_MODE_DEFAULT: 'details',
+	getRunDetailsDefaultUrl: (runId: string) => `/runs/${runId}`
 }));
 
 function HookRunner() {

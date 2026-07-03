@@ -5,6 +5,9 @@ import { useCallback, useMemo } from 'react';
 import { matchPath, useLocation, useSearchParams } from 'react-router-dom';
 
 import {
+	RUNS_CHARTS_DEFAULT_URL,
+	RUNS_MODE_DEFAULT,
+	RUNS_PROGRESS_DEFAULT_URL,
 	RUNS_SIDEBAR_KEYS,
 	RunsMode,
 	getSidebarStateStringArray,
@@ -117,7 +120,7 @@ export function useRunsSidebarState(): UseRunsSidebarStateReturn {
 			params.set('mode', 'charts');
 			return stripSidebarParamsFromUrl(`/runs?${params.toString()}`);
 		}
-		return lastChartsUrl || '/runs?mode=charts';
+		return lastChartsUrl || RUNS_CHARTS_DEFAULT_URL;
 	}, [isOnRunsPage, location.search, lastChartsUrl]);
 
 	const progressUrl = useMemo(() => {
@@ -126,7 +129,7 @@ export function useRunsSidebarState(): UseRunsSidebarStateReturn {
 			params.set('mode', 'progress');
 			return stripSidebarParamsFromUrl(`/runs?${params.toString()}`);
 		}
-		return lastProgressUrl || '/runs?mode=progress';
+		return lastProgressUrl || RUNS_PROGRESS_DEFAULT_URL;
 	}, [isOnRunsPage, location.search, lastProgressUrl]);
 
 	const compareUrl = useMemo(() => {
@@ -142,21 +145,18 @@ export function useRunsSidebarState(): UseRunsSidebarStateReturn {
 	}, [isMultipleAvailable, selectedRunIds]);
 
 	const mainLinkUrl = useMemo(() => {
-		switch (lastMode) {
+		// `lastMode` is omitted from `_s` when it equals the shared default.
+		switch (lastMode ?? RUNS_MODE_DEFAULT) {
 			case 'list':
 				return lastListUrl || '/runs';
 			case 'charts':
-				return lastChartsUrl || '/runs?mode=charts';
+				return lastChartsUrl || RUNS_CHARTS_DEFAULT_URL;
 			case 'progress':
-				return lastProgressUrl || '/runs?mode=progress';
+				return lastProgressUrl || RUNS_PROGRESS_DEFAULT_URL;
 			case 'compare':
 				return lastCompareUrl || '/compare';
 			case 'multiple':
 				return lastMultipleUrl || '/multiple';
-			// `lastMode` is omitted from `_s` when it equals the default ('list'),
-			// so the default branch must mirror the 'list' case.
-			default:
-				return lastListUrl || '/runs';
 		}
 	}, [
 		lastMode,

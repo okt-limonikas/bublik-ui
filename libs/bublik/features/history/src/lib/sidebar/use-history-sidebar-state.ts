@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
 
 import {
+	HISTORY_MODE_DEFAULT,
 	HISTORY_SIDEBAR_KEYS,
 	HistorySidebarMode,
 	getSidebarStateString,
@@ -177,7 +178,8 @@ export function useHistorySidebarState(): UseHistorySidebarStateReturn {
 
 	// Main link URL based on last visited mode
 	const mainLinkUrl = useMemo(() => {
-		switch (lastMode) {
+		// `lastMode` is omitted from `_s` when it equals the shared default.
+		switch (lastMode ?? HISTORY_MODE_DEFAULT) {
 			case 'linear':
 				return lastLinearUrl || linearUrl;
 			case 'aggregation':
@@ -188,10 +190,6 @@ export function useHistorySidebarState(): UseHistorySidebarStateReturn {
 				return lastSeriesUrl || seriesUrl;
 			case 'stacked':
 				return lastStackedUrl || stackedUrl || linearUrl;
-			// `lastMode` is omitted from `_s` when it equals the default
-			// ('linear'), so the default branch must mirror the 'linear' case.
-			default:
-				return lastLinearUrl || linearUrl;
 		}
 	}, [
 		lastMode,

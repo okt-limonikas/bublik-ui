@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
+	MEASUREMENTS_MODE_DEFAULT,
 	MEASUREMENTS_SIDEBAR_KEYS,
 	MeasurementsSidebarMode,
 	getSidebarStateString,
@@ -74,7 +75,7 @@ export function useMeasurementsSidebarState(): UseMeasurementsSidebarStateReturn
 
 	const mainLinkUrl = useMemo(() => {
 		if (!lastMeasurementsUrl) return '/runs';
-		return getModeUrl(lastMode || 'default');
+		return getModeUrl(lastMode ?? MEASUREMENTS_MODE_DEFAULT);
 	}, [lastMeasurementsUrl, lastMode, getModeUrl]);
 
 	const setLastVisited = useCallback(

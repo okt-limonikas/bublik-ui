@@ -6,9 +6,11 @@ import { useSearchParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
 
 import {
+	RUN_MODE_DEFAULT,
 	RUN_SIDEBAR_KEYS,
 	RunMode,
 	SHARED_SIDEBAR_KEYS,
+	getRunDetailsDefaultUrl,
 	getSidebarStateString,
 	setSidebarStateValue,
 	useSidebarStateWriter,
@@ -91,7 +93,7 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 
 	const detailsUrl = useMemo(() => {
 		if (lastDetailsUrl) return lastDetailsUrl;
-		if (currentRunId) return `/runs/${currentRunId}`;
+		if (currentRunId) return getRunDetailsDefaultUrl(currentRunId);
 		return '/runs';
 	}, [lastDetailsUrl, currentRunId]);
 
@@ -107,21 +109,17 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 	}, [lastReportUrl, currentRunId, newestReportConfig]);
 
 	const mainLinkUrl = useMemo(() => {
-		switch (lastMode) {
+		// `lastMode` is omitted from `_s` when it equals the shared default.
+		switch (lastMode ?? RUN_MODE_DEFAULT) {
 			case 'details':
 				return (
-					lastDetailsUrl || (currentRunId ? `/runs/${currentRunId}` : '/runs')
+					lastDetailsUrl ||
+					(currentRunId ? getRunDetailsDefaultUrl(currentRunId) : '/runs')
 				);
 			case 'report':
 				return (
 					lastReportUrl ||
 					(currentRunId ? `/runs/${currentRunId}/report` : '/runs')
-				);
-			// `lastMode` is omitted from `_s` when it equals the default
-			// ('details'), so the default branch must mirror the 'details' case.
-			default:
-				return (
-					lastDetailsUrl || (currentRunId ? `/runs/${currentRunId}` : '/runs')
 				);
 		}
 	}, [lastMode, lastDetailsUrl, lastReportUrl, currentRunId]);

@@ -11,13 +11,22 @@ import { SIDEBAR_PREFIX } from '@/shared/types';
 
 import {
 	DASHBOARD_SIDEBAR_KEYS,
+	HISTORY_MODE_DEFAULT,
 	HISTORY_SIDEBAR_KEYS,
+	LOG_MODE_DEFAULT,
 	LOG_SIDEBAR_KEYS,
+	MEASUREMENTS_MODE_DEFAULT,
 	MEASUREMENTS_SIDEBAR_KEYS,
+	RUNS_CHARTS_DEFAULT_URL,
+	RUNS_MODE_DEFAULT,
+	RUNS_PROGRESS_DEFAULT_URL,
 	RUNS_SIDEBAR_KEYS,
+	RUN_MODE_DEFAULT,
 	RUN_SIDEBAR_KEYS,
 	SHARED_SIDEBAR_KEYS,
-	SIDEBAR_STATE_PARAM
+	SIDEBAR_STATE_PARAM,
+	getLogDefaultUrl,
+	getRunDetailsDefaultUrl
 } from './sidebar-state.constants';
 
 type SidebarStateValue = string | string[];
@@ -103,18 +112,18 @@ const SIDEBAR_KEY_PATHNAMES: Record<string, string> = {
 };
 
 /**
- * Compact-form values that the per-feature hooks reconstruct on their own
- * (`lastListUrl || '/runs'`, `lastMode || 'linear'`, …) — storing them in `_s`
- * adds length without adding information, so they are dropped on encode.
+ * Full-form values that the per-feature hooks reconstruct on their own from
+ * the shared defaults in sidebar-state.constants — storing them in `_s` adds
+ * length without adding information, so they are dropped on encode.
  */
 const SIDEBAR_KEY_DEFAULTS: Record<string, string> = {
-	[RUNS_SIDEBAR_KEYS.LAST_MODE]: 'list',
-	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: 'mode=charts',
-	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: 'mode=progress',
-	[RUN_SIDEBAR_KEYS.LAST_MODE]: 'details',
-	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: 'linear',
-	[LOG_SIDEBAR_KEYS.LAST_MODE]: 'treeAndinfoAndlog',
-	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE]: 'default'
+	[RUNS_SIDEBAR_KEYS.LAST_MODE]: RUNS_MODE_DEFAULT,
+	[RUNS_SIDEBAR_KEYS.LAST_CHARTS]: RUNS_CHARTS_DEFAULT_URL,
+	[RUNS_SIDEBAR_KEYS.LAST_PROGRESS]: RUNS_PROGRESS_DEFAULT_URL,
+	[RUN_SIDEBAR_KEYS.LAST_MODE]: RUN_MODE_DEFAULT,
+	[HISTORY_SIDEBAR_KEYS.LAST_MODE]: HISTORY_MODE_DEFAULT,
+	[LOG_SIDEBAR_KEYS.LAST_MODE]: LOG_MODE_DEFAULT,
+	[MEASUREMENTS_SIDEBAR_KEYS.LAST_MODE]: MEASUREMENTS_MODE_DEFAULT
 };
 
 const SIDEBAR_STATE_PRUNE_ORDER = [
@@ -235,16 +244,16 @@ function getCompactDefault(
 ): string | null {
 	const staticDefault = SIDEBAR_KEY_DEFAULTS[key];
 	if (staticDefault !== undefined) {
-		return staticDefault;
+		return toCompactValue(key, staticDefault);
 	}
 
 	const runId = sidebarState[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID];
 	if (typeof runId === 'string' && runId) {
 		if (key === RUN_SIDEBAR_KEYS.LAST_DETAILS) {
-			return `/runs/${runId}`;
+			return getRunDetailsDefaultUrl(runId);
 		}
 		if (key === LOG_SIDEBAR_KEYS.LAST_LOG) {
-			return `/log/${runId}`;
+			return getLogDefaultUrl(runId);
 		}
 	}
 
@@ -278,8 +287,8 @@ function decodeSidebarState(value: string): SidebarState {
 	// omitted URL would otherwise be re-derived from the wrong run.
 	const runId = normalized[SHARED_SIDEBAR_KEYS.CURRENT_RUN_ID];
 	if (typeof runId === 'string' && runId) {
-		normalized[RUN_SIDEBAR_KEYS.LAST_DETAILS] ??= `/runs/${runId}`;
-		normalized[LOG_SIDEBAR_KEYS.LAST_LOG] ??= `/log/${runId}`;
+		normalized[RUN_SIDEBAR_KEYS.LAST_DETAILS] ??= getRunDetailsDefaultUrl(runId);
+		normalized[LOG_SIDEBAR_KEYS.LAST_LOG] ??= getLogDefaultUrl(runId);
 	}
 
 	return normalized;

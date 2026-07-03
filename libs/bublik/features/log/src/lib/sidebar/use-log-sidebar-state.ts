@@ -5,9 +5,11 @@ import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
+	LOG_MODE_DEFAULT,
 	LOG_SIDEBAR_KEYS,
 	LogSidebarMode,
 	SHARED_SIDEBAR_KEYS,
+	getLogDefaultUrl,
 	getSidebarStateString,
 	setSidebarStateValue,
 	stripSidebarParamsFromUrl,
@@ -82,9 +84,8 @@ export function useLogSidebarState(): UseLogSidebarStateReturn {
 			}
 			// If no last log URL but we have a current runId, construct URL
 			if (currentRunId) {
-				return mode === 'log'
-					? `/log/${currentRunId}`
-					: `/log/${currentRunId}?mode=${mode}`;
+				const baseUrl = getLogDefaultUrl(currentRunId);
+				return mode === 'log' ? baseUrl : `${baseUrl}?mode=${mode}`;
 			}
 			return '/log';
 		},
@@ -92,11 +93,8 @@ export function useLogSidebarState(): UseLogSidebarStateReturn {
 	);
 
 	const mainLinkUrl = useMemo(() => {
-		if (lastLogUrl) {
-			return getModeUrl(lastMode || 'treeAndinfoAndlog');
-		}
-		if (currentRunId) {
-			return getModeUrl(lastMode || 'treeAndinfoAndlog');
+		if (lastLogUrl || currentRunId) {
+			return getModeUrl(lastMode ?? LOG_MODE_DEFAULT);
 		}
 		return '/log';
 	}, [lastLogUrl, currentRunId, lastMode, getModeUrl]);
