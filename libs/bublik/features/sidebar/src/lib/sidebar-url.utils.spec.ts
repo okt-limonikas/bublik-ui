@@ -196,6 +196,27 @@ describe('sidebar URL state', () => {
 		);
 	});
 
+	it('isolates callers from the decode cache when they mutate arrays in place', () => {
+		const params = updateState(new URLSearchParams(), (sidebarState) => {
+			setSidebarStateValue(sidebarState, RUNS_SIDEBAR_KEYS.SELECTED, [
+				'11',
+				'22'
+			]);
+		});
+
+		updateSidebarStateSearchParams(params, (sidebarState) => {
+			const selected = sidebarState[RUNS_SIDEBAR_KEYS.SELECTED];
+			if (Array.isArray(selected)) {
+				selected.push('33');
+			}
+		});
+
+		// Re-reading the same encoded value must not see the in-place push.
+		expect(
+			getSidebarStateStringArray(params, RUNS_SIDEBAR_KEYS.SELECTED)
+		).toEqual(['11', '22']);
+	});
+
 	it('treats undecodable _s values as empty state instead of crashing', () => {
 		const params = new URLSearchParams();
 		params.set(SIDEBAR_STATE_PARAM, 'not-a-compressed-value');

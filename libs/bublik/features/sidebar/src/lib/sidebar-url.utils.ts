@@ -401,8 +401,8 @@ let cachedSidebarState: SidebarState = {};
 /**
  * Reads compressed sidebar state from `_s` URL param. The same encoded value
  * is read many times per render across the nav hooks, so the last decode is
- * memoized; callers get a copy because `updateSidebarStateSearchParams`
- * mutates the returned map.
+ * memoized; callers get a copy (arrays included) because
+ * `updateSidebarStateSearchParams` mutates the returned map.
  */
 export function getSidebarState(searchParams: URLSearchParams): SidebarState {
 	const encodedState = searchParams.get(SIDEBAR_STATE_PARAM);
@@ -416,7 +416,12 @@ export function getSidebarState(searchParams: URLSearchParams): SidebarState {
 		cachedEncodedState = encodedState;
 	}
 
-	return { ...cachedSidebarState };
+	const copy: SidebarState = {};
+	for (const [key, value] of Object.entries(cachedSidebarState)) {
+		copy[key] = Array.isArray(value) ? [...value] : value;
+	}
+
+	return copy;
 }
 
 /**
