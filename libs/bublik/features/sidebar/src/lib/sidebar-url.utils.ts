@@ -349,32 +349,35 @@ function compactSidebarState(sidebarState: SidebarState): CompactSidebarState {
 	return [SIDEBAR_STATE_VERSION, compactState];
 }
 
-function isEmptyCompactState(sidebarState: SidebarState): boolean {
-	return Object.keys(compactSidebarState(sidebarState)[1]).length === 0;
+interface EncodedSidebarState {
+	compactState: CompactSidebarState;
+	encodedState: string;
 }
 
-function encodeSidebarState(sidebarState: SidebarState): string {
-	return encodeCompressedState(compactSidebarState(sidebarState));
+function encodeSidebarState(sidebarState: SidebarState): EncodedSidebarState {
+	const compactState = compactSidebarState(sidebarState);
+
+	return { compactState, encodedState: encodeCompressedState(compactState) };
 }
 
-function pruneSidebarState(sidebarState: SidebarState): SidebarState {
+function pruneSidebarState(sidebarState: SidebarState): EncodedSidebarState {
 	const prunedState = { ...sidebarState };
-	let encodedState = encodeSidebarState(prunedState);
+	let encoded = encodeSidebarState(prunedState);
 
 	for (const key of SIDEBAR_STATE_PRUNE_ORDER) {
-		if (encodedState.length <= SIDEBAR_STATE_MAX_LENGTH) {
-			return prunedState;
+		if (encoded.encodedState.length <= SIDEBAR_STATE_MAX_LENGTH) {
+			return encoded;
 		}
 
 		delete prunedState[key];
-		encodedState = encodeSidebarState(prunedState);
+		encoded = encodeSidebarState(prunedState);
 	}
 
-	if (encodedState.length <= SIDEBAR_STATE_MAX_LENGTH) {
-		return prunedState;
+	if (encoded.encodedState.length <= SIDEBAR_STATE_MAX_LENGTH) {
+		return encoded;
 	}
 
-	return {};
+	return encodeSidebarState({});
 }
 
 function tryParseJson<T>(value: string): T | undefined {
@@ -507,14 +510,16 @@ export function updateSidebarStateSearchParams(
 
 		const sidebarState = getSidebarState(newParams);
 		updater(sidebarState);
-		const prunedState = pruneSidebarState(normalizeSidebarState(sidebarState));
+		const { compactState, encodedState } = pruneSidebarState(
+			normalizeSidebarState(sidebarState)
+		);
 
-		if (isEmptyCompactState(prunedState)) {
+		if (Object.keys(compactState[1]).length === 0) {
 			newParams.delete(SIDEBAR_STATE_PARAM);
 			return;
 		}
 
-		newParams.set(SIDEBAR_STATE_PARAM, encodeSidebarState(prunedState));
+		newParams.set(SIDEBAR_STATE_PARAM, encodedState);
 	});
 }
 
