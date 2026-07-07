@@ -28,18 +28,26 @@ export const useHistoryGlobalSearchForm = (
 		resolver: zodResolver(ValidationSchema)
 	});
 
+	const fieldModes = () => methods.getValues().fieldModes;
+
 	const resetTestSection = () => {
 		methods.reset({
 			...methods.getValues(),
 			testName: '',
 			hash: '',
 			parameters: [],
-			testArgExpr: ''
+			testArgExpr: '',
+			fieldModes: { ...fieldModes(), parameters: 'tokens' }
 		});
 	};
 
 	const resetTestSectionToDefault = () => {
-		methods.reset({ ...methods.getValues(), hash: '', parameters: [] });
+		methods.reset({
+			...methods.getValues(),
+			hash: '',
+			parameters: [],
+			fieldModes: { ...fieldModes(), parameters: 'tokens' }
+		});
 	};
 
 	useEffect(() => {
@@ -48,6 +56,15 @@ export const useHistoryGlobalSearchForm = (
 		);
 		return () => subscription.unsubscribe();
 	}, [config, methods]);
+
+	const resetRunSectionFieldModes = () =>
+		({
+			...fieldModes(),
+			labels: 'tokens',
+			branches: 'tokens',
+			revisions: 'tokens',
+			runData: 'tokens'
+		} as const);
 
 	const resetRunSection = () => {
 		methods.reset({
@@ -62,7 +79,8 @@ export const useHistoryGlobalSearchForm = (
 			labels: [],
 			branches: [],
 			tagExpr: '',
-			runProperties: []
+			runProperties: [],
+			fieldModes: resetRunSectionFieldModes()
 		});
 	};
 
@@ -77,7 +95,8 @@ export const useHistoryGlobalSearchForm = (
 			labels: [],
 			branches: [],
 			tagExpr: '',
-			runProperties: HISTORY_CONSTANTS.runProperties
+			runProperties: HISTORY_CONSTANTS.runProperties,
+			fieldModes: resetRunSectionFieldModes()
 		});
 	};
 
@@ -107,7 +126,8 @@ export const useHistoryGlobalSearchForm = (
 			...methods.getValues(),
 			verdict: [],
 			verdictLookup: methods.getValues().verdictLookup,
-			verdictExpr: ''
+			verdictExpr: '',
+			fieldModes: { ...fieldModes(), verdict: 'tokens' }
 		});
 	};
 
@@ -116,7 +136,8 @@ export const useHistoryGlobalSearchForm = (
 			...methods.getValues(),
 			verdict: [],
 			verdictLookup: VERDICT_TYPE.String,
-			verdictExpr: ''
+			verdictExpr: '',
+			fieldModes: { ...fieldModes(), verdict: 'tokens' }
 		});
 	};
 

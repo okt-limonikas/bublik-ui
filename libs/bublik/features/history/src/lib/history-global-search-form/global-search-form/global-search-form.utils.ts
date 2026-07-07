@@ -9,7 +9,11 @@ import { BadgeItem } from '@/shared/tailwind-ui';
 import { HistoryAPIQuery } from '@/shared/types';
 
 import { HISTORY_CONSTANTS } from './global-search-form.constants';
-import { HistoryGlobalSearchFormValues } from './global-search-form.types';
+import {
+	FilterFieldModes,
+	HistoryGlobalSearchFormValues,
+	defaultFieldModes
+} from './global-search-form.types';
 
 export const join = (arr: string[]) => arr.join(';');
 export const split = (str: string | undefined, fallback: string[] = []) => {
@@ -34,6 +38,28 @@ export const valuesToBadges = (
 	return arr.split(';').map((value) => ({ id: nanoid(4), value }));
 };
 
+/**
+ * Only the side matching the field mode is submitted: tokens mode sends the
+ * list param, builder/expression modes send the expression param.
+ */
+export const gateByFieldMode = (
+	mode: FilterFieldModes[keyof FilterFieldModes],
+	list: string,
+	expr: string
+): { list: string; expr: string } =>
+	mode === 'tokens' ? { list, expr: '' } : { list: '', expr };
+
+export const fieldModesFromExpressions = (expressions: {
+	[K in keyof FilterFieldModes]: string;
+}): FilterFieldModes =>
+	defaultFieldModes(
+		Object.fromEntries(
+			Object.entries(expressions)
+				.filter(([, expr]) => Boolean(expr))
+				.map(([field]) => [field, 'expression'])
+		)
+	);
+
 export const convertHistoryFormToQuery = (
 	values: HistoryGlobalSearchFormValues
 ): HistoryAPIQuery => {
@@ -56,7 +82,8 @@ export const convertHistoryFormToQuery = (
 		revisionExpr,
 		tagExpr,
 		testArgExpr,
-		verdictExpr
+		verdictExpr,
+		fieldModes = defaultFieldModes()
 	} = values;
 
 	const [simpleParams] = badgesToValues(parameters);
@@ -65,6 +92,37 @@ export const convertHistoryFormToQuery = (
 	const [simpleRevisions] = badgesToValues(revisions);
 	const [simpleVerdicts] = badgesToValues(verdict);
 	const [simpleLabels] = badgesToValues(labels);
+
+	const gatedParams = gateByFieldMode(
+		fieldModes.parameters,
+		join(simpleParams),
+		testArgExpr
+	);
+	const gatedRunData = gateByFieldMode(
+		fieldModes.runData,
+		join(simpleRunData),
+		tagExpr
+	);
+	const gatedBranches = gateByFieldMode(
+		fieldModes.branches,
+		join(simpleBranches),
+		branchExpr
+	);
+	const gatedRevisions = gateByFieldMode(
+		fieldModes.revisions,
+		join(simpleRevisions),
+		revisionExpr
+	);
+	const gatedLabels = gateByFieldMode(
+		fieldModes.labels,
+		join(simpleLabels),
+		labelExpr
+	);
+	const gatedVerdicts = gateByFieldMode(
+		fieldModes.verdict,
+		join(simpleVerdicts),
+		verdictExpr
+	);
 
 	const startDate = dates?.startDate
 		? format(dates.startDate, API_DATE_FORMAT)
@@ -78,22 +136,22 @@ export const convertHistoryFormToQuery = (
 		hash,
 		startDate,
 		finishDate,
-		parameters: join(simpleParams),
-		runData: join(simpleRunData),
-		branches: join(simpleBranches),
-		revisions: join(simpleRevisions),
+		parameters: gatedParams.list,
+		runData: gatedRunData.list,
+		branches: gatedBranches.list,
+		revisions: gatedRevisions.list,
 		runProperties: join(runProperties),
 		resultProperties: join(resultProperties),
 		results: join(results),
-		verdict: join(simpleVerdicts),
-		labels: join(simpleLabels),
+		verdict: gatedVerdicts.list,
+		labels: gatedLabels.list,
 		verdictLookup,
-		branchExpr,
-		labelExpr,
-		revisionExpr,
-		tagExpr,
-		testArgExpr,
-		verdictExpr
+		branchExpr: gatedBranches.expr,
+		labelExpr: gatedLabels.expr,
+		revisionExpr: gatedRevisions.expr,
+		tagExpr: gatedRunData.expr,
+		testArgExpr: gatedParams.expr,
+		verdictExpr: gatedVerdicts.expr
 	};
 
 	return decamelizeKeys(query, { separator: '_' }) as HistoryAPIQuery;
@@ -140,6 +198,14 @@ export const getInitialGlobalSearch = (
 		: new Date();
 
 	return {
+		fieldModes: fieldModesFromExpressions({
+			parameters: testArgExpr,
+			labels: labelExpr,
+			branches: branchExpr,
+			revisions: revisionExpr,
+			runData: queryRunDataExpr ?? '',
+			verdict: verdictExpr
+		}),
 		testName: queryTestName ?? '',
 		hash: queryHash ?? '',
 		parameters: valuesToBadges(queryParameters, []),

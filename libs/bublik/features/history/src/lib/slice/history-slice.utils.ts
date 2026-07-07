@@ -17,6 +17,11 @@ import { BadgeItem } from '@/shared/tailwind-ui';
 import { formatTimeToAPI } from '@/shared/utils';
 
 import { HistoryGlobalSearchFormValues } from '../history-global-search-form';
+import { defaultFieldModes } from '../history-global-search-form/global-search-form/global-search-form.types';
+import {
+	fieldModesFromExpressions,
+	gateByFieldMode
+} from '../history-global-search-form/global-search-form/global-search-form.utils';
 import { HistorySearchFormState } from './history-slice.types';
 
 export const parseArray = (str?: string) => {
@@ -92,6 +97,14 @@ export const historySearchStateToForm = (
 	state: HistorySearchFormState
 ): HistoryGlobalSearchFormValues => {
 	return {
+		fieldModes: fieldModesFromExpressions({
+			parameters: state.testArgExpr,
+			labels: state.labelExpr,
+			branches: state.branchExpr,
+			revisions: state.revisionExpr,
+			runData: state.tagExpr,
+			verdict: state.verdictExpr
+		}),
 		labelExpr: state.labelExpr,
 		branchExpr: state.branchExpr,
 		verdictExpr: state.verdictExpr,
@@ -193,31 +206,72 @@ export const formToSearchState = (
 		endDate: DEFAULT_HISTORY_END_DATE
 	};
 
+	const fieldModes = form.fieldModes ?? defaultFieldModes();
+	const gate = (
+		field: keyof typeof fieldModes,
+		list: string[],
+		expr: string
+	) => {
+		const gated = gateByFieldMode(
+			fieldModes[field],
+			list.join(config.queryDelimiter),
+			expr
+		);
+
+		return {
+			list: gated.list ? gated.list.split(config.queryDelimiter) : [],
+			expr: gated.expr
+		};
+	};
+
+	const labels = gate('labels', badgeItemToArray(form.labels), form.labelExpr);
+	const parameters = gate(
+		'parameters',
+		badgeItemToArray(form.parameters),
+		form.testArgExpr
+	);
+	const revisions = gate(
+		'revisions',
+		badgeItemToArray(form.revisions),
+		form.revisionExpr
+	);
+	const branches = gate(
+		'branches',
+		badgeItemToArray(form.branches),
+		form.branchExpr
+	);
+	const runData = gate('runData', badgeItemToArray(form.runData), form.tagExpr);
+	const verdict = gate(
+		'verdict',
+		badgeItemToArray(form.verdict),
+		form.verdictExpr
+	);
+
 	return {
-		labels: badgeItemToArray(form.labels),
-		labelExpr: form.labelExpr,
+		labels: labels.list,
+		labelExpr: labels.expr,
 		/* Test section */
 		testName: form.testName,
 		hash: form.hash,
-		parameters: badgeItemToArray(form.parameters),
-		revisions: badgeItemToArray(form.revisions),
-		branches: badgeItemToArray(form.branches),
+		parameters: parameters.list,
+		revisions: revisions.list,
+		branches: branches.list,
 		/* Run section */
 		startDate: dates.startDate,
 		finishDate: dates.endDate,
-		runData: badgeItemToArray(form.runData),
+		runData: runData.list,
 		runIds: form.runIds.split(config.queryDelimiter),
-		tagExpr: form.tagExpr,
-		revisionExpr: form.revisionExpr,
-		testArgExpr: form.testArgExpr,
-		verdictExpr: form.verdictExpr,
-		branchExpr: form.branchExpr,
+		tagExpr: runData.expr,
+		revisionExpr: revisions.expr,
+		testArgExpr: parameters.expr,
+		verdictExpr: verdict.expr,
+		branchExpr: branches.expr,
 		/* Result section */
 		runProperties: form.runProperties,
 		resultProperties: form.resultProperties,
 		results: form.results,
 		/* Verdict section */
 		verdictLookup: form.verdictLookup,
-		verdict: badgeItemToArray(form.verdict)
+		verdict: verdict.list
 	};
 };

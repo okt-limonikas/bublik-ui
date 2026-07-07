@@ -243,3 +243,20 @@ export type HistoryLinearAPIResponse = z.infer<
 
 export type HistoryDataAggregationAPIResponse =
 	HistoryResponse<HistoryDataAggregation>;
+
+export const MetasSearchOptionsResponseSchema = z.object({
+	tags: z.object({
+		important: z.array(z.string()),
+		relevant: z.array(z.string()),
+		all: z.array(z.string())
+	}),
+	branches: z.array(z.string()),
+	revisions: z.array(z.string()),
+	labels: z.array(z.string())
+});
+
+export type MetasSearchOptionsResponse = z.infer<
+	typeof MetasSearchOptionsResponseSchema
+>;
+
+export type ParamsSearchOptionsResponse = string[];

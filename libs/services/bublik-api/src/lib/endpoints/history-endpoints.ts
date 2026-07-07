@@ -7,7 +7,10 @@ import {
 	HistoryAPIBackendQuerySchema,
 	HistoryDataAggregationAPIResponse,
 	HistoryLinearAPIResponse,
-	HistoryLinearAPIResponseSchema
+	HistoryLinearAPIResponseSchema,
+	MetasSearchOptionsResponse,
+	MetasSearchOptionsResponseSchema,
+	ParamsSearchOptionsResponse
 } from '@/shared/types';
 
 import { BUBLIK_TAG } from '../types';
@@ -44,6 +47,37 @@ export const historyEndpoints = {
 				return {
 					url: withApiV2('/history/test_search_options'),
 					params: prepareForSend({ project }),
+					cache: 'no-cache'
+				};
+			},
+			providesTags: () => [BUBLIK_TAG.HistoryData]
+		}),
+		getMetasSearchOptions: build.query<
+			MetasSearchOptionsResponse,
+			{ project?: number }
+		>({
+			query: (query) => {
+				const { project } = query;
+
+				return {
+					url: withApiV2('/history/metas_search_options'),
+					params: prepareForSend({ project }),
+					cache: 'no-cache'
+				};
+			},
+			responseSchema: MetasSearchOptionsResponseSchema,
+			providesTags: () => [BUBLIK_TAG.HistoryData]
+		}),
+		getParamsSearchOptions: build.query<
+			ParamsSearchOptionsResponse,
+			{ testName: string; project?: number }
+		>({
+			query: (query) => {
+				const { testName, project } = query;
+
+				return {
+					url: withApiV2('/history/params_search_options'),
+					params: prepareForSend({ test_name: testName, project }),
 					cache: 'no-cache'
 				};
 			},

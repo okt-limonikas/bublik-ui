@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { z } from 'zod';
 
-import { BadgeItem } from '@/shared/tailwind-ui';
+import { BadgeItem, FilterMode } from '@/shared/tailwind-ui';
 import { VERDICT_TYPE } from '@/shared/types';
 import {
 	DEFAULT_RESULT_PROPERTIES,
@@ -25,7 +25,30 @@ export const ValidationSchema = z
 	})
 	.catchall(z.any());
 
+export type FilterFieldName =
+	| 'parameters'
+	| 'labels'
+	| 'branches'
+	| 'revisions'
+	| 'runData'
+	| 'verdict';
+
+export type FilterFieldModes = Record<FilterFieldName, FilterMode>;
+
+export const defaultFieldModes = (
+	overrides: Partial<FilterFieldModes> = {}
+): FilterFieldModes => ({
+	parameters: 'tokens',
+	labels: 'tokens',
+	branches: 'tokens',
+	revisions: 'tokens',
+	runData: 'tokens',
+	verdict: 'tokens',
+	...overrides
+});
+
 export interface HistoryGlobalSearchFormValues {
+	fieldModes: FilterFieldModes;
 	testName: string;
 	hash: string;
 	parameters: BadgeItem[];
@@ -49,6 +72,7 @@ export interface HistoryGlobalSearchFormValues {
 }
 
 export const defaultValues: HistoryGlobalSearchFormValues = {
+	fieldModes: defaultFieldModes(),
 	testName: '',
 	results: DEFAULT_RESULT_TYPES,
 	runData: [],

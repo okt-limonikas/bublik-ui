@@ -1,18 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { useState } from 'react';
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useFormContext } from 'react-hook-form';
 
 import { config } from '@/bublik/config';
 import { VERDICT_TYPE } from '@/shared/types';
-import { BadgeField, TextField, cn } from '@/shared/tailwind-ui';
+import { FilterExpressionField, cn } from '@/shared/tailwind-ui';
 
-import {
-	ExpressionToggleButton,
-	FieldResetButton,
-	FormSection
-} from '../components';
+import { FieldResetButton, FormSection } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
+import { useSearchSuggestions } from '../hooks/use-search-suggestions';
 
 export type VerdictSectionProps = {
 	onResetVerdictSectionClick: () => void;
@@ -21,9 +17,7 @@ export type VerdictSectionProps = {
 export const VerdictSection = (props: VerdictSectionProps) => {
 	const { control, watch, setValue } =
 		useFormContext<HistoryGlobalSearchFormValues>();
-	const [isVerdictExpressionVisible, setIsVerdictExpressionVisible] = useState(
-		() => Boolean(watch('verdictExpr'))
-	);
+	const suggestions = useSearchSuggestions();
 
 	const verdictLookup = watch('verdictLookup');
 
@@ -103,41 +97,27 @@ export const VerdictSection = (props: VerdictSectionProps) => {
 			<FormSection.Bar className="bg-bg-interrupted" />
 			<FormSection.Header name="Verdict" />
 			<div className="flex flex-col gap-4">
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							label="String Verdict"
-							name="verdict"
-							placeholder={
-								verdictLookup === VERDICT_TYPE.String
-									? 'Unexpectedly failed with errno ENOPROTOOPT'
-									: verdictLookup === VERDICT_TYPE.Regex
-									? '.\\*'
-									: ''
-							}
-							disabled={verdictLookup === VERDICT_TYPE.None}
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={lookupControls}
-						/>
-					</div>
-					<ExpressionToggleButton
-						label="verdict expression"
-						isOpen={isVerdictExpressionVisible}
-						onClick={() =>
-							setIsVerdictExpressionVisible((previous) => !previous)
-						}
-					/>
-				</div>
-				{isVerdictExpressionVisible ? (
-					<TextField
-						name={'verdictExpr'}
-						label="Verdict Expression"
-						placeholder={'None | "Verdict"'}
-						control={control}
-					/>
-				) : null}
+				<FilterExpressionField
+					control={control}
+					tokensName="verdict"
+					exprName="verdictExpr"
+					modeName="fieldModes.verdict"
+					label="String Verdict"
+					placeholder={
+						verdictLookup === VERDICT_TYPE.String
+							? 'Unexpectedly failed with errno ENOPROTOOPT'
+							: verdictLookup === VERDICT_TYPE.Regex
+							? '.\\*'
+							: ''
+					}
+					disabled={verdictLookup === VERDICT_TYPE.None}
+					suggestions={suggestions.verdict}
+					grammar="verdict"
+					hideBuilder
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={lookupControls}
+				/>
 			</div>
 		</FormSection>
 	);

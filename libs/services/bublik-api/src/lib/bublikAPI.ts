@@ -135,6 +135,8 @@ export const {
 	useGetHistoryLinearQuery,
 	useGetHistoryAggregationQuery,
 	useGetTestSearchOptionsQuery,
+	useGetMetasSearchOptionsQuery,
+	useGetParamsSearchOptionsQuery,
 	// Runs
 	useGetRunsTablePageQuery,
 	useGetRunsChartsQuery,

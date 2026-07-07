@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { useRef, useState } from 'react';
+/* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
+import { useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { config } from '@/bublik/config';
-import { TextField, BadgeField } from '@/shared/tailwind-ui';
+import { TextField, FilterExpressionField } from '@/shared/tailwind-ui';
 
 import {
-	ExpressionToggleButton,
 	FieldResetButton,
 	FormSection,
 	TestPathComboboxField
 } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
+import { useSearchSuggestions } from '../hooks/use-search-suggestions';
 
 export type TestSectionProps = {
 	onResetTestSectionClick: () => void;
@@ -21,10 +21,9 @@ export type TestSectionProps = {
 
 export const TestSection = (props: TestSectionProps) => {
 	const portalRef = useRef<HTMLDivElement>(null);
-	const { control, watch, setValue } =
+	const { control, setValue } =
 		useFormContext<HistoryGlobalSearchFormValues>();
-	const [isParametersExpressionVisible, setIsParametersExpressionVisible] =
-		useState(() => Boolean(watch('testArgExpr')));
+	const suggestions = useSearchSuggestions();
 
 	return (
 		<FormSection className="flex flex-col">
@@ -56,45 +55,33 @@ export const TestSection = (props: TestSectionProps) => {
 						control={control}
 					/>
 				</div>
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							name="parameters"
-							label="Parameters"
-							placeholder="time_limit:30"
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={
-								<FieldResetButton
-									helpMessage="Clear parameters"
-									onClick={(event) => {
-										event.stopPropagation();
-										setValue('parameters', [], {
-											shouldDirty: true,
-											shouldTouch: true
-										});
-									}}
-								/>
-							}
+				<FilterExpressionField
+					control={control}
+					tokensName="parameters"
+					exprName="testArgExpr"
+					modeName="fieldModes.parameters"
+					label="Parameters"
+					placeholder="time_limit:30"
+					suggestions={suggestions.parameters}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={
+						<FieldResetButton
+							helpMessage="Clear parameters"
+							onClick={(event) => {
+								event.stopPropagation();
+								setValue('parameters', [], {
+									shouldDirty: true,
+									shouldTouch: true
+								});
+								setValue('testArgExpr', '', {
+									shouldDirty: true,
+									shouldTouch: true
+								});
+							}}
 						/>
-					</div>
-					<ExpressionToggleButton
-						label="parameter expression"
-						isOpen={isParametersExpressionVisible}
-						onClick={() =>
-							setIsParametersExpressionVisible((previous) => !previous)
-						}
-					/>
-				</div>
-				{isParametersExpressionVisible ? (
-					<TextField
-						name={'testArgExpr'}
-						label="Parameter Expression"
-						placeholder={'argument1 != 5 & argument2 >= 10'}
-						control={control}
-					/>
-				) : null}
+					}
+				/>
 			</div>
 		</FormSection>
 	);

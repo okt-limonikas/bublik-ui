@@ -58,6 +58,7 @@ export * from './lib/icon';
 export * from './lib/command';
 export * from './lib/separator';
 export * from './lib/badge-box';
+export * from './lib/filter-expression-input';
 export * from './lib/toolbar';
 export * from './lib/drawer';
 export * from './lib/form-alert';

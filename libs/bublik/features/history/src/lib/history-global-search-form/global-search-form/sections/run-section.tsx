@@ -1,25 +1,24 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
 import { config } from '@/bublik/config';
 import {
 	TextField,
-	BadgeField,
 	AriaDateRangeField,
-	CheckboxField
+	CheckboxField,
+	FilterExpressionField
 } from '@/shared/tailwind-ui';
 import { RUN_PROPERTIES } from '@/shared/types';
 
 import {
-	ExpressionToggleButton,
 	FieldResetButton,
 	FormSection,
 	FormSectionSubheader,
 	FormError
 } from '../components';
 import { HistoryGlobalSearchFormValues } from '../global-search-form.types';
+import { useSearchSuggestions } from '../hooks/use-search-suggestions';
 
 export type RunSectionProps = {
 	onResetRunSectionClick: () => void;
@@ -27,23 +26,21 @@ export type RunSectionProps = {
 };
 
 export const RunSection = (props: RunSectionProps) => {
-	const { control, formState, watch, setValue } =
+	const { control, formState, setValue } =
 		useFormContext<HistoryGlobalSearchFormValues>();
-	const [isLabelExpressionVisible, setIsLabelExpressionVisible] = useState(() =>
-		Boolean(watch('labelExpr'))
-	);
-	const [isBranchExpressionVisible, setIsBranchExpressionVisible] = useState(
-		() => Boolean(watch('branchExpr'))
-	);
-	const [isRevisionExpressionVisible, setIsRevisionExpressionVisible] =
-		useState(() => Boolean(watch('revisionExpr')));
-	const [isTagExpressionVisible, setIsTagExpressionVisible] = useState(() =>
-		Boolean(watch('tagExpr'))
-	);
+	const suggestions = useSearchSuggestions();
 
 	const runPropsError = formState.errors.runProperties?.message as
 		| string
 		| undefined;
+
+	const clearField = (
+		tokensName: 'labels' | 'branches' | 'revisions' | 'runData',
+		exprName: 'labelExpr' | 'branchExpr' | 'revisionExpr' | 'tagExpr'
+	) => {
+		setValue(tokensName, [], { shouldDirty: true, shouldTouch: true });
+		setValue(exprName, '', { shouldDirty: true, shouldTouch: true });
+	};
 
 	return (
 		<FormSection>
@@ -61,170 +58,93 @@ export const RunSection = (props: RunSectionProps) => {
 			<div className="flex flex-col gap-4">
 				<div className="grid items-center gap-4 md:grid-cols-2">
 					<AriaDateRangeField label="Dates" name="dates" control={control} />
-					<div className="flex gap-2">
-						<div className="flex-1">
-							<TextField
-								name="runIds"
-								label="Run ID"
-								placeholder="1"
-								control={control}
-							/>
-						</div>
-						<div className="size-10" />
-					</div>
-				</div>
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							name="labels"
-							label="Labels"
-							placeholder="label"
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={
-								<FieldResetButton
-									helpMessage="Clear labels"
-									onClick={(event) => {
-										event.stopPropagation();
-										setValue('labels', [], {
-											shouldDirty: true,
-											shouldTouch: true
-										});
-									}}
-								/>
-							}
-						/>
-					</div>
-					<ExpressionToggleButton
-						label="label expression"
-						isOpen={isLabelExpressionVisible}
-						onClick={() => setIsLabelExpressionVisible((previous) => !previous)}
-					/>
-				</div>
-				{isLabelExpressionVisible ? (
 					<TextField
-						name="labelExpr"
-						label="Label Expression"
-						placeholder={'label1 & label2'}
+						name="runIds"
+						label="Run ID"
+						placeholder="1"
 						control={control}
 					/>
-				) : null}
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							name="branches"
-							label="Branches"
-							placeholder="master"
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={
-								<FieldResetButton
-									helpMessage="Clear branches"
-									onClick={(event) => {
-										event.stopPropagation();
-										setValue('branches', [], {
-											shouldDirty: true,
-											shouldTouch: true
-										});
-									}}
-								/>
-							}
-						/>
-					</div>
-					<ExpressionToggleButton
-						label="branch expression"
-						isOpen={isBranchExpressionVisible}
-						onClick={() =>
-							setIsBranchExpressionVisible((previous) => !previous)
-						}
-					/>
 				</div>
-				{isBranchExpressionVisible ? (
-					<TextField
-						name={'branchExpr'}
-						label="Branch Expression"
-						placeholder="branch1 | branch2"
-						control={control}
-					/>
-				) : null}
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							name="revisions"
-							label="Revisions"
-							placeholder="8af383125f20cc5ecdb8393bf"
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={
-								<FieldResetButton
-									helpMessage="Clear revisions"
-									onClick={(event) => {
-										event.stopPropagation();
-										setValue('revisions', [], {
-											shouldDirty: true,
-											shouldTouch: true
-										});
-									}}
-								/>
-							}
+				<FilterExpressionField
+					control={control}
+					tokensName="labels"
+					exprName="labelExpr"
+					modeName="fieldModes.labels"
+					label="Labels"
+					placeholder="label"
+					suggestions={suggestions.labels}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={
+						<FieldResetButton
+							helpMessage="Clear labels"
+							onClick={(event) => {
+								event.stopPropagation();
+								clearField('labels', 'labelExpr');
+							}}
 						/>
-					</div>
-					<ExpressionToggleButton
-						label="revision expression"
-						isOpen={isRevisionExpressionVisible}
-						onClick={() =>
-							setIsRevisionExpressionVisible((previous) => !previous)
-						}
-					/>
-				</div>
-				{isRevisionExpressionVisible ? (
-					<TextField
-						name={'revisionExpr'}
-						label="Revision Expression"
-						placeholder="meta_name1 & meta_name2=32"
-						control={control}
-					/>
-				) : null}
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<BadgeField
-							label="Tags"
-							name="runData"
-							placeholder="medford"
-							control={control}
-							keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
-							keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-							labelTrailingContent={
-								<FieldResetButton
-									helpMessage="Clear tags"
-									onClick={(event) => {
-										event.stopPropagation();
-										setValue('runData', [], {
-											shouldDirty: true,
-											shouldTouch: true
-										});
-									}}
-								/>
-							}
+					}
+				/>
+				<FilterExpressionField
+					control={control}
+					tokensName="branches"
+					exprName="branchExpr"
+					modeName="fieldModes.branches"
+					label="Branches"
+					placeholder="master"
+					suggestions={suggestions.branches}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={
+						<FieldResetButton
+							helpMessage="Clear branches"
+							onClick={(event) => {
+								event.stopPropagation();
+								clearField('branches', 'branchExpr');
+							}}
 						/>
-					</div>
-					<ExpressionToggleButton
-						label="tag expression"
-						isOpen={isTagExpressionVisible}
-						onClick={() => setIsTagExpressionVisible((previous) => !previous)}
-					/>
-				</div>
-				{isTagExpressionVisible ? (
-					<TextField
-						name="tagExpr"
-						label="Tag Expression"
-						placeholder="pci-15b3 | pci-sub-15b3"
-						control={control}
-					/>
-				) : null}
+					}
+				/>
+				<FilterExpressionField
+					control={control}
+					tokensName="revisions"
+					exprName="revisionExpr"
+					modeName="fieldModes.revisions"
+					label="Revisions"
+					placeholder="8af383125f20cc5ecdb8393bf"
+					suggestions={suggestions.revisions}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={
+						<FieldResetButton
+							helpMessage="Clear revisions"
+							onClick={(event) => {
+								event.stopPropagation();
+								clearField('revisions', 'revisionExpr');
+							}}
+						/>
+					}
+				/>
+				<FilterExpressionField
+					control={control}
+					tokensName="runData"
+					exprName="tagExpr"
+					modeName="fieldModes.runData"
+					label="Tags"
+					placeholder="medford"
+					suggestions={suggestions.runData}
+					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
+					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
+					labelTrailingContent={
+						<FieldResetButton
+							helpMessage="Clear tags"
+							onClick={(event) => {
+								event.stopPropagation();
+								clearField('runData', 'tagExpr');
+							}}
+						/>
+					}
+				/>
 			</div>
 			<div className="mt-4">
 				<FormSectionSubheader name="Compromise Status" />
