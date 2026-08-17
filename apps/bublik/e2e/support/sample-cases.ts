@@ -79,25 +79,33 @@ function representativeNokRun(manifest: E2EManifest): {
 }
 
 /**
- * Two imported runs sharing a dashboard date, so a single runs-page query lists
- * both — what the selection popover, /compare and /multiple scenarios need.
+ * Two imported runs sharing a dashboard date *and* a project, so a single
+ * runs-page query lists both — what the selection popover, /compare and
+ * /multiple scenarios need. The project has to match because the runs table is
+ * scoped to the selected project.
  */
 function runPairOnSameDate(manifest: E2EManifest): {
 	date: string;
+	project: string;
 	bundles: [Bundle, Bundle];
 } | null {
-	const byDate = new Map<string, Bundle[]>();
+	const byDateAndProject = new Map<string, Bundle[]>();
 
 	for (const bundle of manifest.bundles) {
 		const date = bundle.expectedRuns[0]?.dashboardDate;
 		if (!bundle.runId || !date) continue;
 
-		const bundles = byDate.get(date) ?? [];
+		const key = `${date} ${bundle.project}`;
+		const bundles = byDateAndProject.get(key) ?? [];
 		bundles.push(bundle);
-		byDate.set(date, bundles);
+		byDateAndProject.set(key, bundles);
 
 		if (bundles.length >= 2) {
-			return { date, bundles: [bundles[0], bundles[1]] };
+			return {
+				date,
+				project: bundle.project,
+				bundles: [bundles[0], bundles[1]]
+			};
 		}
 	}
 
