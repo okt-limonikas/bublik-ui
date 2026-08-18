@@ -69,7 +69,9 @@ test(
   a silently skipped scenario is worse than no scenario.
 - **Assertions live in the page object.** Specs that delegate every assertion keep the
   `// eslint-disable-next-line playwright/expect-expect` comment, as the older specs do.
-- Tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
+- Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
+- Area tags name the page a scenario belongs to, so one page's suite can be run on its own
+  (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`.
 
 ## Checking
 

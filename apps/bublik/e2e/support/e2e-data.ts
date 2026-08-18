@@ -214,14 +214,53 @@ async function firstReportConfig(
 	return payload.run_report_configs?.[0] ?? null;
 }
 
+/**
+ * The dashboard, and everything reachable from it, is scoped by the project id
+ * carried in `?project=`. Tests know projects by the name the fixture manifest
+ * records, so the id has to be looked up.
+ */
+async function projectIdByName(
+	request: APIRequestContext,
+	name: string
+): Promise<number | null> {
+	const response = await request.get('/api/v2/projects/');
+	expect(response.ok()).toBeTruthy();
+
+	const payload = (await response.json()) as { id: number; name: string }[];
+
+	return payload.find((project) => project.name === name)?.id ?? null;
+}
+
+/**
+ * The day an unpinned dashboard resolves to: the backend answers a request
+ * without `date` with the latest day it has runs for, per project. That is what
+ * the Today button lands on.
+ */
+async function dashboardResolvedDate(
+	request: APIRequestContext,
+	projectId?: number
+): Promise<string | null> {
+	const search = typeof projectId === 'number' ? `?project=${projectId}` : '';
+	const response = await request.get(`/api/v2/dashboard/${search}`);
+	expect(response.ok()).toBeTruthy();
+
+	if (response.status() === 204) return null;
+
+	const payload = (await response.json()) as { date?: string };
+
+	return payload.date ?? null;
+}
+
 export {
 	dashboardCellDestination,
+	dashboardResolvedDate,
 	firstErrorResultNode,
 	firstMeasurementResultNode,
 	firstReportConfig,
 	firstResultNode,
 	getTree,
 	importedRunId,
+	projectIdByName,
 	reportConfiguredImportedRun,
 	representativeImportedRun
 };

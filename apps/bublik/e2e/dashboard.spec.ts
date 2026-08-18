@@ -4,16 +4,30 @@
 import { expect, test } from '@playwright/test';
 
 import { DashboardPage } from './pages/dashboard-page';
+import { ProjectPicker } from './pages/project-picker';
 import { RunPage } from './pages/run-page';
-import { dashboardCellDestination, importedRunId } from './support/e2e-data';
+import {
+	dashboardCellDestination,
+	dashboardResolvedDate,
+	importedRunId,
+	projectIdByName
+} from './support/e2e-data';
 import { and, but, given, then, when } from './support/gherkin';
 import { requireCapability } from './support/capabilities';
 import { requireManifest } from './support/manifest';
 import {
 	expectedNokCount,
+	projectSpanningDays,
 	representativeNokRun,
-	representativeRun
+	representativeRun,
+	runPairOnDifferentProjects
 } from './support/sample-cases';
+
+// The dashboard is public: no route guard, and the dashboard and projects
+// endpoints are unauthenticated. The browser projects otherwise share a
+// signed-in storage state, so the suite starts from a clean context to keep
+// "no sign-in needed" a tested claim rather than a comment.
+test.use({ storageState: { cookies: [], origins: [] } });
 
 function nokRun() {
 	const representative = requireCapability(
@@ -34,71 +48,75 @@ function anyRun() {
 }
 
 test.describe('Dashboard', () => {
-	test('Dashboard lists the runs imported for a date', async ({ page }) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
+	test(
+		'Dashboard lists the runs imported for a date',
+		{ tag: ['@dashboard', '@smoke'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
 
-		await given(
-			'the fixture manifest describes a run with a dashboard date',
-			() => expect(expectedRun.dashboardDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', () =>
-			dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
-		);
-		await then('the run appears as a row in the dashboard table', () =>
-			dashboard.expectRunIdVisible(runId)
-		);
-		await and(
-			'the row shows its conclusion, total and NOK counters',
-			async () => {
-				await dashboard.expectCellVisible(runId, 'total');
-				await dashboard.expectCellVisible(runId, 'unexpected');
-			}
-		);
-	});
-
-	test('Dashboard shows an empty state for a date without runs', async ({
-		page
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const manifest = requireManifest();
-		const emptyDate = requireCapability(
-			manifest.emptyDates[0],
-			'Fixture manifest contains no empty date.'
-		);
-
-		await given('the fixture manifest declares a date with no runs', () =>
-			expect(emptyDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', () =>
-			dashboard.goto(emptyDate, { mode: 'rows' })
-		);
-		await then('the dashboard shows the "No data" empty state', () =>
-			dashboard.expectEmpty()
-		);
-		await and('none of the imported runs are listed', async () => {
-			for (const bundle of manifest.bundles) {
-				await dashboard.expectRunIdHidden(importedRunId(bundle));
-			}
-		});
-	});
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', () =>
+				dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
+			);
+			await then('the run appears as a row in the dashboard table', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+			await and(
+				'the row shows its conclusion, total and NOK counters',
+				async () => {
+					await dashboard.expectCellVisible(runId, 'total');
+					await dashboard.expectCellVisible(runId, 'unexpected');
+				}
+			);
+		}
+	);
 
 	test(
-		'NOK counter reports the number of unexpected results from the manifest',
-		{ tag: ['@needs-nok'] },
+		'Dashboard shows an empty state for a date without runs',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const manifest = requireManifest();
+			const emptyDate = requireCapability(
+				manifest.emptyDates[0],
+				'Fixture manifest contains no empty date.'
+			);
+
+			await given('a day with no imported runs', () =>
+				expect(emptyDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', () =>
+				dashboard.goto(emptyDate, { mode: 'rows' })
+			);
+			await then('the dashboard shows the "No data" empty state', () =>
+				dashboard.expectEmpty()
+			);
+			await and('none of the imported runs are listed', async () => {
+				for (const bundle of manifest.bundles) {
+					await dashboard.expectRunIdHidden(importedRunId(bundle));
+				}
+			});
+		}
+	);
+
+	test(
+		'NOK counter reports the number of unexpected results',
+		{ tag: ['@dashboard', '@needs-nok'] },
 		async ({ page }) => {
 			const dashboard = new DashboardPage(page);
 			const { expectedRun, runId, nokCount } = nokRun();
 
-			await given(
-				'the fixture manifest describes a run with unexpected results',
-				() => expect(nokCount).toBeGreaterThan(0)
+			await given('an imported run has unexpected results', () =>
+				expect(nokCount).toBeGreaterThan(0)
 			);
-			await when("I open the dashboard for that run's date", () =>
+			await when("I open the dashboard for that run's day", () =>
 				dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
 			);
 			await then(
-				"the run's NOK counter equals the unexpected result count from the manifest",
+				"the run's NOK counter equals the number of unexpected results",
 				() => dashboard.expectCellValue(runId, 'unexpected', String(nokCount))
 			);
 		}
@@ -106,17 +124,16 @@ test.describe('Dashboard', () => {
 
 	test(
 		'Clicking the NOK counter opens the run with unexpected rows previewed',
-		{ tag: ['@needs-nok'] },
+		{ tag: ['@dashboard', '@needs-nok'] },
 		async ({ page }) => {
 			const dashboard = new DashboardPage(page);
 			const runPage = new RunPage(page);
 			const { expectedRun, runId, sampleNames } = nokRun();
 
-			await given(
-				'the fixture manifest describes a run with unexpected results',
-				() => expect(sampleNames.length).toBeGreaterThan(0)
+			await given('an imported run has unexpected results', () =>
+				expect(sampleNames.length).toBeGreaterThan(0)
 			);
-			await when("I open the dashboard for that run's date", () =>
+			await when("I open the dashboard for that run's day", () =>
 				dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
 			);
 			await and("I click the run's NOK counter", () =>
@@ -143,17 +160,16 @@ test.describe('Dashboard', () => {
 
 	test(
 		'Ctrl-clicking the NOK counter opens the run with the result tables expanded',
-		{ tag: ['@needs-nok'] },
+		{ tag: ['@dashboard', '@needs-nok'] },
 		async ({ page }) => {
 			const dashboard = new DashboardPage(page);
 			const runPage = new RunPage(page);
 			const { expectedRun, runId, sampleNames } = nokRun();
 
-			await given(
-				'the fixture manifest describes a run with unexpected results',
-				() => expect(sampleNames.length).toBeGreaterThan(0)
+			await given('an imported run has unexpected results', () =>
+				expect(sampleNames.length).toBeGreaterThan(0)
 			);
-			await when("I open the dashboard for that run's date", () =>
+			await when("I open the dashboard for that run's day", () =>
 				dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
 			);
 			await and("I ctrl-click the run's NOK counter", () =>
@@ -169,139 +185,330 @@ test.describe('Dashboard', () => {
 		}
 	);
 
-	test('Clicking the total counter follows the destination the dashboard declares', async ({
-		page,
-		request
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
-		let destination = /never/;
+	test(
+		'Clicking the total counter follows the destination the dashboard declares',
+		{ tag: ['@dashboard'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			let destination = /never/;
 
-		await given(
-			"the dashboard API declares a destination for the run's total counter",
-			async () => {
-				destination = requireCapability(
-					await dashboardCellDestination(
-						request,
-						expectedRun.dashboardDate,
-						runId,
-						'total'
-					),
-					'Dashboard total cell declares no navigable destination.'
+			await given(
+				"the dashboard declares where the run's total counter leads",
+				async () => {
+					destination = requireCapability(
+						await dashboardCellDestination(
+							request,
+							expectedRun.dashboardDate,
+							runId,
+							'total'
+						),
+						'Dashboard total cell declares no navigable destination.'
+					);
+				}
+			);
+			await when('I open the dashboard for that day', () =>
+				dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
+			);
+			await and("I click the run's total counter", () =>
+				dashboard.openCell(runId, 'total', destination)
+			);
+			await then('that declared destination is open', () =>
+				expect(page).toHaveURL(destination)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		"Expanding a dashboard row reveals the run's pass rate history",
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and("I expand the run's row", () => dashboard.expandRow(runId));
+			await then("the row's pass rate history is shown", () =>
+				dashboard.expectSubrowVisible(runId)
+			);
+			await when("I collapse the run's row", () =>
+				dashboard.collapseRow(runId)
+			);
+			await then("the row's pass rate history is hidden", () =>
+				dashboard.expectSubrowHidden(runId)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Searching the dashboard narrows the table to matching runs',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I search for a term that no run matches', () =>
+				dashboard.search('no-run-matches-this-term')
+			);
+			await then('the run is no longer listed', () =>
+				dashboard.expectRunIdHidden(runId)
+			);
+			await when('I clear the search', () => dashboard.clearSearch());
+			await then('the run is listed again', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Switching the layout mode shows two days side by side',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I switch the layout to two days per column', () =>
+				dashboard.setMode('columns')
+			);
+			await then('the dashboard URL records the columns mode', () =>
+				expect(page).toHaveURL(/mode=columns/)
+			);
+			await and('the run is still listed', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'The Today button returns the dashboard to the current day',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I press the Today button', () => dashboard.clickToday());
+			await then('the dashboard URL no longer pins a date', () =>
+				dashboard.expectDateNotPinned()
+			);
+		}
+	);
+
+	test(
+		'The Today button opens the latest day of the selected project',
+		{ tag: ['@dashboard'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const sample = requireCapability(
+				projectSpanningDays(requireManifest()),
+				'Fixture manifest contains no project with runs on more than one day.'
+			);
+			let projectId = 0;
+
+			await given('a project whose runs span more than one day', async () => {
+				projectId = requireCapability(
+					await projectIdByName(request, sample.project),
+					`Project "${sample.project}" is not registered.`
 				);
-			}
-		);
-		await when('I open the dashboard for that date', () =>
-			dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' })
-		);
-		await and("I click the run's total counter", () =>
-			dashboard.openCell(runId, 'total', destination)
-		);
-		await then('that declared destination is open', () =>
-			expect(page).toHaveURL(destination)
-		);
-	});
+			});
+			await when(
+				'I open the dashboard for that project on an older day',
+				async () => {
+					await dashboard.goto(sample.earlierDate, {
+						mode: 'rows',
+						projectId
+					});
+					await dashboard.expectRunIdVisible(sample.earlierRunId);
+				}
+			);
+			await and('I press the Today button', () => dashboard.clickToday());
+			await then("the dashboard shows that project's latest day", async () => {
+				await dashboard.expectDateNotPinned();
+				// An unpinned dashboard resolves to the day the backend reports as
+				// the latest for the selected project — its latest runs.
+				expect(await dashboardResolvedDate(request, projectId)).toBe(
+					sample.latestDate
+				);
+			});
+			await and('the runs of that latest day are listed', () =>
+				dashboard.expectRunIdsVisible(sample.latestRunIds)
+			);
+			await but("the older day's run is not listed", () =>
+				dashboard.expectRunIdHidden(sample.earlierRunId)
+			);
+		}
+	);
+
+	test(
+		"Refreshing the dashboard refetches the day's runs",
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			// Armed by the click step, awaited by the assertion step, so the
+			// response cannot land in between.
+			let refetched: Promise<void> = Promise.resolve();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I press the refresh button', () => {
+				refetched = dashboard.waitForDayFetch(() => dashboard.clickRefresh());
+			});
+			await then("the dashboard fetches the day's runs again", () => refetched);
+			await and('the run is still listed', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+		}
+	);
+
+	test(
+		'Auto reload refreshes the dashboard on a timer',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			// The dashboard polls every 30s, so this one waits in real time.
+			test.slow();
+
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I turn on Auto reload', () => dashboard.setAutoReload(true));
+			await then("the dashboard reloads the day's runs on its own", () =>
+				// The poll fires at 30s; anything sooner is a leftover prefetch.
+				dashboard.waitForDayFetch(() => undefined, {
+					timeout: 60_000,
+					notBefore: 20_000
+				})
+			);
+			await when('I turn off Auto reload', () =>
+				dashboard.setAutoReload(false)
+			);
+			await then('Auto reload is off', () => dashboard.expectAutoReload(false));
+		}
+	);
 
 	// Assertions are encapsulated by DashboardPage.
 	// eslint-disable-next-line playwright/expect-expect
-	test("Expanding a dashboard row reveals the run's pass rate history", async ({
-		page
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
+	test(
+		'TV mode shows the dashboard full screen until Escape',
+		{ tag: ['@dashboard'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
 
-		await given(
-			'the fixture manifest describes a run with a dashboard date',
-			() => expect(expectedRun.dashboardDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', async () => {
-			await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
-			await dashboard.expectRunIdVisible(runId);
-		});
-		await and("I expand the run's row", () => dashboard.expandRow(runId));
-		await then("the row's pass rate history is shown", () =>
-			dashboard.expectSubrowVisible(runId)
-		);
-		await when("I collapse the run's row", () => dashboard.collapseRow(runId));
-		await then("the row's pass rate history is hidden", () =>
-			dashboard.expectSubrowHidden(runId)
-		);
-	});
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I enter TV mode', () => dashboard.enterTvMode());
+			await then(
+				'the dashboard fills the screen without the page controls',
+				() => dashboard.expectTvModeOpen()
+			);
+			await and('the run is listed on the TV screen', () =>
+				dashboard.expectTvRunVisible(runId)
+			);
+			await when('I press Escape', () => dashboard.leaveTvMode());
+			await then('TV mode is closed and the dashboard controls are back', () =>
+				dashboard.expectTvModeClosed()
+			);
+		}
+	);
 
-	// Assertions are encapsulated by DashboardPage.
+	// Assertions are encapsulated by DashboardPage and ProjectPicker.
 	// eslint-disable-next-line playwright/expect-expect
-	test('Searching the dashboard narrows the table to matching runs', async ({
-		page
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
+	test(
+		'Selecting a project in the sidebar scopes the dashboard to it',
+		{ tag: ['@dashboard'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const picker = new ProjectPicker(page);
+			const pair = requireCapability(
+				runPairOnDifferentProjects(requireManifest()),
+				'Fixture manifest contains no two projects with runs on the same day.'
+			);
+			const [selected, other] = pair.runs;
+			let selectedProjectId = 0;
 
-		await given(
-			'the fixture manifest describes a run with a dashboard date',
-			() => expect(expectedRun.dashboardDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', async () => {
-			await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
-			await dashboard.expectRunIdVisible(runId);
-		});
-		await and('I search for a term that no run matches', () =>
-			dashboard.search('no-run-matches-this-term')
-		);
-		await then('the run is no longer listed', () =>
-			dashboard.expectRunIdHidden(runId)
-		);
-		await when('I clear the search', () => dashboard.clearSearch());
-		await then('the run is listed again', () =>
-			dashboard.expectRunIdVisible(runId)
-		);
-	});
-
-	// Assertions are encapsulated by DashboardPage.
-	// eslint-disable-next-line playwright/expect-expect
-	test('Switching the layout mode shows two days side by side', async ({
-		page
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
-
-		await given(
-			'the fixture manifest describes a run with a dashboard date',
-			() => expect(expectedRun.dashboardDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', async () => {
-			await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
-			await dashboard.expectRunIdVisible(runId);
-		});
-		await and('I switch the layout to two days per column', () =>
-			dashboard.setMode('columns')
-		);
-		await then('the dashboard URL records the columns mode', () =>
-			expect(page).toHaveURL(/mode=columns/)
-		);
-		await and('the run is still listed', () =>
-			dashboard.expectRunIdVisible(runId)
-		);
-	});
-
-	// Assertions are encapsulated by DashboardPage.
-	// eslint-disable-next-line playwright/expect-expect
-	test('The Today button returns the dashboard to the current day', async ({
-		page
-	}) => {
-		const dashboard = new DashboardPage(page);
-		const { expectedRun, runId } = anyRun();
-
-		await given(
-			'the fixture manifest describes a run with a dashboard date',
-			() => expect(expectedRun.dashboardDate).toBeTruthy()
-		);
-		await when('I open the dashboard for that date', async () => {
-			await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
-			await dashboard.expectRunIdVisible(runId);
-		});
-		await and('I press the Today button', () => dashboard.clickToday());
-		await then('the dashboard URL no longer pins a date', () =>
-			dashboard.expectDateNotPinned()
-		);
-	});
+			await given(
+				'two runs of different projects were imported for the same day',
+				async () => {
+					selectedProjectId = requireCapability(
+						await projectIdByName(request, selected.project),
+						`Project "${selected.project}" is not registered.`
+					);
+				}
+			);
+			await when('I open the dashboard for that day', () =>
+				dashboard.goto(pair.date, { mode: 'rows' })
+			);
+			await then('both runs are listed', () =>
+				dashboard.expectRunIdsVisible([selected.runId, other.runId])
+			);
+			await when("I select the first run's project in the sidebar", () =>
+				picker.select(selectedProjectId)
+			);
+			await then("only that project's run is listed", async () => {
+				await dashboard.expectRunIdVisible(selected.runId);
+				await dashboard.expectRunIdHidden(other.runId);
+			});
+			await and('the sidebar shows the project as selected', () =>
+				picker.expectSelectedLabel(selected.project)
+			);
+			await when('I select All projects in the sidebar', () =>
+				picker.selectAll()
+			);
+			await then('both runs are listed again', () =>
+				dashboard.expectRunIdsVisible([selected.runId, other.runId])
+			);
+		}
+	);
 });

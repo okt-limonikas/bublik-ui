@@ -12,6 +12,8 @@ type DashboardMode = 'rows' | 'rows-line' | 'columns';
 
 interface DashboardNavigationOptions {
 	mode?: DashboardMode;
+	/** Scopes the dashboard to one project, as the sidebar picker does. */
+	projectId?: number;
 }
 
 const MODE_LABELS: Record<DashboardMode, string> = {
@@ -31,6 +33,9 @@ class DashboardPage {
 
 		if (date) searchParams.set('main', date);
 		if (options.mode) searchParams.set('mode', options.mode);
+		if (typeof options.projectId === 'number') {
+			searchParams.set('project', String(options.projectId));
+		}
 
 		const search = searchParams.size ? `?${searchParams.toString()}` : '';
 		await this.page.goto(`dashboard${search}`);
@@ -80,6 +85,28 @@ class DashboardPage {
 
 	async expectRunIdVisible(runId: number): Promise<void> {
 		await expect(this.row(runId)).toBeVisible({ timeout: 30_000 });
+	}
+
+	/** The conclusion indicator is icon-only; its wording lives in the hover
+	 *  card, so the state is read from data-conclusion and the label is
+	 *  confirmed by hovering. */
+	async expectRowConclusion(runId: number, conclusion: string): Promise<void> {
+		const indicator = this.row(runId).getByTestId('run-conclusion');
+
+		await expect(indicator).toHaveAttribute(
+			'data-conclusion',
+			`run-${conclusion}`,
+			{
+				timeout: 30_000
+			}
+		);
+		await indicator.hover();
+		await expect(this.page.getByText('Conclusion:')).toBeVisible({
+			timeout: 15_000
+		});
+		await expect(
+			this.page.getByText(conclusion, { exact: true }).first()
+		).toBeVisible({ timeout: 15_000 });
 	}
 
 	async expectRunIdHidden(runId: number): Promise<void> {
@@ -192,8 +219,134 @@ class DashboardPage {
 		});
 	}
 
+	async expectRunIdsVisible(runIds: number[]): Promise<void> {
+		for (const runId of runIds) await this.expectRunIdVisible(runId);
+	}
+
+	async expectRunIdsHidden(runIds: number[]): Promise<void> {
+		for (const runId of runIds) await this.expectRunIdHidden(runId);
+	}
+
+	/**
+	 * Waits for the day's own dashboard request. The `date=` guard matters: it
+	 * skips `/api/v2/dashboard/default_mode` and the unparameterised query the
+	 * page fires to resolve "today". `notBefore` ignores anything that lands too
+	 * early to be the awaited refetch — the page prefetches the neighbouring
+	 * days on load, and those carry `date=` too.
+	 */
+	async waitForDayFetch(
+		action: () => Promise<unknown> | unknown,
+		options: { timeout?: number; notBefore?: number } = {}
+	): Promise<void> {
+		const { timeout = 15_000, notBefore = 0 } = options;
+		const startedAt = Date.now();
+
+		await Promise.all([
+			this.page.waitForResponse(
+				(response) => {
+					const url = response.url();
+					return (
+						response.request().method() === 'GET' &&
+						/\/api\/v2\/dashboard\/\?/.test(url) &&
+						url.includes('date=') &&
+						response.status() === 200 &&
+						Date.now() - startedAt >= notBefore
+					);
+				},
+				{ timeout }
+			),
+			action()
+		]);
+	}
+
+	refreshButton(): Locator {
+		return this.page.getByRole('button', { name: 'Refresh dashboard' });
+	}
+
+	async clickRefresh(): Promise<void> {
+		await this.refreshButton().click();
+	}
+
+	autoReloadToggle(): Locator {
+		return this.page.getByRole('switch', { name: 'Auto reload' });
+	}
+
+	async setAutoReload(enabled: boolean): Promise<void> {
+		const toggle = this.autoReloadToggle();
+		await expect(toggle).toHaveAttribute(
+			'aria-checked',
+			enabled ? 'false' : 'true'
+		);
+		await toggle.click();
+		await this.expectAutoReload(enabled);
+	}
+
+	/** `reload` is a BooleanParam, so the URL carries `1` / `0`, not the word. */
+	async expectAutoReload(enabled: boolean): Promise<void> {
+		await expect(this.autoReloadToggle()).toHaveAttribute(
+			'aria-checked',
+			String(enabled)
+		);
+		await expect(this.page).toHaveURL(new RegExp(`reload=${enabled ? 1 : 0}`), {
+			timeout: 15_000
+		});
+	}
+
+	/**
+	 * TV mode is a full-screen Radix dialog, not a route. It carries no
+	 * DialogTitle, so it has no accessible name to match on.
+	 */
+	tvScreen(): Locator {
+		return this.page.getByRole('dialog');
+	}
+
+	/**
+	 * The dialog is portaled while the page behind it stays mounted, so a row
+	 * testid matches twice while TV mode is open — TV assertions have to be
+	 * scoped to the dialog.
+	 */
+	tvRow(runId: number): Locator {
+		return this.tvScreen().locator(
+			`[data-testid="dashboard-row"][data-run-id="${runId}"]`
+		);
+	}
+
+	async enterTvMode(): Promise<void> {
+		await this.page.getByRole('button', { name: 'TV' }).click();
+	}
+
+	async leaveTvMode(): Promise<void> {
+		await this.page.keyboard.press('Escape');
+	}
+
+	async expectTvRunVisible(runId: number): Promise<void> {
+		await expect(this.tvRow(runId)).toBeVisible({ timeout: 30_000 });
+	}
+
+	/** Entering TV mode force-enables auto reload, so `reload=1` comes with it. */
+	async expectTvModeOpen(): Promise<void> {
+		await expect(this.tvScreen()).toBeVisible({ timeout: 15_000 });
+		await expect(this.page).toHaveURL(/tv=1/, { timeout: 15_000 });
+		await expect(this.page).toHaveURL(/reload=1/, { timeout: 15_000 });
+		// The TV screen re-mounts the tables alone — none of the page controls.
+		await expect(
+			this.tvScreen().getByRole('button', { name: 'Today' })
+		).toHaveCount(0);
+	}
+
+	async expectTvModeClosed(): Promise<void> {
+		await expect(this.tvScreen()).toHaveCount(0);
+		await expect(this.page).toHaveURL(/tv=0/, { timeout: 15_000 });
+		await expect(this.page).toHaveURL(/reload=0/, { timeout: 15_000 });
+		await expect(this.todayButton()).toBeVisible();
+	}
+
+	todayButton(): Locator {
+		return this.page.getByRole('button', { name: 'Today' });
+	}
+
 	async clickToday(): Promise<void> {
-		await this.page.getByRole('button', { name: 'Today' }).click();
+		await this.todayButton().click();
 	}
 
 	async expectDateNotPinned(): Promise<void> {
