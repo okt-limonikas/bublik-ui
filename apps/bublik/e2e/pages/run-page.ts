@@ -100,6 +100,15 @@ class RunPage {
 		);
 	}
 
+	/** A package and the test inside it often share a name (…/foo/foo), and a
+	 *  count badge only opens a result table on the test row — on a package row
+	 *  it expands the subtree instead. */
+	testNodeRow(testName: string): Locator {
+		return this.page.locator(
+			`[data-testid="run-row"][data-node-type="test"][data-test-name="${testName}"]`
+		);
+	}
+
 	resultTable(testName: string): Locator {
 		return this.page.locator(
 			`[data-testid="run-result-table"][data-test-name="${testName}"]`
@@ -168,6 +177,195 @@ class RunPage {
 
 	async openReports(): Promise<void> {
 		await this.page.getByRole('button', { name: 'Reports' }).click();
+	}
+
+	/* ---------------------------------------------------------------- comment */
+
+	/** The run comment on the info card; renders an em dash when there is none. */
+	commentValue(): Locator {
+		return this.page.getByTestId('run-comment-value');
+	}
+
+	async openCommentEditor(): Promise<void> {
+		await this.page
+			.getByRole('banner')
+			.getByRole('button', { name: 'Edit', exact: true })
+			.click();
+		await expect(
+			this.page.getByRole('heading', { name: 'Edit Comment' })
+		).toBeVisible({ timeout: 15_000 });
+	}
+
+	/** The submit button is labelled Create, Update or Delete depending on the
+	 *  current comment and what is left in the textarea. */
+	async submitComment(comment: string): Promise<void> {
+		const textarea = this.page.getByPlaceholder('Run comment...');
+		await textarea.fill(comment);
+		await this.page
+			.getByRole('button', {
+				name: comment === '' ? 'Delete' : /^(Create|Update)$/
+			})
+			.click();
+	}
+
+	async expectComment(comment: string): Promise<void> {
+		await expect(this.commentValue()).toHaveText(comment, { timeout: 15_000 });
+	}
+
+	async expectNoComment(): Promise<void> {
+		await expect(this.commentValue()).toHaveText('—', { timeout: 15_000 });
+	}
+
+	/* ------------------------------------------------------------------ notes */
+
+	/** The Notes column is hidden by default, so a note cell only exists after
+	 *  the column has been switched on through the toolbar. */
+	async showColumn(label: string): Promise<void> {
+		await this.toolbar.getByRole('button', { name: 'Columns' }).click();
+		const menu = this.page.getByRole('menu');
+		await expect(menu).toBeVisible({ timeout: 15_000 });
+		await menu.getByText(label, { exact: true }).click();
+		await this.page.keyboard.press('Escape');
+		await expect(menu).toBeHidden({ timeout: 15_000 });
+	}
+
+	noteCell(row: Locator): Locator {
+		return row.getByTestId('run-note-cell');
+	}
+
+	/** The note editors are portalled Radix popovers (role=dialog). Scoping to
+	 *  the popover matters: the run table toolbar has a Submit button too. */
+	notePopover(heading: string): Locator {
+		return this.page
+			.getByRole('dialog')
+			.filter({ has: this.page.getByRole('heading', { name: heading }) });
+	}
+
+	async addNote(row: Locator, note: string): Promise<void> {
+		await this.noteCell(row).getByRole('button', { name: 'Add Note' }).click();
+
+		const popover = this.notePopover('Add Note');
+		await expect(popover).toBeVisible({ timeout: 15_000 });
+		await popover.getByPlaceholder('Example note...').fill(note);
+		await popover.getByRole('button', { name: 'Submit' }).click();
+		await expect(popover).toBeHidden({ timeout: 15_000 });
+	}
+
+	async expectNote(row: Locator, note: string): Promise<void> {
+		await expect(this.noteCell(row).locator('pre')).toHaveText(note, {
+			timeout: 30_000
+		});
+	}
+
+	async expectNoNote(row: Locator): Promise<void> {
+		await expect(
+			this.noteCell(row).getByRole('button', { name: 'Add Note' })
+		).toBeVisible({ timeout: 30_000 });
+	}
+
+	/** Deleting goes through the "all notes" popover, whose trigger is icon-only
+	 *  and therefore addressed as the cell's first button. */
+	async deleteNote(row: Locator): Promise<void> {
+		await this.noteCell(row).getByRole('button').first().click();
+
+		const popover = this.notePopover('Notes');
+		await expect(popover).toBeVisible({ timeout: 15_000 });
+		await popover.getByRole('button', { name: 'Delete Note' }).first().click();
+
+		const confirm = this.page.getByRole('alertdialog');
+		await expect(confirm).toBeVisible({ timeout: 15_000 });
+		await confirm.getByRole('button', { name: 'Delete' }).click();
+		await this.page.keyboard.press('Escape');
+	}
+
+	/* ------------------------------------------------------------ compromised */
+
+	compromiseTrigger(): Locator {
+		return this.page.getByRole('button', { name: 'Compromised form' });
+	}
+
+	/** The popover is portalled, and its "Mark as compromised" caption is a span
+	 *  that repeats the trigger's label, so the form itself is the only stable
+	 *  scope. */
+	async openCompromiseForm(): Promise<Locator> {
+		await this.compromiseTrigger().click();
+
+		const form = this.page
+			.locator('form')
+			.filter({ hasText: 'Mark as compromised' });
+		await expect(form).toBeVisible({ timeout: 15_000 });
+		return form;
+	}
+
+	/** Bug ID and Bugs storage are both required by the form, even though the API
+	 *  accepts a comment on its own. Bugs storage defaults to the first
+	 *  configured issue tracker, so it is left untouched. */
+	async markCompromised(values: {
+		comment: string;
+		bugId: string;
+	}): Promise<void> {
+		const form = await this.openCompromiseForm();
+		await form.getByLabel('Comment').fill(values.comment);
+		await form.getByLabel('Bug ID').fill(values.bugId);
+		await form.getByRole('button', { name: 'Submit' }).click();
+	}
+
+	/** The app misspells this label — see CompromiseInfo. */
+	async removeCompromised(): Promise<void> {
+		await this.compromiseTrigger().click();
+		await this.page
+			.getByRole('button', { name: 'Remove compomised status' })
+			.click();
+	}
+
+	/** The trigger's accessible name is pinned by aria-label="Compromised form",
+	 *  so its state has to be read from the visible label instead. */
+	async expectCompromised(): Promise<void> {
+		await expect(this.compromiseTrigger()).toHaveText(/Run is compromised/, {
+			timeout: 30_000
+		});
+	}
+
+	async expectNotCompromised(): Promise<void> {
+		await expect(this.compromiseTrigger()).toHaveText(/Mark as compromised/, {
+			timeout: 30_000
+		});
+	}
+
+	/* --------------------------------------------------------- history links */
+
+	/** The default History link of a result row, equivalent to the menu's
+	 *  "Test Path + Parameters + Important Tags (Default)" entry. */
+	historyLink(testName: string): Locator {
+		return this.resultTable(testName).getByRole('link', { name: 'History' });
+	}
+
+	/** Opens the caret of the History split button on the first result row. */
+	async openResultHistoryMenu(testName: string): Promise<void> {
+		await this.resultTable(testName)
+			.locator('button[aria-haspopup="menu"]')
+			.first()
+			.click();
+		await expect(this.page.getByRole('menu')).toBeVisible({ timeout: 15_000 });
+	}
+
+	/** "Test Path + Verdicts" appears under both Open Direct Search and Open
+	 *  Prefilled Form, in that DOM order, so the section picks which one. */
+	async chooseHistoryLink(
+		label: string,
+		section: 'direct' | 'prefilled' = 'direct'
+	): Promise<void> {
+		const items = this.page.getByRole('menuitem', { name: label, exact: true });
+		await (section === 'direct' ? items.first() : items.last()).click();
+	}
+
+	/** The history menu of a tree row — only rendered for test nodes of a single
+	 *  run. */
+	async openTestNodeHistory(row: Locator): Promise<void> {
+		await row.getByTestId('tree-history-trigger').click();
+		await this.page
+			.getByRole('menuitem', { name: 'History View Of Results In The Run' })
+			.click();
 	}
 }
 

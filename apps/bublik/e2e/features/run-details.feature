@@ -69,3 +69,72 @@ Feature: Run details
     Given I open a run whose project has a report config
     When I open the reports menu
     Then the configured report is offered
+
+  @run @comments
+  Scenario: A run comment can be added and then removed
+    Given I open an imported run's page with no comment
+    When I add a comment to the run
+    Then the info card shows that comment
+    When I remove the run comment
+    Then the info card shows no comment
+
+  # Notes are hidden by default, so the column has to be switched on first.
+  @run @comments
+  Scenario: A note can be added to a test node and then removed
+    Given I open an imported run's page with the Notes column shown
+    When I add a note to a test node
+    Then that test node shows the note
+    When I delete the note
+    Then that test node has no note
+
+  @run @runs @dashboard @compromised
+  Scenario: Marking a run as compromised marks it on the run, runs and dashboard pages
+    Given I open a run that is not compromised
+    When I mark the run as compromised
+    Then the run page reports the run as compromised
+    And the run's conclusion is compromised
+    When I open the runs page filtered to that run
+    Then the runs row reports the run as compromised
+    When I open the dashboard for that run's date
+    Then the dashboard row reports the run as compromised
+    When I remove the compromised status from the run
+    Then the run page no longer reports the run as compromised
+
+  @run @compromised
+  Scenario: The compromise form requires a comment
+    Given I open a run that is not compromised
+    When I submit the compromise form without a comment
+    Then the form reports that a comment is required
+
+  @run @history
+  Scenario: The History link opens the history for the test path, parameters and important tags
+    Given I open an imported run's page with a result table expanded
+    When I follow the result's History link
+    Then the history page opens filtered by that test path
+    And the history query carries the result parameters and the run's important tags
+
+  # The first column names the scenario; the second is the menu item it drives.
+  @run @history @needs-nok
+  Scenario Outline: The result history menu filters the history by the chosen variant
+    Given I open a run with unexpected results and a result table expanded
+    When I choose the given variant from the result history menu
+    Then the history query carries the parameters of that variant
+
+    Examples:
+      | variant                        | menu item                         |
+      | Path only                      | Test Path                         |
+      | Path and verdicts              | Test Path + Verdicts              |
+      | Path and parameters            | Test Path + Parameters            |
+      | Path, parameters and all tags  | Test Path + Parameters + All Tags |
+
+  @run @history
+  Scenario: A prefilled history link opens the global search form with the query prefilled
+    Given I open an imported run's page with a result table expanded
+    When I choose a prefilled variant from the result history menu
+    Then the global search form opens with that test path prefilled
+
+  @run @history
+  Scenario: The test node history link opens the history scoped to that run
+    Given I open an imported run's page and expand the tree down to a test node
+    When I open the history view of that test node
+    Then the history query is scoped to that run and test path

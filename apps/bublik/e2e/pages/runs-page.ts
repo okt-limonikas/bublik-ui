@@ -77,6 +77,28 @@ class RunsPage {
 		await expect(this.row(runId)).toBeVisible({ timeout: 30_000 });
 	}
 
+	/** The conclusion indicator is icon-only; its wording lives in the hover
+	 *  card, so the state is read from data-conclusion and the label is
+	 *  confirmed by hovering. */
+	async expectRowConclusion(runId: number, conclusion: string): Promise<void> {
+		const indicator = this.row(runId).getByTestId('run-conclusion');
+
+		await expect(indicator).toHaveAttribute(
+			'data-conclusion',
+			`run-${conclusion}`,
+			{
+				timeout: 30_000
+			}
+		);
+		await indicator.hover();
+		await expect(this.page.getByText('Conclusion:')).toBeVisible({
+			timeout: 15_000
+		});
+		await expect(
+			this.page.getByText(conclusion, { exact: true }).first()
+		).toBeVisible({ timeout: 15_000 });
+	}
+
 	async firstRowRunId(): Promise<string | null> {
 		return this.page
 			.getByTestId('runs-row')
