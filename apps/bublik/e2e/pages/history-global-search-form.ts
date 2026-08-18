@@ -4,6 +4,16 @@ import { expect, Locator, Page } from '@playwright/test';
 
 type VerdictLookupMode = 'String' | 'Regex' | 'None';
 
+/**
+ * The lookup toggles are labelled by intent, not by the word on the button —
+ * "None" reads as "Disable verdict lookup" to a screen reader.
+ */
+const VERDICT_LOOKUP_LABELS: Record<VerdictLookupMode, string> = {
+	String: 'Lookup as string',
+	Regex: 'Lookup as regex',
+	None: 'Disable verdict lookup'
+};
+
 class HistoryGlobalSearchForm {
 	readonly page: Page;
 	readonly root: Locator;
@@ -41,7 +51,10 @@ class HistoryGlobalSearchForm {
 		this.applySearchButton = this.root.getByRole('button', {
 			name: 'Apply Search'
 		});
-		this.resetButton = this.root.getByRole('button', { name: 'Reset' });
+		this.resetButton = this.root.getByRole('button', {
+			name: 'Reset',
+			exact: true
+		});
 		this.datesField = this.root.getByRole('group', { name: 'Dates' });
 		this.testPathInput = this.root.getByLabel('Test Path');
 		this.hashInput = this.root.getByLabel('Hash');
@@ -60,9 +73,7 @@ class HistoryGlobalSearchForm {
 		this.revisionExpressionInput = this.root.getByLabel('Revision Expression');
 		this.tagsInput = this.root.getByPlaceholder('medford');
 		this.tagExpressionInput = this.root.getByLabel('Tag Expression');
-		this.verdictInput = this.root.getByPlaceholder(
-			'Unexpectedly failed with errno ENOPROTOOPT'
-		);
+		this.verdictInput = this.root.locator('input[name="verdict"]');
 		this.verdictExpressionInput = this.root.getByLabel('Verdict Expression');
 		this.verdictLookupGroup = this.root.getByRole('radiogroup', {
 			name: 'Verdict lookup type'
@@ -90,6 +101,33 @@ class HistoryGlobalSearchForm {
 
 	async reset(): Promise<void> {
 		await this.resetButton.click();
+	}
+
+	/** The form's own shortcut, hinted right next to the submit button. */
+	async submitWithKeyboard(): Promise<void> {
+		await this.testPathInput.press('Control+Enter');
+	}
+
+	sectionButton(name: string): Locator {
+		return this.root.getByRole('button', { name, exact: true });
+	}
+
+	/**
+	 * The bin next to a section header empties it — unlike the footer Reset,
+	 * which restores that section's defaults.
+	 */
+	async clearTestSection(): Promise<void> {
+		await this.sectionButton('Clear test section').click();
+	}
+
+	async clearResultSection(): Promise<void> {
+		await this.sectionButton('Clear result section').click();
+	}
+
+	async expectError(message: string): Promise<void> {
+		await expect(this.root.getByText(message)).toBeVisible({
+			timeout: 15_000
+		});
 	}
 
 	async fillTestPath(value: string): Promise<void> {
@@ -186,9 +224,22 @@ class HistoryGlobalSearchForm {
 	}
 
 	async setVerdictLookup(mode: VerdictLookupMode): Promise<void> {
-		await this.verdictLookupGroup
-			.getByRole('radio', { name: new RegExp(mode, 'i') })
-			.click();
+		await this.verdictLookupOption(mode).click();
+	}
+
+	async expectVerdictFieldAcceptsInput(): Promise<void> {
+		await expect(this.verdictInput).toBeEnabled({ timeout: 15_000 });
+	}
+
+	async expectVerdictFieldDisabled(): Promise<void> {
+		await expect(this.verdictInput).toBeDisabled({ timeout: 15_000 });
+	}
+
+	verdictLookupOption(mode: VerdictLookupMode): Locator {
+		return this.verdictLookupGroup.getByRole('radio', {
+			name: VERDICT_LOOKUP_LABELS[mode],
+			exact: true
+		});
 	}
 
 	runPropertyCheckbox(label: string): Locator {

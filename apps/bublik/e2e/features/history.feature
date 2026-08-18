@@ -7,46 +7,243 @@ Feature: History
 
   As an engineer asking "has this test ever passed?", I build a query in the
   global search form — test path, parameters, run metadata, verdicts — apply it,
-  narrow the results further, and switch between the list and chart views.
+  and then read the answer in whichever shape suits the question: the flat list
+  of results, the same results grouped by iteration hash, or, when the test
+  reports measurements, as trend, series and stacked charts.
+
+  The query lives entirely in the URL, so every applied filter is shareable, and
+  the project selected in the sidebar scopes all of it.
 
   Background:
     Given I am signed in
 
-  @smoke
+  ###########################################
+  #         Building a query                #
+  ###########################################
+
+  @history @smoke
   Scenario: Searching by test path queries the history API
     Given the fixture manifest describes a tested path
     When I search the history for that test path
     Then the history request is sent for that test path
     And the search form closes
 
+  @history
   Scenario: The applied search is reflected in the URL
     Given I open the history page
     When I search the history for a test path
     Then the test path is recorded in the URL
 
+  @history
   Scenario: The verdict lookup type can be switched to regex
     Given I open the global search form
     When I switch the verdict lookup to regex
     Then the regex lookup is selected
 
+  # Turning the lookup off is not the same as clearing it — the entered verdicts
+  # are kept in the form, the field just stops accepting input.
+  @history
+  Scenario: Disabling the verdict lookup disables the verdict field
+    Given I open the global search form
+    When I switch the verdict lookup off
+    Then the verdict field is disabled
+
   # The footer Reset restores the form's defaults rather than emptying it: the
   # test path anchors a history query, so only the narrowing fields are cleared.
+  @history
   Scenario: Resetting the search form clears the narrowing fields but keeps the test path
     Given I open the global search form with a test path and a hash entered
     When I reset the form
     Then the hash is cleared
     And the test path is kept
 
+  @history
+  Scenario: A search without a test path is rejected
+    Given I open the global search form
+    When I clear the test section
+    And I apply the search
+    Then the form reports that the test name is required
+    And the search form stays open
+
+  @history
+  Scenario: A search with no obtained result types is rejected
+    Given I open the global search form with a test path entered
+    When I clear the result section
+    And I apply the search
+    Then the form reports that an obtained result type is required
+
+  @history
+  Scenario: Ctrl+Enter submits the search form
+    Given I open the global search form with a test path entered
+    When I press Ctrl+Enter
+    Then the test path is recorded in the URL
+    And the search form closes
+
+  @history
+  Scenario: The applied query is described by the filter legend
+    Given the fixture manifest describes a tested path
+    When I open the history page for that path
+    Then the filter legend names the test path
+    And the filter legend names the obtained results
+
+  ###########################################
+  #         Reading the results             #
+  ###########################################
+
+  @history
+  Scenario: The results table lists the test path's results with log and run links
+    Given the fixture manifest describes a tested path
+    When I open the history page for that path
+    Then the results table lists results
+    And each result links to its log and its run
+
+  @history
   Scenario: The substring filter narrows the results already loaded
     Given I search the history for a test path
     When I type a substring that no result matches
     Then the substring filter holds that value
+    And no results are left in the table
 
+  # The table is server-paginated, so the page has to survive a reload — which
+  # means it belongs in the URL, not in component state.
+  @history
+  Scenario: Paging through the results records the page in the URL
+    Given I open the history page for a path with more results than one page
+    When I open the next page of results
+    Then the second page is recorded in the URL
+
+  @history
+  Scenario: The legend counts the runs and results the query returned
+    Given the fixture manifest describes a tested path
+    When I open the history page for that path
+    Then the legend counts at least one run
+    And the legend counts at least one test result
+
+  # Reset Filter is the header's escape hatch: it drops everything the user
+  # narrowed by, but not the test path that makes the query a history query.
+  @history
+  Scenario: Reset Filter restores the defaults but keeps the test path
+    Given I open the history page for a path with a hash filter applied
+    When I press Reset Filter
+    Then the hash is dropped from the URL
+    And the test path is kept in the URL
+
+  # A path the instance has never seen is a 404; the honest empty case is a real
+  # path on a day the lab did not run it.
+  @history
+  Scenario: A test path with no matching results shows the empty state
+    Given a tested path and a day the lab did not run it
+    When I open the history page for that path on that day
+    Then the page reports that there are no results
+
+  @history
+  Scenario: Opening history without a test path asks for one
+    When I open the history page with no query
+    Then the page reports that a test name is missing
+
+  ###########################################
+  #         Grouped results                 #
+  ###########################################
+
+  @history
+  Scenario: Grouped results list each parameter hash with the results it produced
+    Given the fixture manifest describes a tested path
+    When I open the history page for that path in the aggregation mode
+    Then the grouped table is listed by parameters and hash
+    And each group lists the results it produced
+
+  @history
+  Scenario: A grouped result links to the log of that result
+    Given I open the history page for a path in the aggregation mode
+    When I follow the first numbered result link
+    Then the log page for that result is open
+
+  ###########################################
+  #         Charts                          #
+  ###########################################
+
+  @history @needs-measurements
+  Scenario: Trend charts render for a test path with measurements
+    Given the fixture manifest describes a path with measurements
+    When I open the history page for that path in the trend charts mode
+    Then the trend charts are rendered
+
+  @history @needs-measurements
+  Scenario: Series charts render one block per measurement result
+    Given the fixture manifest describes a path with measurements
+    When I open the history page for that path in the series charts mode
+    Then the series charts are rendered
+
+  # The chart filters narrow which plots are drawn, so they are part of the
+  # query and have to survive a reload the same way the search does.
+  @history @needs-measurements
+  Scenario: Series charts can be narrowed by the chart name filter
+    Given I open the history page for a path with measurements in the series charts mode
+    When I pick the first chart in the Charts filter
+    Then the picked chart is recorded in the URL
+
+  # Stacking is a two-step flow: charts are collected from the trend view into a
+  # selection carried by the URL, and the stacked view draws that selection.
+  @history @needs-measurements
+  Scenario: Adding trend charts to the combined view opens the stacked page
+    Given I open the history page for a path with measurements in the trend charts mode
+    When I add the first chart to the combined view
+    And I open the stacked view from the selection
+    Then the stacked mode is open with the selected chart in the URL
+
+  @history
+  Scenario: The stacked view asks for a selection when none was made
+    When I open the history page in the stacked charts mode with nothing selected
+    Then the page reports that no plots were selected
+
+  ###########################################
+  #         Modes                           #
+  ###########################################
+
+  # The rows are the `mode=` values themselves — an unknown one falls back to
+  # the list of results, so each has to be asserted as the mode the page
+  # actually resolved.
+  @history
   Scenario Outline: The history page renders every result mode
-    When I open the history page in the given mode
-    Then the history page is ready
+    Given the fixture manifest describes a path with measurements
+    When I open the history page for that path in the given mode
+    Then the history page reports that mode as its layout
 
     Examples:
-      | mode        |
-      | aggregation |
-      | linear      |
+      | mode                      |
+      | linear                    |
+      | aggregation               |
+      | measurements              |
+      | measurements-by-iteration |
+      | measurements-combined     |
+
+  ###########################################
+  #         Project scoping                 #
+  ###########################################
+
+  # Each fixture project runs its own test suite, so a path of one project is
+  # proof of scoping: under another project it has to return nothing at all.
+  @history
+  Scenario: Selecting a project in the sidebar scopes the history results to it
+    Given two projects with test paths that do not overlap
+    When I select the first project in the sidebar
+    And I open the history page for that project's test path
+    Then the history request carries that project
+    And the results table lists results
+    When I open the history page for the other project's test path
+    Then the page reports that there are no results
+    When I select All projects in the sidebar
+    Then the results table lists results
+
+  @history
+  Scenario Outline: Every history mode stays scoped to the selected project
+    Given a project with a test path that reports measurements
+    When I select that project in the sidebar
+    And I open the history page for that path in the given mode
+    Then the history request carries that project
+
+    Examples:
+      | mode              |
+      | List Of Results   |
+      | Groups Of Results |
+      | Trend Charts      |

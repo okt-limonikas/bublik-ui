@@ -281,6 +281,11 @@ function shiftDate(date: string, days: number): string {
 	return shifted.toISOString().slice(0, 10);
 }
 
+/** A day the fixture plan deliberately left without runs. */
+function historyEmptyDate(manifest: E2EManifest): string | null {
+	return manifest.emptyDates[0] ?? null;
+}
+
 function historyTestPathForProject(
 	manifest: E2EManifest,
 	project: string
@@ -417,6 +422,7 @@ export {
 	expectedNokCount,
 	firstHistoryTestPath,
 	historyDateRange,
+	historyEmptyDate,
 	historyMeasurementTestPath,
 	historyProjectPair,
 	historyProjects,
@@ -427,6 +433,7 @@ export {
 	representativeRun,
 	runPairOnDifferentProjects,
 	runPairOnSameDate,
-	sampleCases
+	sampleCases,
+	shiftDate
 };
 export type { HistoryProject, ProjectRun, SampleCase };
