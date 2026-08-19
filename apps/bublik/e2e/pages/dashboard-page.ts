@@ -22,6 +22,64 @@ const MODE_LABELS: Record<DashboardMode, string> = {
 	columns: 'Mode columns'
 };
 
+/**
+ * The dashboard keeps all of its state in the query string — there is no
+ * localStorage or redux fallback, so a link is the only way a view is saved or
+ * shared. Every key is declared in
+ * `libs/bublik/features/dashboard-v2/src/lib/hooks/index.ts`; this table is the
+ * inventory the @url-params scenarios are written against.
+ *
+ * `_s` (compressed sidebar state) and `hide-sidebar` also ride along on the
+ * URL, but they belong to the sidebar rather than the dashboard — assertions
+ * must ignore them, since navigation helpers inject them.
+ */
+const DASHBOARD_URL_PARAMS = {
+	main: {
+		codec: 'DateParam',
+		values: 'YYYY-MM-DD',
+		whenAbsent: 'the day the backend reports as the latest',
+		writtenBy: 'the main date picker; cleared by Today'
+	},
+	secondary: {
+		codec: 'DateParam',
+		values: 'YYYY-MM-DD',
+		whenAbsent: 'in columns mode, the latest day minus one',
+		writtenBy: 'the secondary date picker and the mode picker'
+	},
+	mode: {
+		codec: 'StringParam',
+		values: 'rows | rows-line | columns',
+		whenAbsent: 'the deployment default from /dashboard/default_mode',
+		writtenBy: 'the mode picker'
+	},
+	search: {
+		codec: 'StringParam',
+		values: 'free text',
+		whenAbsent: 'no filter is applied',
+		writtenBy: 'the search bar, 400ms after typing stops'
+	},
+	reload: {
+		codec: 'BooleanParam',
+		values: '1 | 0',
+		whenAbsent: 'auto reload is off',
+		writtenBy: 'the Auto reload switch and entering/leaving TV mode'
+	},
+	tv: {
+		codec: 'BooleanParam',
+		values: '1 | 0',
+		whenAbsent: 'TV mode is closed',
+		writtenBy: 'the TV button and Escape'
+	},
+	project: {
+		codec: 'raw, repeatable',
+		values: 'project id',
+		whenAbsent: 'every project is listed',
+		writtenBy: 'the sidebar project picker'
+	}
+} as const;
+
+type DashboardUrlParam = keyof typeof DASHBOARD_URL_PARAMS;
+
 class DashboardPage {
 	constructor(private readonly page: Page) {}
 
@@ -29,17 +87,49 @@ class DashboardPage {
 		date?: string,
 		options: DashboardNavigationOptions = {}
 	): Promise<void> {
-		const searchParams = new URLSearchParams();
+		const params: Record<string, string> = {};
 
-		if (date) searchParams.set('main', date);
-		if (options.mode) searchParams.set('mode', options.mode);
+		if (date) params.main = date;
+		if (options.mode) params.mode = options.mode;
 		if (typeof options.projectId === 'number') {
-			searchParams.set('project', String(options.projectId));
+			params.project = String(options.projectId);
 		}
 
+		await this.gotoWithParams(params);
+	}
+
+	/**
+	 * Deep-links the dashboard with an arbitrary query string, so a scenario can
+	 * open a link the way a user who bookmarked one does. `goto()` covers the
+	 * common date/mode/project case; this one exists for the parameters it does
+	 * not name, and for values that are deliberately malformed.
+	 */
+	async gotoWithParams(params: Record<string, string>): Promise<void> {
+		const searchParams = new URLSearchParams(params);
 		const search = searchParams.size ? `?${searchParams.toString()}` : '';
+
 		await this.page.goto(`dashboard${search}`);
 		await expect(this.page).toHaveURL(/\/dashboard(?:$|\?)/);
+	}
+
+	/**
+	 * Asserts the query string the dashboard is currently carrying. A `null`
+	 * expectation means the key must be absent, `''` means present but empty —
+	 * the two are different states, and the dashboard uses both.
+	 *
+	 * Only the named keys are read: the URL also carries sidebar state the
+	 * dashboard does not own, so asserting the whole query string would be
+	 * flaky. Polls because every write is an async history replace.
+	 */
+	async expectParams(expected: Record<string, string | null>): Promise<void> {
+		for (const [key, value] of Object.entries(expected)) {
+			await expect
+				.poll(() => new URL(this.page.url()).searchParams.get(key), {
+					timeout: 15_000,
+					message: `URL parameter "${key}"`
+				})
+				.toBe(value);
+		}
 	}
 
 	row(runId: number): Locator {
@@ -203,20 +293,53 @@ class DashboardPage {
 		await expect(this.subrow(runId)).toHaveCount(0);
 	}
 
+	searchInput(): Locator {
+		return this.page.getByPlaceholder('Search...');
+	}
+
 	async search(term: string): Promise<void> {
 		// The search bar debounces by 400ms before it writes ?search=.
-		await this.page.getByPlaceholder('Search...').fill(term);
+		await this.searchInput().fill(term);
 	}
 
 	async clearSearch(): Promise<void> {
 		await this.search('');
 	}
 
+	/**
+	 * The box seeds its state from `?search=` once, at mount, so this is the
+	 * assertion that the parameter is still being read on a fresh page load.
+	 */
+	async expectSearchInput(term: string): Promise<void> {
+		await expect(this.searchInput()).toHaveValue(term, { timeout: 15_000 });
+	}
+
+	/**
+	 * Exact matching is required: "Mode rows" is a prefix of "Mode rows line",
+	 * so a substring match resolves to both buttons.
+	 */
+	modeButton(mode: DashboardMode): Locator {
+		return this.page.getByLabel(MODE_LABELS[mode], { exact: true });
+	}
+
 	async setMode(mode: DashboardMode): Promise<void> {
-		await this.page.getByLabel(MODE_LABELS[mode]).click();
+		await this.modeButton(mode).click();
 		await expect(this.page).toHaveURL(new RegExp(`mode=${mode}`), {
 			timeout: 15_000
 		});
+	}
+
+	/**
+	 * The mode picker is a Radix toggle group whose items are radios, so the
+	 * selected layout reads off aria-checked. `setMode` only proves the URL was
+	 * written; this proves the value was read back into the controls.
+	 */
+	async expectModeActive(mode: DashboardMode): Promise<void> {
+		await expect(this.modeButton(mode)).toHaveAttribute(
+			'aria-checked',
+			'true',
+			{ timeout: 15_000 }
+		);
 	}
 
 	async expectRunIdsVisible(runIds: number[]): Promise<void> {
@@ -323,6 +446,15 @@ class DashboardPage {
 		await expect(this.tvRow(runId)).toBeVisible({ timeout: 30_000 });
 	}
 
+	/**
+	 * TV mode is open, without any claim about auto reload. Deep-linking `?tv=1`
+	 * opens the screen but leaves `reload` alone — only the button and Escape
+	 * paths force it — so the two assertions cannot be one.
+	 */
+	async expectTvScreenVisible(): Promise<void> {
+		await expect(this.tvScreen()).toBeVisible({ timeout: 15_000 });
+	}
+
 	/** Entering TV mode force-enables auto reload, so `reload=1` comes with it. */
 	async expectTvModeOpen(): Promise<void> {
 		await expect(this.tvScreen()).toBeVisible({ timeout: 15_000 });
@@ -358,5 +490,5 @@ class DashboardPage {
 	}
 }
 
-export { DashboardPage };
-export type { DashboardMode };
+export { DASHBOARD_URL_PARAMS, DashboardPage };
+export type { DashboardMode, DashboardUrlParam };

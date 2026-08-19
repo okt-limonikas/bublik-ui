@@ -137,3 +137,59 @@ Feature: Dashboard
     And the sidebar shows the project as selected
     When I select All projects in the sidebar
     Then both runs are listed again
+
+  # The dashboard keeps all of its state in the query string, so a link is the
+  # only way a view is saved or shared. These scenarios pin that contract in both
+  # directions — a parameter that stops being written, or stops being read, fails
+  # here rather than shipping. See DASHBOARD_URL_PARAMS in pages/dashboard-page.ts.
+
+  @dashboard @url-params
+  Scenario: A dashboard link restores the date, mode and auto reload
+    Given a link that pins a day, a layout, a project and auto reload
+    When I open that link
+    Then the runs of that day are listed
+    And the layout the link asked for is selected
+    And auto reload is on
+    And the link still carries every parameter it was opened with
+
+  @dashboard @url-params
+  Scenario: Searching the dashboard records the term in the URL and survives a reload
+    Given a run was imported for a day
+    When I open the dashboard for that day
+    And I search for a term that no run matches
+    Then the search term is recorded in the URL
+    And the run is no longer listed
+    When I reload the page
+    Then the search box still holds the term
+    And the run is still not listed
+    When I clear the search
+    Then the URL keeps an empty search term
+    And the run is listed again
+
+  @dashboard @url-params
+  Scenario: Switching to two-day mode pins the previous day as the second date
+    Given I open the dashboard for a day in single-day mode
+    When I switch the layout to two days per column
+    Then the URL pins the day before as the second date
+    And the day I opened is still pinned as the first date
+    When I switch the layout back to a single day
+    Then the URL no longer pins a second date
+
+  @dashboard @url-params
+  Scenario: Dashboard controls preserve the other URL parameters
+    Given a link that pins a day, a search term and a project
+    When I turn on Auto reload
+    Then the day, the search term and the project are still pinned
+    When I switch the layout to two days per column
+    Then the day, the search term and the project are still pinned
+    When I enter TV mode and press Escape
+    Then the day, the search term and the project are still pinned
+
+  # DateParam decodes an unparsable value to nothing, so the dashboard falls back
+  # to the day it would have shown anyway rather than erroring.
+  @dashboard @url-params
+  Scenario: An unparsable date in the link falls back to the latest day
+    Given a link whose pinned date cannot be parsed
+    When I open that link
+    Then the dashboard shows the latest day of that project
+    And the URL still carries the unparsable date

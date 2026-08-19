@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Page } from '@playwright/test';
 
-import { HistoryPage } from './pages/history-page';
+import { HISTORY_SEARCH_FORM_PARAMS, HistoryPage } from './pages/history-page';
 import type { HistoryMode } from './pages/history-page';
 import { ProjectPicker } from './pages/project-picker';
 import { requireCapability } from './support/capabilities';
@@ -26,6 +26,10 @@ import {
 const HISTORY = { tag: ['@history'] };
 const HISTORY_SMOKE = { tag: ['@history', '@smoke'] };
 const HISTORY_MEASUREMENTS = { tag: ['@history', '@needs-measurements'] };
+const HISTORY_URL = { tag: ['@history', '@url-params'] };
+const HISTORY_URL_MEASUREMENTS = {
+	tag: ['@history', '@url-params', '@needs-measurements']
+};
 
 /** Every fixture run, so a query answers with the seeded data. */
 function dateRange(): Record<string, string> {
@@ -928,4 +932,398 @@ test.describe('History Page', () => {
 		);
 		/* eslint-enable playwright/expect-expect */
 	});
+
+	/*
+	 * URL parameters
+	 *
+	 * The whole query lives in the query string, so a link is the only way a
+	 * history query is saved or shared. The @url-params scenarios pin that
+	 * contract in both directions — see HISTORY_URL_PARAMS in
+	 * pages/history-page.ts for the inventory they are written against.
+	 */
+
+	/** The project-scoped path pair, resolved to a project id. */
+	async function scopedCase(request: APIRequestContext) {
+		const pair = requireCapability(
+			historyProjectPair(requireManifest()),
+			'Fixture manifest contains no two projects with distinct test paths.'
+		);
+		const projectId = requireCapability(
+			await projectIdByName(request, pair.selected.project),
+			`Project "${pair.selected.project}" is not registered.`
+		);
+
+		return { testPath: pair.selected.testPath, projectId: String(projectId) };
+	}
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A history link restores the query it pins',
+		HISTORY_URL,
+		async ({ page, request }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let link: Record<string, string> = {};
+
+			await given(
+				'a link that pins a test path, a date range, a layout and a page size',
+				async () => {
+					const { testPath, projectId } = await scopedCase(request);
+
+					link = {
+						testName: testPath,
+						...dateRange(),
+						mode: 'linear',
+						pageSize: '10',
+						results: 'PASSED;FAILED',
+						project: projectId
+					};
+				}
+			);
+			await when('I open that link', () => historyPage.gotoWithParams(link));
+			await then(
+				'the results table lists the results of that query',
+				async () => {
+					await historyPage.expectModeReady('linear');
+					await historyPage.expectHasResults();
+				}
+			);
+			await and(
+				'the link still carries every parameter it was opened with',
+				() => historyPage.expectParams(link)
+			);
+		}
+	);
+
+	test(
+		"The history request translates the URL parameters into the API's names",
+		HISTORY_URL,
+		async ({ page, request }) => {
+			const historyPage = new HistoryPage(page);
+			const range = dateRange();
+			let link: Record<string, string> = {};
+
+			await given(
+				'a link that pins every parameter the API renames',
+				async () => {
+					const { testPath, projectId } = await scopedCase(request);
+
+					link = {
+						testName: testPath,
+						parameters: 'time_limit=30;pkt_size=1500',
+						runData: 'medford;x86_64',
+						startDate: range.startDate,
+						finishDate: range.finishDate,
+						resultProperties: 'expected;unexpected',
+						results: 'PASSED;FAILED',
+						revisionExpr: 'rev > 100',
+						runIds: '1;2',
+						verdictLookup: 'regex',
+						pageSize: '10',
+						project: projectId
+					};
+				}
+			);
+
+			// Armed before navigating, and matched on the endpoint alone rather
+			// than on `test_name` — a broken rename should fail as a mismatched
+			// parameter, not as a request that never arrived.
+			const historyRequest = historyPage.waitForHistoryRequest();
+
+			await when('I open that link', () => historyPage.gotoWithParams(link));
+			await then(
+				'the history request carries each of them under its API name',
+				async () => {
+					const sent = new URL((await historyRequest).url()).searchParams;
+
+					expect(sent.get('test_name')).toBe(link.testName);
+					expect(sent.get('test_args')).toBe(link.parameters);
+					expect(sent.get('tags')).toBe(link.runData);
+					expect(sent.get('from_date')).toBe(link.startDate);
+					expect(sent.get('to_date')).toBe(link.finishDate);
+					expect(sent.get('result_types')).toBe(link.resultProperties);
+					expect(sent.get('result_statuses')).toBe(link.results);
+					expect(sent.get('rev_expr')).toBe(link.revisionExpr);
+					expect(sent.get('run_ids')).toBe(link.runIds);
+					expect(sent.get('verdict_lookup')).toBe(link.verdictLookup);
+					expect(sent.get('page_size')).toBe(link.pageSize);
+					expect(sent.get('project')).toBe(link.project);
+				}
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Applying the search form writes the whole query into the URL',
+		HISTORY_URL,
+		async ({ page }) => {
+			const historyPage = new HistoryPage(page);
+			const form = historyPage.globalSearchForm;
+			const testPath = firstHistoryTestPath();
+			const hash = '3c447d65a665c0eee17a0a20827e9';
+
+			await given(
+				'I open the global search form with a test path, a hash and a verdict',
+				async () => {
+					await historyPage.goto();
+					await historyPage.expectReady();
+					await historyPage.openGlobalSearchForm();
+					await form.fillTestPath(testPath);
+					await form.fillHash(hash);
+					await form.addVerdicts(['timeout']);
+				}
+			);
+			await when('I apply the search', () => form.applySearch());
+			await then('the values I entered are recorded in the URL', () =>
+				historyPage.expectParams({
+					testName: testPath,
+					hash,
+					verdict: 'timeout'
+				})
+			);
+			// The serializer writes its whole block on every submit, empty fields
+			// included as `''`. Asserting that the untouched keys are absent would
+			// fail against today's app — what matters is that each one is still
+			// being written at all.
+			await and('every search form parameter is written to the URL', () =>
+				historyPage.expectParamsPresent([
+					...HISTORY_SEARCH_FORM_PARAMS,
+					'mode',
+					'page',
+					'pageSize'
+				])
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'An unknown mode in the link falls back to the list of results',
+		HISTORY_URL,
+		async ({ page }) => {
+			const historyPage = new HistoryPage(page);
+			const testPath = firstHistoryTestPath();
+
+			await given('a link whose mode is not a mode the page renders', () =>
+				expect(testPath).toBeTruthy()
+			);
+			await when('I open that link', () =>
+				historyPage.gotoWithParams({
+					testName: testPath,
+					...dateRange(),
+					mode: 'not-a-mode'
+				})
+			);
+			await then('the page renders the list of results', () =>
+				historyPage.expectModeReady('linear')
+			);
+			// resolveHistoryMode normalises for rendering only. Every other reader
+			// falls back with a bare `?? 'linear'` and stamps the original value
+			// back, so the unknown mode outlives each submit and reset.
+			await and('the URL still carries the unknown mode', () =>
+				historyPage.expectParams({ mode: 'not-a-mode' })
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Paging records the page and page size and survives a reload',
+		HISTORY_URL,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const testPath = firstHistoryTestPath();
+
+			await given(
+				'I open the history page for a path with more results than one page',
+				async () => {
+					await historyPage.gotoWithTestPath(testPath, {
+						...dateRange(),
+						pageSize: '10'
+					});
+					await historyPage.expectModeReady('linear');
+					await historyPage.expectHasResults();
+					await expect(historyPage.pagination).toBeVisible({
+						timeout: 30_000
+					});
+				}
+			);
+			await when('I open the next page of results', () =>
+				historyPage.openNextPage()
+			);
+			await then('the page and the page size are recorded in the URL', () =>
+				historyPage.expectParams({ page: '2', pageSize: '10' })
+			);
+			await when('I reload the page', () => page.reload());
+			await then(
+				'the page and the page size are still recorded in the URL',
+				() => historyPage.expectParams({ page: '2', pageSize: '10' })
+			);
+			await and(
+				'the results table lists the results of that query',
+				async () => {
+					await historyPage.expectModeReady('linear');
+					await historyPage.expectHasResults();
+				}
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Submitting the search form resets the page but keeps the mode, page size and project',
+		HISTORY_URL,
+		async ({ page, request }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const form = historyPage.globalSearchForm;
+			let projectId = '';
+
+			await given(
+				'I open the second page of a scoped history query in the aggregation mode',
+				async () => {
+					const scoped = await scopedCase(request);
+					projectId = scoped.projectId;
+
+					await historyPage.gotoWithParams({
+						testName: scoped.testPath,
+						...dateRange(),
+						mode: 'aggregation',
+						page: '2',
+						pageSize: '10',
+						project: projectId
+					});
+					// Only the page shell is awaited, not the grouped table: whether
+					// this query has a second page of groups is a property of the
+					// fixtures, and the scenario is about what submitting does to the
+					// query string rather than about what page two renders.
+					await historyPage.expectReady();
+					await historyPage.expectParams({ page: '2' });
+					await historyPage.openGlobalSearchForm();
+					// Re-entered rather than relied upon: the form seeds itself from
+					// the URL, and this scenario is about what submitting preserves,
+					// not about that seeding.
+					await form.fillTestPath(scoped.testPath);
+				}
+			);
+			await when('I apply the search again', () => form.applySearch());
+			await then('the URL is back on the first page', () =>
+				historyPage.expectParams({ page: '1' })
+			);
+			await and(
+				'the mode, the page size and the project are still pinned',
+				() =>
+					historyPage.expectParams({
+						mode: 'aggregation',
+						pageSize: '10',
+						project: projectId
+					})
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Reset Filter keeps the test path, dates, mode and project and clears the rest',
+		HISTORY_URL,
+		async ({ page, request }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const range = dateRange();
+			let pinned: Record<string, string> = {};
+
+			await given(
+				'I open a scoped history query narrowed by hash, parameters and verdict',
+				async () => {
+					const { testPath, projectId } = await scopedCase(request);
+
+					pinned = {
+						testName: testPath,
+						startDate: range.startDate,
+						finishDate: range.finishDate,
+						mode: 'linear',
+						project: projectId
+					};
+
+					await historyPage.gotoWithParams({
+						...pinned,
+						hash: '3c447d65a665c0eee17a0a20827e9',
+						parameters: 'time_limit=30',
+						runData: 'medford',
+						verdict: 'timeout'
+					});
+					await historyPage.expectReady();
+					await historyPage.expectParams({
+						hash: '3c447d65a665c0eee17a0a20827e9'
+					});
+				}
+			);
+			await when('I press Reset Filter', () =>
+				historyPage.resetFilterButton.click()
+			);
+			await then(
+				'the test path, the dates, the mode and the project are still pinned',
+				() => historyPage.expectParams(pinned)
+			);
+			// Reset rewrites the query from the form defaults, and the serializer
+			// writes empty values rather than dropping the keys — so the narrowing
+			// parameters end up present and empty, not absent.
+			await and('the narrowing parameters are cleared', () =>
+				historyPage.expectParams({
+					hash: '',
+					parameters: '',
+					runData: '',
+					verdict: ''
+				})
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'The chart name filter survives a reload',
+		HISTORY_URL_MEASUREMENTS,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const measurements = measurementCase();
+
+			await given(
+				'I open the history page for a path with measurements in the series charts mode',
+				async () => {
+					await historyPage.gotoWithTestPath(measurements.testPath, {
+						...dateRange(),
+						mode: 'measurements-by-iteration'
+					});
+					await historyPage.expectModeReady('measurements-by-iteration');
+				}
+			);
+			await when('I pick the first chart in the Charts filter', async () => {
+				await page.getByRole('button', { name: 'Charts', exact: true }).click();
+				await page.locator('[role="option"]').first().click();
+				await historyPage.expectParamsPresent(['parametersByResultName']);
+			});
+			await and('I reload the page', () => page.reload());
+			await then('the picked chart is still recorded in the URL', () =>
+				historyPage.expectParamsPresent(['parametersByResultName'])
+			);
+			await and('the series charts are rendered', () =>
+				historyPage.expectModeReady('measurements-by-iteration')
+			);
+		}
+	);
 });

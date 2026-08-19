@@ -20,7 +20,8 @@ import {
 	projectSpanningDays,
 	representativeNokRun,
 	representativeRun,
-	runPairOnDifferentProjects
+	runPairOnDifferentProjects,
+	shiftDate
 } from './support/sample-cases';
 
 // The dashboard is public: no route guard, and the dashboard and projects
@@ -508,6 +509,239 @@ test.describe('Dashboard', () => {
 			);
 			await then('both runs are listed again', () =>
 				dashboard.expectRunIdsVisible([selected.runId, other.runId])
+			);
+		}
+	);
+
+	// The dashboard keeps all of its state in the query string, so a link is the
+	// only way a view is saved or shared. The @url-params scenarios pin that
+	// contract in both directions — see DASHBOARD_URL_PARAMS in
+	// pages/dashboard-page.ts for the inventory they are written against.
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A dashboard link restores the date, mode and auto reload',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const { bundle, expectedRun, runId } = anyRun();
+			let link: Record<string, string> = {};
+
+			await given(
+				'a link that pins a day, a layout, a project and auto reload',
+				async () => {
+					const projectId = requireCapability(
+						await projectIdByName(request, bundle.project),
+						`Project "${bundle.project}" is not registered.`
+					);
+
+					link = {
+						main: expectedRun.dashboardDate,
+						mode: 'rows',
+						reload: '1',
+						project: String(projectId)
+					};
+				}
+			);
+			await when('I open that link', () => dashboard.gotoWithParams(link));
+			await then('the runs of that day are listed', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+			await and('the layout the link asked for is selected', () =>
+				dashboard.expectModeActive('rows')
+			);
+			await and('auto reload is on', () => dashboard.expectAutoReload(true));
+			await and(
+				'the link still carries every parameter it was opened with',
+				() => dashboard.expectParams(link)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Searching the dashboard records the term in the URL and survives a reload',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			const term = 'no-run-matches-this-term';
+
+			await given('a run was imported for a day', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open the dashboard for that day', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await and('I search for a term that no run matches', () =>
+				dashboard.search(term)
+			);
+			await then('the search term is recorded in the URL', () =>
+				dashboard.expectParams({ search: term })
+			);
+			await and('the run is no longer listed', () =>
+				dashboard.expectRunIdHidden(runId)
+			);
+			// Waiting for the day's fetch keeps "not listed" from passing against a
+			// table that simply has not rendered yet.
+			await when('I reload the page', () =>
+				dashboard.waitForDayFetch(() => page.reload())
+			);
+			await then('the search box still holds the term', () =>
+				dashboard.expectSearchInput(term)
+			);
+			await and('the run is still not listed', () =>
+				dashboard.expectRunIdHidden(runId)
+			);
+			await when('I clear the search', () => dashboard.clearSearch());
+			// StringParam encodes '' as an empty value rather than dropping the key,
+			// so clearing the box leaves `search=` behind. Asserting the key is gone
+			// would fail against today's app.
+			await then('the URL keeps an empty search term', () =>
+				dashboard.expectParams({ search: '' })
+			);
+			await and('the run is listed again', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Switching to two-day mode pins the previous day as the second date',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			const date = expectedRun.dashboardDate;
+
+			await given(
+				'I open the dashboard for a day in single-day mode',
+				async () => {
+					await dashboard.goto(date, { mode: 'rows' });
+					await dashboard.expectRunIdVisible(runId);
+				}
+			);
+			// Only the mode picker derives the second date. A link that asks for
+			// columns without one leaves `secondary` unwritten and lets the layout
+			// fall back to the backend's latest day, so this has to be driven by the
+			// control rather than deep-linked.
+			await when('I switch the layout to two days per column', () =>
+				dashboard.setMode('columns')
+			);
+			await then('the URL pins the day before as the second date', () =>
+				dashboard.expectParams({ secondary: shiftDate(date, -1) })
+			);
+			await and('the day I opened is still pinned as the first date', () =>
+				dashboard.expectParams({ main: date })
+			);
+			await when('I switch the layout back to a single day', () =>
+				dashboard.setMode('rows')
+			);
+			await then('the URL no longer pins a second date', () =>
+				dashboard.expectParams({ secondary: null })
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Dashboard controls preserve the other URL parameters',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const { bundle, expectedRun, runId } = anyRun();
+			// Every dashboard write merges into the existing query string. If that
+			// ever became a full overwrite, these parameters would vanish when an
+			// unrelated control was touched.
+			let pinned: Record<string, string> = {};
+
+			await given(
+				'a link that pins a day, a search term and a project',
+				async () => {
+					const projectId = requireCapability(
+						await projectIdByName(request, bundle.project),
+						`Project "${bundle.project}" is not registered.`
+					);
+
+					pinned = {
+						main: expectedRun.dashboardDate,
+						// A term the run matches, so the rows stay on screen.
+						search: expectedRun.name,
+						project: String(projectId)
+					};
+
+					await dashboard.gotoWithParams({ ...pinned, mode: 'rows' });
+					await dashboard.expectRunIdVisible(runId);
+				}
+			);
+			await when('I turn on Auto reload', () => dashboard.setAutoReload(true));
+			await then(
+				'the day, the search term and the project are still pinned',
+				() => dashboard.expectParams(pinned)
+			);
+			await when('I switch the layout to two days per column', () =>
+				dashboard.setMode('columns')
+			);
+			await then(
+				'the day, the search term and the project are still pinned',
+				() => dashboard.expectParams(pinned)
+			);
+			// `reload` is deliberately left out: leaving TV mode turns auto reload
+			// off, so it is expected to change here while the rest must not.
+			await when('I enter TV mode and press Escape', async () => {
+				await dashboard.enterTvMode();
+				await dashboard.expectTvScreenVisible();
+				await dashboard.leaveTvMode();
+				await dashboard.expectTvModeClosed();
+			});
+			await then(
+				'the day, the search term and the project are still pinned',
+				() => dashboard.expectParams(pinned)
+			);
+		}
+	);
+
+	test(
+		'An unparsable date in the link falls back to the latest day',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page, request }) => {
+			const dashboard = new DashboardPage(page);
+			const sample = requireCapability(
+				projectSpanningDays(requireManifest()),
+				'Fixture manifest contains no project with runs on more than one day.'
+			);
+			let projectId = 0;
+
+			await given('a link whose pinned date cannot be parsed', async () => {
+				projectId = requireCapability(
+					await projectIdByName(request, sample.project),
+					`Project "${sample.project}" is not registered.`
+				);
+			});
+			await when('I open that link', () =>
+				dashboard.gotoWithParams({
+					main: 'not-a-date',
+					mode: 'rows',
+					project: String(projectId)
+				})
+			);
+			await then(
+				'the dashboard shows the latest day of that project',
+				async () => {
+					expect(await dashboardResolvedDate(request, projectId)).toBe(
+						sample.latestDate
+					);
+					await dashboard.expectRunIdsVisible(sample.latestRunIds);
+				}
+			);
+			await and('the URL still carries the unparsable date', () =>
+				dashboard.expectParams({ main: 'not-a-date' })
 			);
 		}
 	);

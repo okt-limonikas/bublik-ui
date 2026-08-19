@@ -70,6 +70,8 @@ test(
 - **Assertions live in the page object.** Specs that delegate every assertion keep the
   `// eslint-disable-next-line playwright/expect-expect` comment, as the older specs do.
 - Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
+- `@url-params` marks the scenarios that pin a page's query-string contract, so the
+  parameter surface can be checked on its own (`playwright test --grep @url-params`).
 - Area tags name the page a scenario belongs to, so one page's suite can be run on its own
   (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`, `@report`.
 

@@ -247,3 +247,78 @@ Feature: History
       | List Of Results   |
       | Groups Of Results |
       | Trend Charts      |
+
+  ###########################################
+  #         URL parameters                  #
+  ###########################################
+
+  # The whole query lives in the query string — the search form is not persisted
+  # anywhere else, so a link is the only way a query is saved or shared. These
+  # scenarios pin that contract in both directions: a parameter that stops being
+  # written, stops being read, or is renamed on one side of the URL/backend
+  # translation fails here rather than shipping a filter that silently matches
+  # everything. See HISTORY_URL_PARAMS in pages/history-page.ts for the
+  # inventory, including the name each parameter is sent to the API under.
+
+  @history @url-params
+  Scenario: A history link restores the query it pins
+    Given a link that pins a test path, a date range, a layout and a page size
+    When I open that link
+    Then the results table lists the results of that query
+    And the link still carries every parameter it was opened with
+
+  # The one that catches a rename: `parameters` is sent as `test_args`,
+  # `runData` as `tags`, `startDate` as `from_date` — and nothing validates the
+  # URL on the way in, so a half-applied rename filters by nothing at all.
+  @history @url-params
+  Scenario: The history request translates the URL parameters into the API's names
+    Given a link that pins every parameter the API renames
+    When I open that link
+    Then the history request carries each of them under its API name
+
+  @history @url-params
+  Scenario: Applying the search form writes the whole query into the URL
+    Given I open the global search form with a test path, a hash and a verdict
+    When I apply the search
+    Then the values I entered are recorded in the URL
+    And every search form parameter is written to the URL
+
+  # resolveHistoryMode normalises an unknown mode for rendering only; the value
+  # itself is left in the URL, and every later write stamps it back.
+  @history @url-params
+  Scenario: An unknown mode in the link falls back to the list of results
+    Given a link whose mode is not a mode the page renders
+    When I open that link
+    Then the page renders the list of results
+    And the URL still carries the unknown mode
+
+  @history @url-params
+  Scenario: Paging records the page and page size and survives a reload
+    Given I open the history page for a path with more results than one page
+    When I open the next page of results
+    Then the page and the page size are recorded in the URL
+    When I reload the page
+    Then the page and the page size are still recorded in the URL
+    And the results table lists the results of that query
+
+  @history @url-params
+  Scenario: Submitting the search form resets the page but keeps the mode, page size and project
+    Given I open the second page of a scoped history query in the aggregation mode
+    When I apply the search again
+    Then the URL is back on the first page
+    And the mode, the page size and the project are still pinned
+
+  @history @url-params
+  Scenario: Reset Filter keeps the test path, dates, mode and project and clears the rest
+    Given I open a scoped history query narrowed by hash, parameters and verdict
+    When I press Reset Filter
+    Then the test path, the dates, the mode and the project are still pinned
+    And the narrowing parameters are cleared
+
+  @history @url-params @needs-measurements
+  Scenario: The chart name filter survives a reload
+    Given I open the history page for a path with measurements in the series charts mode
+    When I pick the first chart in the Charts filter
+    And I reload the page
+    Then the picked chart is still recorded in the URL
+    And the series charts are rendered
