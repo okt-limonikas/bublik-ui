@@ -2,6 +2,8 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { expect, Locator, Page } from '@playwright/test';
 
+import { expectConclusionHoverCard } from '../support/conclusion-hover';
+
 /** Sidebar view modes of the runs page: the table, the charts, the matrix. */
 type RunsMode = 'table' | 'charts' | 'progress';
 
@@ -36,6 +38,23 @@ class RunsPage {
 	async gotoWithMode(mode: RunsMode): Promise<void> {
 		await this.page.goto(`runs?mode=${mode}`);
 		await expect(this.page).toHaveURL(new RegExp(`mode=${mode}`));
+	}
+
+	/**
+	 * Each mode owns one section. The loaded section is matched by test id
+	 * rather than by its heading: the charts skeleton and the loaded charts
+	 * carry different captions, so asserting on text would pass or fail
+	 * depending on how fast the aggregation returned.
+	 */
+	async expectModeSection(mode: RunsMode): Promise<void> {
+		if (mode === 'table') {
+			await this.expectTableLoaded();
+			return;
+		}
+
+		await expect(
+			this.page.getByTestId(mode === 'charts' ? 'runs-stats' : 'runs-progress')
+		).toBeVisible({ timeout: 60_000 });
 	}
 
 	get table(): Locator {
@@ -81,22 +100,11 @@ class RunsPage {
 	 *  card, so the state is read from data-conclusion and the label is
 	 *  confirmed by hovering. */
 	async expectRowConclusion(runId: number, conclusion: string): Promise<void> {
-		const indicator = this.row(runId).getByTestId('run-conclusion');
-
-		await expect(indicator).toHaveAttribute(
-			'data-conclusion',
-			`run-${conclusion}`,
-			{
-				timeout: 30_000
-			}
+		await expectConclusionHoverCard(
+			this.page,
+			this.row(runId).getByTestId('run-conclusion'),
+			conclusion
 		);
-		await indicator.hover();
-		await expect(this.page.getByText('Conclusion:')).toBeVisible({
-			timeout: 15_000
-		});
-		await expect(
-			this.page.getByText(conclusion, { exact: true }).first()
-		).toBeVisible({ timeout: 15_000 });
 	}
 
 	async firstRowRunId(): Promise<string | null> {

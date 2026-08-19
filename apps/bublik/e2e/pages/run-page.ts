@@ -332,6 +332,22 @@ class RunPage {
 		});
 	}
 
+	/**
+	 * The compromise fixture run is shared by every browser project, so a spec
+	 * that failed before undoing its own mutation would leave the next project
+	 * with a compromised run. Restore the precondition instead of cascading.
+	 */
+	async ensureNotCompromised(): Promise<void> {
+		const trigger = this.compromiseTrigger();
+		await expect(trigger).toBeVisible({ timeout: 30_000 });
+
+		if (/Run is compromised/.test((await trigger.textContent()) ?? '')) {
+			await this.removeCompromised();
+		}
+
+		await this.expectNotCompromised();
+	}
+
 	/* --------------------------------------------------------- history links */
 
 	/** The default History link of a result row, equivalent to the menu's

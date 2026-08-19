@@ -2,6 +2,8 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { expect, Locator, Page } from '@playwright/test';
 
+import { expectConclusionHoverCard } from '../support/conclusion-hover';
+
 /**
  * `rows` is a single day in one column, `rows-line` a single day in two, and
  * `columns` two days side by side. The deployment default comes from
@@ -181,22 +183,11 @@ class DashboardPage {
 	 *  card, so the state is read from data-conclusion and the label is
 	 *  confirmed by hovering. */
 	async expectRowConclusion(runId: number, conclusion: string): Promise<void> {
-		const indicator = this.row(runId).getByTestId('run-conclusion');
-
-		await expect(indicator).toHaveAttribute(
-			'data-conclusion',
-			`run-${conclusion}`,
-			{
-				timeout: 30_000
-			}
+		await expectConclusionHoverCard(
+			this.page,
+			this.row(runId).getByTestId('run-conclusion'),
+			conclusion
 		);
-		await indicator.hover();
-		await expect(this.page.getByText('Conclusion:')).toBeVisible({
-			timeout: 15_000
-		});
-		await expect(
-			this.page.getByText(conclusion, { exact: true }).first()
-		).toBeVisible({ timeout: 15_000 });
 	}
 
 	async expectRunIdHidden(runId: number): Promise<void> {

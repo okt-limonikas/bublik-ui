@@ -73,6 +73,32 @@ function historyParams(url: string): URLSearchParams {
 }
 
 test.describe('Run Details Page', () => {
+	/**
+	 * The scratch run is shared by every browser project, and the scenarios that
+	 * mutate it only undo the mutation in their last step. A failure before that
+	 * step used to leave the run dirty for the rest of the suite — that is how a
+	 * single Firefox failure turned into four. The state is restored through the
+	 * API, which cannot flake on a re-render, after every scenario that touches
+	 * it.
+	 */
+	test.afterEach(async ({ page }, testInfo) => {
+		const cleanups: string[] = [];
+
+		// The trailing slash matters: without it the API answers 301, and a
+		// redirected DELETE is replayed as a GET.
+		if (testInfo.tags.includes('@compromised')) cleanups.push('compromised/');
+		if (testInfo.tags.includes('@comments')) cleanups.push('comment/');
+		if (!cleanups.length) return;
+
+		const { runId } = scratchRun();
+
+		for (const resource of cleanups) {
+			await page.request
+				.delete(`/api/v2/runs/${runId}/${resource}`)
+				.catch(() => undefined);
+		}
+	});
+
 	// Assertions are encapsulated by RunPage.
 	// eslint-disable-next-line playwright/expect-expect
 	test(
@@ -373,7 +399,7 @@ test.describe('Run Details Page', () => {
 			await given('I open a run that is not compromised', async () => {
 				await runPage.goto(runId);
 				await runPage.expectLoaded(expectedRun.name);
-				await runPage.expectNotCompromised();
+				await runPage.ensureNotCompromised();
 			});
 			await when('I mark the run as compromised', () =>
 				runPage.markCompromised({ comment: 'e2e compromise', bugId: '42' })
@@ -422,7 +448,7 @@ test.describe('Run Details Page', () => {
 			await given('I open a run that is not compromised', async () => {
 				await runPage.goto(runId);
 				await runPage.expectLoaded(expectedRun.name);
-				await runPage.expectNotCompromised();
+				await runPage.ensureNotCompromised();
 			});
 			await when('I submit the compromise form without a comment', async () => {
 				const form = await runPage.openCompromiseForm();

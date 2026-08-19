@@ -270,6 +270,8 @@ test.describe('Runs Page', () => {
 	test.describe('The runs page renders every view mode', () => {
 		test.slow();
 
+		// Assertions are encapsulated by RunsPage.
+		// eslint-disable-next-line playwright/expect-expect
 		test('charts', async ({ page }) => {
 			const runsPage = new RunsPage(page);
 
@@ -277,12 +279,12 @@ test.describe('Runs Page', () => {
 				runsPage.gotoWithMode('charts')
 			);
 			await then("the mode's own section is rendered", () =>
-				expect(page.getByText('Runs Stats').first()).toBeVisible({
-					timeout: 60_000
-				})
+				runsPage.expectModeSection('charts')
 			);
 		});
 
+		// Assertions are encapsulated by RunsPage.
+		// eslint-disable-next-line playwright/expect-expect
 		test('progress', async ({ page }) => {
 			const runsPage = new RunsPage(page);
 
@@ -290,9 +292,7 @@ test.describe('Runs Page', () => {
 				runsPage.gotoWithMode('progress')
 			);
 			await then("the mode's own section is rendered", () =>
-				expect(page.getByText('Runs Progress').first()).toBeVisible({
-					timeout: 60_000
-				})
+				runsPage.expectModeSection('progress')
 			);
 		});
 	});
