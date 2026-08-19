@@ -69,6 +69,74 @@ Feature: Runs
     And it offers to open them in the multiple-runs view
     And it offers to compare them
 
+  ###########################################
+  #         Filtering by badge              #
+  ###########################################
+
+  # A tag, metadata or important-tag badge is not decoration: clicking one writes
+  # `runData` into the URL and refetches, because `runs.autoApplyBadgeFilters` is
+  # on by default. That makes the badge and the Metas field two spellings of the
+  # same filter, and these scenarios pin them to each other. Which tag lands in
+  # which column is the backend's decision, so the scenarios pick a badge that
+  # only some of the listed runs carry rather than naming a fixture value.
+
+  @runs @url-params
+  Scenario: Clicking a run tag badge filters the runs table and records it in the URL
+    Given the runs table lists the runs imported on a fixture date
+    When I click a tag badge that only some of those runs carry
+    Then that tag is recorded in the URL as run data
+    And the URL is back on the first page
+    And only the runs carrying that tag are listed
+    And the badge is shown as selected
+
+  @runs @url-params
+  Scenario: Clicking the same run tag badge again clears the run data filter
+    Given the runs table is filtered by a tag badge
+    When I click that badge again
+    Then the run data is dropped from the URL
+    And the runs the badge had filtered out are listed again
+
+  # The filter is an AND, so two badges of the same row can never empty the table
+  # — which is what makes this a test of the joining rather than of the query.
+  @runs @url-params
+  Scenario: Clicking two badges of the same run combines both into the run data filter
+    Given the runs table lists the runs imported on a fixture date
+    When I click an important tag badge of a run
+    And I click a metadata badge of the same run
+    Then both values are recorded in the URL as run data
+    And that run is still listed
+
+  # Badges render `key: value` but filter, and travel, as `key=value`. A link is
+  # read back into the form, so this is the round trip in the other direction.
+  @runs @url-params
+  Scenario: A run data filter in the link is reflected in the Metas field
+    Given a link that pins a run data value the fixture runs carry
+    When I open that link
+    Then the Metas field reports that value as selected
+    And only the runs carrying it are listed
+
+  @runs @url-params
+  Scenario: Selecting a meta in the Metas field filters the runs table on submit
+    Given the runs table lists the runs imported on a fixture date
+    When I select a meta in the Metas field and submit the form
+    Then that meta is recorded in the URL as run data
+    And only the runs carrying it are listed
+
+  @runs
+  Scenario: Resetting the form clears the run data applied by a badge
+    Given the runs table is filtered by a tag badge
+    When I reset the form
+    Then the run data is dropped from the URL
+    And the runs the badge had filtered out are listed again
+
+  # The form writes its whole block on submit, so a badge filter the form did not
+  # know about would be dropped here rather than kept.
+  @runs @url-params
+  Scenario: Submitting a tag expression keeps the run data applied by a badge
+    Given the runs table is filtered by a tag badge
+    When I type a tag expression and submit the form
+    Then the URL carries both the tag expression and the run data
+
   Scenario Outline: The runs page renders every view mode
     When I open the runs page in the given mode
     Then the mode's own section is rendered

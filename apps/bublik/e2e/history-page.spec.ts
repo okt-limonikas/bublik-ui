@@ -2,17 +2,21 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 /* Implements apps/bublik/e2e/features/history.feature */
 import { expect, test } from '@playwright/test';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Page, Request } from '@playwright/test';
 
 import { HISTORY_SEARCH_FORM_PARAMS, HistoryPage } from './pages/history-page';
-import type { HistoryMode } from './pages/history-page';
+import type {
+	DiscriminatingHistoryBadge,
+	HistoryMode
+} from './pages/history-page';
 import { ProjectPicker } from './pages/project-picker';
 import { requireCapability } from './support/capabilities';
-import { projectIdByName } from './support/e2e-data';
+import { badgeTextToPayload, projectIdByName } from './support/e2e-data';
 import { and, given, then, when } from './support/gherkin';
 import { requireManifest } from './support/manifest';
 import {
 	firstHistoryTestPath,
+	historyBadgeCase,
 	historyDateRange,
 	historyEmptyDate,
 	historyMeasurementTestPath,
@@ -41,6 +45,30 @@ function measurementCase() {
 		historyMeasurementTestPath(requireManifest()),
 		'Fixture manifest contains no test path with measurements.'
 	);
+}
+
+/**
+ * A tested path whose results span several parameter sets — without one, a
+ * parameter badge is carried by every row and clicking it cannot be observed.
+ */
+function badgeCase() {
+	return requireCapability(
+		historyBadgeCase(requireManifest()),
+		'Fixture manifest contains no test path whose results span several parameter sets.'
+	);
+}
+
+/** Opens that path in one of the two table modes, with the fixture date range. */
+async function openBadgeCase(
+	historyPage: HistoryPage,
+	mode: 'linear' | 'aggregation'
+): Promise<void> {
+	await historyPage.gotoWithTestPath(badgeCase().testPath, {
+		...dateRange(),
+		mode
+	});
+	await historyPage.expectModeReady(mode);
+	await historyPage.expectHasResults();
 }
 
 /**
@@ -573,6 +601,334 @@ test.describe('History Page', () => {
 			);
 			await then('the log page for that result is open', () =>
 				expect(page).toHaveURL(/\/log\/\d+/, { timeout: 30_000 })
+			);
+		}
+	);
+
+	/*
+	 * Filtering by badge
+	 */
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a parameter badge narrows the history list to the matching results',
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+			let badge!: DiscriminatingHistoryBadge;
+
+			await given(
+				'I open the history page for a path with more than one parameter set',
+				async () => {
+					await openBadgeCase(historyPage, 'linear');
+					before = await historyPage.rows().count();
+					badge = await historyPage.pickDiscriminatingBadge('parameters');
+				}
+			);
+			await when(
+				'I click a parameter badge that only some of the listed results carry',
+				() =>
+					historyPage.clickBadge('parameters', badge.rowIndex, badge.text)
+			);
+			await then('only the results carrying that parameter are listed', () =>
+				historyPage.expectRowsNarrowedTo('parameters', badge.text, before)
+			);
+			await and('the badge is shown as selected', () =>
+				historyPage.expectBadgeSelected('parameters', badge.text)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a metadata badge narrows the history list to that configuration',
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+			let badge!: DiscriminatingHistoryBadge;
+
+			await given(
+				'I open the history page for a path with more than one parameter set',
+				async () => {
+					await openBadgeCase(historyPage, 'linear');
+					before = await historyPage.rows().count();
+					badge = await historyPage.pickDiscriminatingBadge('metadata');
+				}
+			);
+			await when(
+				'I click a metadata badge that only some of the listed results carry',
+				() => historyPage.clickBadge('metadata', badge.rowIndex, badge.text)
+			);
+			await then('only the results carrying that metadata are listed', () =>
+				historyPage.expectRowsNarrowedTo('metadata', badge.text, before)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking an obtained result badge narrows the history list to that result',
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+			let badge!: DiscriminatingHistoryBadge;
+
+			await given(
+				'I open the history page for a path with more than one obtained result',
+				async () => {
+					await openBadgeCase(historyPage, 'linear');
+					before = await historyPage.rows().count();
+					badge = await historyPage.pickDiscriminatingBadge(
+						'obtained-results',
+						'result'
+					);
+				}
+			);
+			await when('I click the obtained result badge of a listed result', () =>
+				historyPage.clickBadge('obtained-results', badge.rowIndex, badge.text)
+			);
+			await then('only the results of that type are listed', () =>
+				historyPage.expectRowsNarrowedTo(
+					'obtained-results',
+					badge.text,
+					before,
+					'result'
+				)
+			);
+		}
+	);
+
+	test(
+		'Badge filtering in the history list leaves the query untouched',
+		HISTORY_URL,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let badge!: DiscriminatingHistoryBadge;
+			let sentRequest = true;
+
+			await given(
+				'I open the history page for a path with more than one parameter set',
+				async () => {
+					await openBadgeCase(historyPage, 'linear');
+					badge = await historyPage.pickDiscriminatingBadge('parameters');
+				}
+			);
+			let queryBefore = '';
+
+			await when('I click a parameter badge', async () => {
+				queryBefore = new URL(page.url()).search;
+
+				sentRequest = await historyPage.sentHistoryRequestWithin(() =>
+					historyPage.clickBadge('parameters', badge.rowIndex, badge.text)
+				);
+			});
+			await then('the URL is unchanged', () =>
+				expect(new URL(page.url()).search).toBe(queryBefore)
+			);
+			await and('no history request was sent', () =>
+				expect(sentRequest).toBe(false)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a parameter badge in the grouped table narrows it to the matching hashes',
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+			let badge!: DiscriminatingHistoryBadge;
+
+			await given(
+				'I open the history page for that path in the aggregation mode',
+				async () => {
+					await openBadgeCase(historyPage, 'aggregation');
+					before = await historyPage.rows().count();
+					// The grouped table renders one row per parameter hash, so a
+					// parameter badge cuts it by a predictable, whole fraction.
+					badge = await historyPage.pickDiscriminatingBadge('results-log');
+				}
+			);
+			await when('I click a parameter badge of the first group', () =>
+				historyPage.clickBadge('results-log', badge.rowIndex, badge.text)
+			);
+			await then('only the groups carrying that parameter are listed', async () => {
+				await historyPage.expectRowsNarrowedTo(
+					'results-log',
+					badge.text,
+					before
+				);
+				await expect
+					.poll(() => historyPage.rows().count(), { timeout: 30_000 })
+					.toBe(badge.matchingRows);
+			});
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a verdict badge in the grouped table narrows it to the groups reporting it',
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+			let badge!: DiscriminatingHistoryBadge;
+
+			await given(
+				'I open the history page for that path in the aggregation mode',
+				async () => {
+					await openBadgeCase(historyPage, 'aggregation');
+					before = await historyPage.rows().count();
+					badge = await historyPage.pickDiscriminatingBadge(
+						'parameters-hash',
+						'verdicts'
+					);
+				}
+			);
+			await when('I click a verdict badge of a group that reports one', () =>
+				historyPage.clickBadge('parameters-hash', badge.rowIndex, badge.text)
+			);
+			await then('only the groups reporting that verdict are listed', () =>
+				historyPage.expectRowsNarrowedTo(
+					'parameters-hash',
+					badge.text,
+					before,
+					'verdicts'
+				)
+			);
+		}
+	);
+
+	test(
+		'Selecting parameters from the grouped table context menu applies them to the query',
+		HISTORY_URL,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const testPath = badgeCase().testPath;
+			let parameters: string[] = [];
+			let requests: Request[] = [];
+
+			await given(
+				'I open the history page for that path in the aggregation mode',
+				async () => {
+					await openBadgeCase(historyPage, 'aggregation');
+					parameters = (await historyPage.badgeTextsByRow('results-log'))[0]
+						.map(badgeTextToPayload)
+						.filter(Boolean);
+					expect(parameters.length).toBeGreaterThan(0);
+				}
+			);
+			await when(
+				"I right-click a group's parameters and choose Select parameters",
+				async () => {
+					requests = await historyPage.captureHistoryRequests(async () => {
+						await historyPage.openCellContextMenu('results-log', 0);
+						await historyPage.chooseContextMenuItem('Select parameters');
+					});
+
+					expect(requests.length).toBeGreaterThan(0);
+				}
+			);
+			await then('those parameters are recorded in the URL', async () => {
+				const applied = (
+					new URL(page.url()).searchParams.get('parameters') ?? ''
+				).split(';');
+
+				for (const parameter of parameters) {
+					expect(applied).toContain(parameter);
+				}
+			});
+			await and(
+				'the test path, the mode and the page size are still pinned',
+				() =>
+					historyPage.expectParams({
+						testName: testPath,
+						mode: 'aggregation',
+						pageSize: '25'
+					})
+			);
+			await and('the URL is back on the first page', () =>
+				historyPage.expectParams({ page: '1' })
+			);
+			await and('the history request carries the parameters as test args', () => {
+				// The last request is the one the applied filter produced; earlier
+				// ones may still belong to the query it replaced.
+				const sent = (
+					new URL(requests[requests.length - 1].url()).searchParams.get(
+						'test_args'
+					) ?? ''
+				).split(';');
+
+				for (const parameter of parameters) {
+					expect(sent).toContain(parameter);
+				}
+			});
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		"Applying the search form replaces the badge filters with the form's own",
+		HISTORY,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			let before = 0;
+
+			await given(
+				'I open the history page narrowed by a parameter badge',
+				async () => {
+					await openBadgeCase(historyPage, 'linear');
+					before = await historyPage.rows().count();
+
+					const badge =
+						await historyPage.pickDiscriminatingBadge('parameters');
+					await historyPage.clickBadge(
+						'parameters',
+						badge.rowIndex,
+						badge.text
+					);
+					await historyPage.expectRowsNarrowedTo(
+						'parameters',
+						badge.text,
+						before
+					);
+				}
+			);
+			await when('I open the search form and apply it unchanged', async () => {
+				await historyPage.openGlobalSearchForm();
+				await historyPage.globalSearchForm.applySearch();
+				await historyPage.globalSearchForm.expectHidden();
+			});
+			await then('every result of the query is listed again', () =>
+				expect
+					.poll(() => historyPage.rows().count(), { timeout: 60_000 })
+					.toBe(before)
 			);
 		}
 	);

@@ -2,10 +2,35 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { expect, Locator, Page } from '@playwright/test';
 
+import { badgeTextToPayload, exactText } from '../support/e2e-data';
 import { expectConclusionHoverCard } from '../support/conclusion-hover';
 
 /** Sidebar view modes of the runs page: the table, the charts, the matrix. */
 type RunsMode = 'table' | 'charts' | 'progress';
+
+/**
+ * The badge-bearing columns, by the id the `<td>` carries as `data-column-id`.
+ *
+ * `important_tags` declares its id; `Metadata` and `Tags` do not, so tanstack
+ * falls back to their header string — which is why two of the three are
+ * capitalised. Changing a header renames the selector.
+ */
+type RunsBadgeColumn = 'important_tags' | 'Metadata' | 'Tags';
+
+/**
+ * A badge that some of the listed runs carry and others do not, so clicking it
+ * visibly narrows the table. Which tags land in which column is the backend's
+ * decision, so this is read from the DOM rather than from the manifest.
+ */
+interface DiscriminatingBadge {
+	column: RunsBadgeColumn;
+	/** As rendered: `fixture: basic`. */
+	text: string;
+	/** As filtered and as written to the URL: `fixture=basic`. */
+	payload: string;
+	withIt: number[];
+	withoutIt: number[];
+}
 
 class RunsPage {
 	constructor(private readonly page: Page) {}
@@ -191,6 +216,247 @@ class RunsPage {
 	}
 
 	/**
+	 * A body cell of a run row, by the column id the `<td>` carries.
+	 */
+	cell(runId: number, columnId: RunsBadgeColumn): Locator {
+		return this.row(runId).locator(`td[data-column-id="${columnId}"]`);
+	}
+
+	badges(runId: number, columnId: RunsBadgeColumn): Locator {
+		return this.cell(runId, columnId).getByTestId('tw-badge');
+	}
+
+	/** The run ids currently listed, in table order. */
+	async listedRunIds(): Promise<number[]> {
+		const ids = await this.page
+			.getByTestId('runs-row')
+			.evaluateAll((rows) =>
+				rows.map((row) => row.getAttribute('data-run-id'))
+			);
+
+		return ids
+			.map((id) => Number(id))
+			.filter((id) => Number.isFinite(id) && id > 0);
+	}
+
+	/**
+	 * Every badge text rendered in a column, per run id. Read in one evaluate so
+	 * the whole table is sampled from a single DOM snapshot — polling cell by
+	 * cell could straddle a refetch and produce a mixed picture.
+	 */
+	async badgeTextsByRun(
+		columnId: RunsBadgeColumn
+	): Promise<Map<number, string[]>> {
+		const entries = await this.table.evaluate((table, column) => {
+			const rows = Array.from(
+				table.querySelectorAll('[data-testid="runs-row"]')
+			);
+
+			return rows.map((row) => {
+				const cell = row.querySelector(`td[data-column-id="${column}"]`);
+				const badges = cell
+					? Array.from(cell.querySelectorAll('[data-testid="tw-badge"]'))
+					: [];
+
+				return [
+					Number(row.getAttribute('data-run-id')),
+					badges.map((badge) => (badge.textContent ?? '').trim())
+				] as [number, string[]];
+			});
+		}, columnId);
+
+		return new Map(entries);
+	}
+
+	/**
+	 * Picks a badge carried by some listed runs and not others. Throws rather
+	 * than skipping when the fixtures offer none: a scenario that quietly stops
+	 * exercising the filter is worse than one that fails.
+	 *
+	 * The badge is taken from `columnId` — that is where the click has to land —
+	 * but which runs carry it is read across all three badge columns, because the
+	 * filter the click applies is over a run's tags, metadata and important tags
+	 * together. Reading one column would under-count a value the backend files
+	 * differently on another run.
+	 */
+	async pickDiscriminatingBadge(
+		columnId: RunsBadgeColumn
+	): Promise<DiscriminatingBadge> {
+		const inColumn = await this.badgeTextsByRun(columnId);
+		const everywhere = await this.allBadgeTextsByRun();
+		const candidates = new Set(
+			[...inColumn.values()].flat().filter(Boolean)
+		);
+
+		for (const text of candidates) {
+			const withIt = [...everywhere]
+				.filter(([, texts]) => texts.includes(text))
+				.map(([runId]) => runId);
+
+			if (withIt.length === everywhere.size) continue;
+
+			return {
+				column: columnId,
+				text,
+				payload: badgeTextToPayload(text),
+				withIt,
+				withoutIt: [...everywhere.keys()].filter(
+					(runId) => !withIt.includes(runId)
+				)
+			};
+		}
+
+		throw new Error(
+			`No badge in the "${columnId}" column is carried by only some of the ${everywhere.size} listed runs, so clicking one cannot be observed. Check the fixture plan.`
+		);
+	}
+
+	/** The union of a run's important-tag, metadata and tag badges. */
+	private async allBadgeTextsByRun(): Promise<Map<number, string[]>> {
+		const merged = new Map<number, string[]>();
+
+		for (const column of ['important_tags', 'Metadata', 'Tags'] as const) {
+			for (const [runId, texts] of await this.badgeTextsByRun(column)) {
+				merged.set(runId, [...(merged.get(runId) ?? []), ...texts]);
+			}
+		}
+
+		return merged;
+	}
+
+	/**
+	 * Clicking a badge writes the run data filter to the URL and refetches (the
+	 * `runs.autoApplyBadgeFilters` preference, on by default). The stale rows
+	 * stay mounted while the request is in flight, so callers must assert the URL
+	 * first and poll the rows — never read the table straight after this.
+	 */
+	async clickBadge(
+		runId: number,
+		columnId: RunsBadgeColumn,
+		text: string
+	): Promise<void> {
+		await this.badges(runId, columnId)
+			.filter({ hasText: exactText(text) })
+			.first()
+			.click();
+	}
+
+	/**
+	 * A badge marks itself selected through `data-badge-selected`. Selection is
+	 * otherwise expressed only in the badge's colour, and the colour differs per
+	 * variant, so this is the one assertion that holds for every badge.
+	 */
+	async expectBadgeSelected(
+		runId: number,
+		columnId: RunsBadgeColumn,
+		text: string
+	): Promise<void> {
+		await expect(
+			this.badges(runId, columnId).filter({ hasText: exactText(text) }).first()
+		).toHaveAttribute('data-badge-selected', '', { timeout: 15_000 });
+	}
+
+	/**
+	 * The runs page keeps its badge filter in `runData`, `;`-joined and
+	 * normalised, so membership is the contract — not the whole string.
+	 */
+	async expectRunDataContains(...payloads: string[]): Promise<void> {
+		for (const payload of payloads) {
+			await expect
+				.poll(
+					() =>
+						(
+							new URL(this.page.url()).searchParams.get('runData') ?? ''
+						).split(';'),
+					{ timeout: 15_000, message: `runData should carry "${payload}"` }
+				)
+				.toContain(payload);
+		}
+	}
+
+	async expectNoRunData(): Promise<void> {
+		await expect
+			.poll(() => new URL(this.page.url()).searchParams.get('runData'), {
+				timeout: 15_000,
+				message: 'runData'
+			})
+			.toBeNull();
+	}
+
+	/** Any write to the filter sends the table back to the first page. */
+	async expectOnFirstPage(): Promise<void> {
+		await expect
+			.poll(() => new URL(this.page.url()).searchParams.get('page'), {
+				timeout: 15_000,
+				message: 'page'
+			})
+			.toBe('1');
+	}
+
+	/**
+	 * Polls, because the badge click triggers a refetch and the previous rows
+	 * stay mounted (dimmed) until it lands.
+	 */
+	async expectOnlyRunsListed(runIds: number[]): Promise<void> {
+		const expected = [...runIds].sort((a, b) => a - b);
+
+		await expect
+			.poll(async () => (await this.listedRunIds()).sort((a, b) => a - b), {
+				timeout: 30_000,
+				message: 'listed run ids'
+			})
+			.toEqual(expected);
+	}
+
+	async expectRunsListed(runIds: number[]): Promise<void> {
+		await expect
+			.poll(async () => await this.listedRunIds(), {
+				timeout: 30_000,
+				message: 'listed run ids'
+			})
+			.toEqual(expect.arrayContaining(runIds));
+	}
+
+	// The Metas combobox (TagsBoxInput) is the form's own way of writing the
+	// same `runData` the badges write. Its trigger and its search field share
+	// the "Metas" wording, so the trigger is matched by role and the field by
+	// placeholder.
+	get metasTrigger(): Locator {
+		return this.page.getByRole('combobox').filter({ hasText: 'Metas' });
+	}
+
+	async openMetas(): Promise<void> {
+		await this.metasTrigger.click();
+		await expect(this.page.getByPlaceholder('Metas')).toBeVisible();
+	}
+
+	/**
+	 * The list filters on each option's underlying value (`fixture=basic`) while
+	 * rendering the display wording (`fixture: basic`), so the search box is
+	 * given the payload and the option is picked by what it shows.
+	 */
+	async selectMeta(payload: string, displayText: string): Promise<void> {
+		await this.openMetas();
+		await this.page.getByPlaceholder('Metas').fill(payload);
+
+		const option = this.page
+			.getByRole('option')
+			.filter({ hasText: displayText })
+			.first();
+
+		await expect(option).toBeVisible({ timeout: 15_000 });
+		await option.click();
+		await this.page.keyboard.press('Escape');
+	}
+
+	/** The trigger lists up to two selections, then collapses to "N selected". */
+	async expectMetaSelected(displayText: string): Promise<void> {
+		await expect(this.metasTrigger).toContainText(displayText, {
+			timeout: 15_000
+		});
+	}
+
+	/**
 	 * Selection is toggled by clicking the row background: the handler ignores
 	 * clicks whose target is not a TD or DIV, so links and badges navigate
 	 * instead. Aim at a cell's padding to land on the TD itself.
@@ -242,4 +508,4 @@ class RunsPage {
 }
 
 export { RunsPage };
-export type { RunsMode };
+export type { DiscriminatingBadge, RunsBadgeColumn, RunsMode };

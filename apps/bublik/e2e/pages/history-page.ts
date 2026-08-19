@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { expect, Locator, Page, Request } from '@playwright/test';
 
+import { exactText } from '../support/e2e-data';
 import { HistoryGlobalSearchForm } from './history-global-search-form';
 
 /**
@@ -19,6 +20,55 @@ const HISTORY_MODES = [
 ] as const;
 
 type HistoryMode = (typeof HISTORY_MODES)[number];
+
+/**
+ * The cell ids of the two table modes, as carried by `data-column-id`.
+ *
+ * The aggregation ids read backwards against their headers — `results-log`
+ * renders the "Parameters/Hash" column and `parameters-hash` renders
+ * "Results/Log". That swap is in
+ * `libs/bublik/features/history/src/lib/history-aggregation/`; the selectors
+ * follow the ids, not the headers.
+ */
+const HISTORY_LINEAR_COLUMNS = [
+	'links',
+	'start-duration',
+	'metadata',
+	'tags',
+	'expected-results',
+	'obtained-results',
+	'parameters'
+] as const;
+
+const HISTORY_AGGREGATION_COLUMNS = [
+	/** Renders the "Parameters/Hash" column: parameter badges plus the hash. */
+	'results-log',
+	/** Renders the "Results/Log" column: result, verdict badges and log links. */
+	'parameters-hash'
+] as const;
+
+type HistoryColumn =
+	| (typeof HISTORY_LINEAR_COLUMNS)[number]
+	| (typeof HISTORY_AGGREGATION_COLUMNS)[number];
+
+/**
+ * Cells that hold a result block render the result type first and its verdicts
+ * after, and the two filter differently — a result badge narrows by type and
+ * expectedness, a verdict badge by membership. Callers say which they mean.
+ */
+type HistoryBadgePart = 'all' | 'result' | 'verdicts';
+
+/**
+ * A badge some listed rows carry and others do not, so clicking it visibly
+ * narrows the table.
+ */
+interface DiscriminatingHistoryBadge {
+	column: HistoryColumn;
+	text: string;
+	rowIndex: number;
+	matchingRows: number;
+	totalRows: number;
+}
 
 type HistoryLegendItem =
 	| 'runs'
@@ -464,6 +514,285 @@ class HistoryPage {
 			.toBeGreaterThanOrEqual(minimum);
 	}
 
+	/**
+	 * Cells of a column across every listed row. Both modes render through
+	 * `TwTable`, so both tag their cells with the column id.
+	 */
+	cells(columnId: HistoryColumn): Locator {
+		return this.rows().locator(`[data-column-id="${columnId}"]`);
+	}
+
+	/**
+	 * Only clickable badges are buttons — the shared `Badge` renders a `div`
+	 * when it has no handler, which is how the aggregation hash and the whole
+	 * Expected Results column stay out of the way.
+	 */
+	badges(columnId: HistoryColumn, rowIndex = 0): Locator {
+		return this.cells(columnId)
+			.nth(rowIndex)
+			.locator('button[data-testid="tw-badge"]');
+	}
+
+	/** Aggregation: the parameter badges, excluding the non-clickable hash. */
+	parameterBadges(rowIndex = 0): Locator {
+		return this.badges('results-log', rowIndex);
+	}
+
+	/** The first badge of a result block is the result type; the rest verdicts. */
+	obtainedResultBadge(rowIndex = 0, columnId: HistoryColumn = 'obtained-results'): Locator {
+		return this.badges(columnId, rowIndex).first();
+	}
+
+	/**
+	 * Every badge text of a column, per row, from one DOM snapshot — sampling
+	 * row by row could straddle a re-render and mix two filter states.
+	 */
+	async badgeTextsByRow(
+		columnId: HistoryColumn,
+		part: HistoryBadgePart = 'all'
+	): Promise<string[][]> {
+		return this.table.evaluate(
+			(root, { column, part: which }) => {
+				const cells = Array.from(
+					root.querySelectorAll(
+						`.tw-table-body [role="row"] [data-column-id="${column}"]`
+					)
+				);
+
+				return cells.map((cell) => {
+					// A result block is one verdict list: the result badge, then its
+					// verdicts. The aggregation cell holds several such blocks, so
+					// each is sliced on its own.
+					const blocks = Array.from(
+						cell.querySelectorAll('[data-testid="tw-verdict-list"]')
+					);
+					const groups = (blocks.length ? blocks : [cell]).map((block) =>
+						Array.from(
+							block.querySelectorAll('button[data-testid="tw-badge"]')
+						).map((badge) => (badge.textContent ?? '').trim())
+					);
+
+					if (which === 'result') {
+						return groups.flatMap((items) => items.slice(0, 1));
+					}
+
+					if (which === 'verdicts') {
+						return groups.flatMap((items) => items.slice(1));
+					}
+
+					return groups.flat();
+				});
+			},
+			{ column: columnId, part }
+		);
+	}
+
+	/**
+	 * Picks a badge carried by some listed rows and not others. Throws rather
+	 * than skipping, so a fixture that stops exercising the filter fails loudly.
+	 */
+	async pickDiscriminatingBadge(
+		columnId: HistoryColumn,
+		part: HistoryBadgePart = 'all'
+	): Promise<DiscriminatingHistoryBadge> {
+		const byRow = await this.badgeTextsByRow(columnId, part);
+		const counts = new Map<string, { rows: number[] }>();
+
+		for (const [rowIndex, texts] of byRow.entries()) {
+			for (const text of new Set(texts)) {
+				const entry = counts.get(text) ?? { rows: [] };
+				entry.rows.push(rowIndex);
+				counts.set(text, entry);
+			}
+		}
+
+		for (const [text, { rows }] of counts) {
+			if (rows.length === byRow.length || !text) continue;
+
+			return {
+				column: columnId,
+				text,
+				rowIndex: rows[0],
+				matchingRows: rows.length,
+				totalRows: byRow.length
+			};
+		}
+
+		throw new Error(
+			`No badge in the "${columnId}" column is carried by only some of the ${byRow.length} listed rows, so clicking one cannot be observed. Check the fixture plan.`
+		);
+	}
+
+	async clickBadge(
+		columnId: HistoryColumn,
+		rowIndex: number,
+		text: string
+	): Promise<void> {
+		await this.badges(columnId, rowIndex)
+			.filter({ hasText: exactText(text) })
+			.first()
+			.click();
+	}
+
+	/**
+	 * Badge filtering is a client-side table filter, so the rows settle without
+	 * a request — but React still re-renders, hence the poll. Asserts the cut is
+	 * real (something went, something stayed) and that every survivor carries the
+	 * value; the exact count is only worth pinning in the aggregation mode, where
+	 * the grouping makes it deterministic.
+	 */
+	async expectRowsNarrowedTo(
+		columnId: HistoryColumn,
+		text: string,
+		before: number,
+		part: HistoryBadgePart = 'all'
+	): Promise<void> {
+		await expect
+			.poll(() => this.rows().count(), {
+				timeout: 30_000,
+				message: `rows after filtering by "${text}"`
+			})
+			.toBeLessThan(before);
+
+		const byRow = await this.badgeTextsByRow(columnId, part);
+
+		expect(byRow.length).toBeGreaterThan(0);
+		for (const texts of byRow) {
+			expect(texts).toContain(text);
+		}
+	}
+
+	/**
+	 * A badge marks itself selected through `data-badge-selected`. In the history
+	 * tables nothing else records that the filter was applied — the query stays
+	 * untouched — so this is what tells a selected badge from an inert one.
+	 *
+	 * Matched across the table rather than in one row: filtering removes rows, so
+	 * the index the badge was clicked at no longer identifies it.
+	 */
+	async expectBadgeSelected(
+		columnId: HistoryColumn,
+		text: string
+	): Promise<void> {
+		await expect(
+			this.cells(columnId)
+				.locator('button[data-testid="tw-badge"][data-badge-selected]')
+				.filter({ hasText: exactText(text) })
+				.first()
+		).toBeVisible({ timeout: 15_000 });
+	}
+
+	/**
+	 * Right-clicking a cell opens the history context menu, which — unlike a
+	 * left click on the same badges — rewrites the URL and refetches. The menu
+	 * is portalled, so it is waited for before an item is chosen.
+	 */
+	async openCellContextMenu(
+		columnId: HistoryColumn,
+		rowIndex = 0
+	): Promise<void> {
+		await this.cells(columnId).nth(rowIndex).click({ button: 'right' });
+		await expect(this.page.getByRole('menu')).toBeVisible({ timeout: 15_000 });
+	}
+
+	async chooseContextMenuItem(label: string): Promise<void> {
+		await this.page
+			.getByRole('menuitem', { name: label, exact: true })
+			.first()
+			.click();
+	}
+
+	/**
+	 * Runs `action` and asserts the query string did not move. Bounded on
+	 * purpose: proving a negative needs a deadline, not an open-ended wait.
+	 */
+	async expectUrlUnchangedWhile(
+		action: () => Promise<void>,
+		settleMs = 2_000
+	): Promise<void> {
+		const before = new URL(this.page.url()).search;
+
+		await action();
+		// A deliberate settle: the assertion is that nothing happened, and there
+		// is no event to wait for when the contract is "no navigation".
+		// eslint-disable-next-line playwright/no-wait-for-timeout
+		await this.page.waitForTimeout(settleMs);
+
+		expect(new URL(this.page.url()).search).toBe(before);
+	}
+
+	/**
+	 * Every history request the page sent while `action` ran, in order.
+	 *
+	 * `waitForHistoryRequest` resolves on the *first* match, which is the wrong
+	 * one here: a filter applied through the context menu replaces a query that
+	 * may still have a request in flight, so the interesting request is the last
+	 * one, not the next one.
+	 */
+	async captureHistoryRequests(
+		action: () => Promise<void>,
+		settleMs = 2_000
+	): Promise<Request[]> {
+		const requests: Request[] = [];
+		const listen = (request: Request) => {
+			const { pathname } = new URL(request.url());
+
+			if (
+				pathname.endsWith('/api/v2/history/') ||
+				pathname.endsWith('/api/v2/history/grouped/')
+			) {
+				requests.push(request);
+			}
+		};
+
+		this.page.on('request', listen);
+		try {
+			await action();
+			// A deliberate settle: the refetch is fired by a cache invalidation,
+			// so there is no single event that marks the end of the burst.
+			// eslint-disable-next-line playwright/no-wait-for-timeout
+			await this.page.waitForTimeout(settleMs);
+		} finally {
+			this.page.off('request', listen);
+		}
+
+		return requests;
+	}
+
+	/**
+	 * Resolves to true when the page sent a history request within `withinMs`.
+	 * The client-side filters must not, so the scenario that pins that contract
+	 * needs a bounded wait rather than `waitForHistoryRequest`.
+	 */
+	async sentHistoryRequestWithin(
+		action: () => Promise<void>,
+		withinMs = 2_000
+	): Promise<boolean> {
+		let sent = false;
+		const listen = (request: { url(): string }) => {
+			const { pathname } = new URL(request.url());
+
+			if (
+				pathname.endsWith('/api/v2/history/') ||
+				pathname.endsWith('/api/v2/history/grouped/')
+			) {
+				sent = true;
+			}
+		};
+
+		this.page.on('request', listen);
+		try {
+			await action();
+			// Same deliberate settle: the contract is that no request was sent.
+			// eslint-disable-next-line playwright/no-wait-for-timeout
+			await this.page.waitForTimeout(withinMs);
+		} finally {
+			this.page.off('request', listen);
+		}
+
+		return sent;
+	}
+
 	async openGlobalSearchForm(): Promise<void> {
 		await this.editSearchButton.click();
 		await this.globalSearchForm.expectVisible();
@@ -513,9 +842,18 @@ class HistoryPage {
 }
 
 export {
+	HISTORY_AGGREGATION_COLUMNS,
+	HISTORY_LINEAR_COLUMNS,
 	HISTORY_MODES,
 	HISTORY_SEARCH_FORM_PARAMS,
 	HISTORY_URL_PARAMS,
 	HistoryPage
 };
-export type { HistoryLegendItem, HistoryMode, HistoryUrlParam };
+export type {
+	DiscriminatingHistoryBadge,
+	HistoryBadgePart,
+	HistoryColumn,
+	HistoryLegendItem,
+	HistoryMode,
+	HistoryUrlParam
+};

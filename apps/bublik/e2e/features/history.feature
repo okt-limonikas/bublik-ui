@@ -159,6 +159,79 @@ Feature: History
     Then the log page for that result is open
 
   ###########################################
+  #         Filtering by badge              #
+  ###########################################
+
+  # Left-clicking a badge in either table is a *client-side* filter over the rows
+  # already loaded: the table's own global filter, nothing else. Right-clicking
+  # the same cell is a different thing entirely — the context menu rewrites the
+  # query in the URL and refetches. The two are easy to conflate, so both are
+  # pinned here, in both directions.
+  #
+  # The rows are cut relative to what was listed rather than to a fixed count:
+  # the list is server-paginated, so its first page is not a fixed set. The
+  # grouped table is, which is where the exact assertions live.
+
+  @history
+  Scenario: Clicking a parameter badge narrows the history list to the matching results
+    Given I open the history page for a path with more than one parameter set
+    When I click a parameter badge that only some of the listed results carry
+    Then only the results carrying that parameter are listed
+    And the badge is shown as selected
+
+  @history
+  Scenario: Clicking a metadata badge narrows the history list to that configuration
+    Given I open the history page for a path with more than one parameter set
+    When I click a metadata badge that only some of the listed results carry
+    Then only the results carrying that metadata are listed
+
+  @history
+  Scenario: Clicking an obtained result badge narrows the history list to that result
+    Given I open the history page for a path with more than one obtained result
+    When I click the obtained result badge of a listed result
+    Then only the results of that type are listed
+
+  # The contract that separates the badge from the context menu: a left click
+  # must not touch the query, or a shared link would carry a filter the page
+  # never applied — and every click would cost a round trip.
+  @history @url-params
+  Scenario: Badge filtering in the history list leaves the query untouched
+    Given I open the history page for a path with more than one parameter set
+    When I click a parameter badge
+    Then the URL is unchanged
+    And no history request was sent
+
+  @history
+  Scenario: Clicking a parameter badge in the grouped table narrows it to the matching hashes
+    Given I open the history page for that path in the aggregation mode
+    When I click a parameter badge of the first group
+    Then only the groups carrying that parameter are listed
+
+  @history
+  Scenario: Clicking a verdict badge in the grouped table narrows it to the groups reporting it
+    Given I open the history page for that path in the aggregation mode
+    When I click a verdict badge of a group that reports one
+    Then only the groups reporting that verdict are listed
+
+  # The context menu rebuilds the query from the form state, which is hydrated
+  # from the URL on mount — so this also proves the test path survives a filter
+  # applied from a link rather than from the form.
+  @history @url-params
+  Scenario: Selecting parameters from the grouped table context menu applies them to the query
+    Given I open the history page for that path in the aggregation mode
+    When I right-click a group's parameters and choose Select parameters
+    Then those parameters are recorded in the URL
+    And the test path, the mode and the page size are still pinned
+    And the URL is back on the first page
+    And the history request carries the parameters as test args
+
+  @history
+  Scenario: Applying the search form replaces the badge filters with the form's own
+    Given I open the history page narrowed by a parameter badge
+    When I open the search form and apply it unchanged
+    Then every result of the query is listed again
+
+  ###########################################
   #         Charts                          #
   ###########################################
 

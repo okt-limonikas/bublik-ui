@@ -70,6 +70,96 @@ Feature: Run details
     When I open the reports menu
     Then the configured report is offered
 
+  ###########################################
+  #         Filtering the result table      #
+  ###########################################
+
+  # Inside an expanded result table every badge is a filter over that table's own
+  # rows: the obtained result, its verdicts, the artifacts, the parameters and the
+  # requirements. The Expected Results column looks the same and is deliberately
+  # inert. The filters are column filters, kept in the compressed `columnFilters`
+  # query parameter, so they have to survive a reload — and the toolbar's faceted
+  # pickers are the same state seen from the other side.
+  #
+  # Two runs are used: no fixture test reports both artifacts and requirements,
+  # and the runs that report requirements are the large ones.
+
+  @run
+  Scenario: Clicking an obtained result badge filters the result table to that result
+    Given I open a run with the result table of a test that reports artifacts expanded
+    When I click the obtained result badge of the first row
+    Then only the results of that type are listed
+    And the Obtained Result filter of the toolbar reports it
+
+  @run
+  Scenario: Clicking an artifact badge narrows the result table to the results reporting it
+    Given I open a run with the result table of a test that reports artifacts expanded
+    When I click an artifact badge that only some of the results carry
+    Then only the results carrying that artifact are listed
+    And the Artifacts filter of the toolbar reports it
+
+  @run
+  Scenario: Clicking a parameter badge narrows the result table to the matching iterations
+    Given I open a run with the result table of a test that reports artifacts expanded
+    When I click a parameter badge that only some of the iterations carry
+    Then only the iterations carrying that parameter are listed
+    And the Parameters filter of the toolbar reports it
+
+  # The toolbar is shown whenever a filter is applied, whatever the toggle says,
+  # so a badge click reveals it without the toggle being touched.
+  @run
+  Scenario: Clicking a badge reveals the result table filter toolbar
+    Given I open a run with the result table of a test that reports artifacts expanded
+    Then the filter toolbar is hidden
+    When I click the obtained result badge of the first row
+    Then the filter toolbar is shown
+
+  @run
+  Scenario: The Filters toggle shows and hides the result table toolbar
+    Given I open a run with the result table of a test that reports artifacts expanded
+    When I press Filters in the Requirements header
+    Then the filter toolbar is shown
+    When I press Filters again
+    Then the filter toolbar is hidden
+
+  # The toolbar is only kept on screen once it has been asked for, so Reset —
+  # which drops the filters that were holding it open — would otherwise take the
+  # toolbar with it and leave nothing to assert against.
+  @run
+  Scenario: Reset clears every result table filter
+    Given I open a run with the result table of a test that reports artifacts expanded
+    When I press Filters in the Requirements header
+    And I click an artifact badge that only some of the results carry
+    Then only the results carrying that artifact are listed
+    When I press Reset in the filter toolbar
+    Then every result of that test is listed again
+    And no toolbar filter reports a selection
+
+  # `columnFilters` is compressed, so the link cannot be read — the round trip is
+  # proved by reloading and finding the same rows.
+  @run @url-params
+  Scenario: Result table filters are recorded in the URL and survive a reload
+    Given I open a run with the result table narrowed by an artifact badge
+    Then the URL carries the result table column filters
+    When I reload the page
+    Then the result table is still narrowed the same way
+
+  @run @needs-nok
+  Scenario: Clicking a verdict badge narrows the result table to the results reporting it
+    Given I open a run whose results carry both requirements and verdicts
+    When I click a verdict badge that only some of the results carry
+    Then only the results carrying that verdict are listed
+    And the Verdicts filter of the toolbar reports it
+
+  # Requirements are the odd one out: they are shared by every result table on the
+  # page and stripped out of `columnFilters`, so this scenario keeps a single
+  # table open and claims nothing about the URL.
+  @run @needs-nok
+  Scenario: Clicking a requirement badge narrows the result table to that requirement
+    Given I open a run whose results carry both requirements and verdicts
+    When I click a requirement badge that only some of the results carry
+    Then only the results carrying that requirement are listed
+
   @run @comments
   Scenario: A run comment can be added and then removed
     Given I open an imported run's page with no comment

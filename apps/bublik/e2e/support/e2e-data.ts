@@ -378,7 +378,48 @@ async function dashboardResolvedDate(
 	return payload.date ?? null;
 }
 
+/**
+ * `;` — how every list-valued query parameter is joined (`config.queryDelimiter`
+ * in `libs/bublik/config/src/lib/environment.ts`).
+ */
+const QUERY_DELIMITER = ';';
+
+/**
+ * Matches a badge's whole text rather than a prefix of it. Playwright's
+ * `hasText` is a substring match, and artifacts, parameters and tags routinely
+ * share prefixes (`mix=healthy` / `mix=healthy-2`) — so filtering by the wrong
+ * one is a silent pass, not a failure.
+ */
+function exactText(text: string): RegExp {
+	return new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+}
+
+/**
+ * Turns the text a badge *renders* into the value the filter, the URL and the
+ * API *carry*.
+ *
+ * Key/value badges are displayed with `config.keyValueDisplayDelimiter` (`': '`)
+ * but submitted with `config.keyValueSubmitDelimiter` (`'='`), so the runs table
+ * shows `fixture: basic` while the URL says `runData=fixture=basic`. Only the
+ * first delimiter separates the key, matching `formatKeyValueForDisplay`; a
+ * badge with no delimiter at all (a plain tag such as `ice`) is its own payload.
+ *
+ * Getting this inversion backwards produces a test that passes against a filter
+ * matching nothing, which is exactly the bug these scenarios exist to catch.
+ */
+function badgeTextToPayload(text: string): string {
+	const trimmed = text.trim();
+	const at = trimmed.indexOf(': ');
+
+	if (at <= 0) return trimmed;
+
+	return `${trimmed.slice(0, at)}=${trimmed.slice(at + 2)}`;
+}
+
 export {
+	QUERY_DELIMITER,
+	badgeTextToPayload,
+	exactText,
 	dashboardCellDestination,
 	dashboardResolvedDate,
 	firstErrorResultNode,

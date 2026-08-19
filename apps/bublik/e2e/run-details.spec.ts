@@ -2,11 +2,12 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 /* Implements apps/bublik/e2e/features/run-details.feature */
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { DashboardPage } from './pages/dashboard-page';
 import { LogPage } from './pages/log-page';
 import { RunPage } from './pages/run-page';
+import type { DiscriminatingResultBadge } from './pages/run-page';
 import { RunsPage } from './pages/runs-page';
 import { HistoryPage } from './pages/history-page';
 import {
@@ -17,7 +18,13 @@ import {
 import { and, given, then, when } from './support/gherkin';
 import { requireCapability } from './support/capabilities';
 import { requireManifest } from './support/manifest';
-import { mutableRun, representativeNokRun } from './support/sample-cases';
+import {
+	artifactResultCase,
+	mutableRun,
+	representativeNokRun,
+	requirementResultCase
+} from './support/sample-cases';
+import type { ResultTableCase } from './support/sample-cases';
 
 function nokRun() {
 	const representative = requireCapability(
@@ -37,6 +44,41 @@ function scratchRun() {
 	);
 
 	return { ...scratch, runId: importedRunId(scratch.bundle) };
+}
+
+/**
+ * The run whose sampled iterations put different artifact sets on one test
+ * path, and the run whose iterations carry both requirements and verdicts.
+ * They are different runs on purpose: no fixture test reports both, and the
+ * ones reporting requirements are the large ones.
+ */
+function artifactRun(): ResultTableCase {
+	return requireCapability(
+		artifactResultCase(requireManifest()),
+		'Fixture manifest contains no test path whose results report differing artifacts.'
+	);
+}
+
+function requirementRun(): ResultTableCase {
+	return requireCapability(
+		requirementResultCase(requireManifest()),
+		'Fixture manifest contains no test path whose results carry both requirements and verdicts.'
+	);
+}
+
+/** Opens a case's run and expands the result table of its test, unfiltered. */
+async function openResultTable(page: Page, testCase: ResultTableCase) {
+	const runPage = new RunPage(page);
+
+	await runPage.goto(testCase.runId);
+	await runPage.expectLoaded(testCase.bundle.expectedRuns[0].name);
+
+	const table = await runPage.openResultTableAt(
+		testCase.path.slice(0, -1),
+		testCase.testName
+	);
+
+	return { runPage, table };
 }
 
 /** The history verdict variant only produces a `verdict` param when the result
@@ -321,6 +363,380 @@ test.describe('Run Details Page', () => {
 	});
 
 	// Assertions are encapsulated by RunPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking an obtained result badge filters the result table to that result',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'obtained-result',
+						'result'
+					);
+				}
+			);
+			await when('I click the obtained result badge of the first row', () =>
+				runPage.obtainedResultBadge(table, badge.rowIndex).click()
+			);
+			await then('only the results of that type are listed', () =>
+				runPage.expectResultRowsNarrowedByResult(
+					table,
+					badge.text,
+					badge.totalRows
+				)
+			);
+			await and('the Obtained Result filter of the toolbar reports it', () =>
+				runPage.expectFacetedFilterReports(table, 'Obtained Result', badge.text)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking an artifact badge narrows the result table to the results reporting it',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'artifacts'
+					);
+				}
+			);
+			await when(
+				'I click an artifact badge that only some of the results carry',
+				() => runPage.clickResultBadge(table, 'artifacts', badge.text)
+			);
+			await then('only the results carrying that artifact are listed', () =>
+				runPage.expectResultRowsNarrowedTo(
+					table,
+					'artifacts',
+					badge.text,
+					badge.matchingRows
+				)
+			);
+			await and('the Artifacts filter of the toolbar reports it', () =>
+				runPage.expectFacetedFilterReports(table, 'Artifacts', badge.text)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a parameter badge narrows the result table to the matching iterations',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'parameters'
+					);
+				}
+			);
+			await when(
+				'I click a parameter badge that only some of the iterations carry',
+				() => runPage.clickResultBadge(table, 'parameters', badge.text)
+			);
+			await then('only the iterations carrying that parameter are listed', () =>
+				runPage.expectResultRowsNarrowedTo(
+					table,
+					'parameters',
+					badge.text,
+					badge.matchingRows
+				)
+			);
+			await and('the Parameters filter of the toolbar reports it', () =>
+				runPage.expectFacetedFilterReports(table, 'Parameters', badge.text)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a badge reveals the result table filter toolbar',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'obtained-result',
+						'result'
+					);
+				}
+			);
+			await then('the filter toolbar is hidden', () =>
+				runPage.expectToolbarHidden(table)
+			);
+			await when('I click the obtained result badge of the first row', () =>
+				runPage.obtainedResultBadge(table, badge.rowIndex).click()
+			);
+			await then('the filter toolbar is shown', () =>
+				runPage.expectToolbarVisible(table)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'The Filters toggle shows and hides the result table toolbar',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+				}
+			);
+			await when('I press Filters in the Requirements header', () =>
+				runPage.filtersToggle.first().click()
+			);
+			await then('the filter toolbar is shown', () =>
+				runPage.expectToolbarVisible(table)
+			);
+			await when('I press Filters again', () =>
+				runPage.filtersToggle.first().click()
+			);
+			await then('the filter toolbar is hidden', () =>
+				runPage.expectToolbarHidden(table)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Reset clears every result table filter',
+		{ tag: ['@run'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let totalRows = 0;
+
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table of a test that reports artifacts expanded',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'artifacts'
+					);
+					totalRows = badge.totalRows;
+				}
+			);
+			// Pinning the toolbar open first: Reset drops the filters that were
+			// holding it on screen, so without this there would be nothing left to
+			// assert the cleared state against.
+			await when('I press Filters in the Requirements header', () =>
+				runPage.filtersToggle.first().click()
+			);
+			await and(
+				'I click an artifact badge that only some of the results carry',
+				() => runPage.clickResultBadge(table, 'artifacts', badge.text)
+			);
+			await then('only the results carrying that artifact are listed', () =>
+				runPage.expectResultRowsNarrowedTo(
+					table,
+					'artifacts',
+					badge.text,
+					badge.matchingRows
+				)
+			);
+			await when('I press Reset in the filter toolbar', () =>
+				runPage.resetResultFilters(table)
+			);
+			await then('every result of that test is listed again', () =>
+				expect
+					.poll(() => runPage.resultRowCount(table), { timeout: 15_000 })
+					.toBe(totalRows)
+			);
+			await and('no toolbar filter reports a selection', () =>
+				runPage.expectNoFacetedFilterSelection(table)
+			);
+		}
+	);
+
+	test(
+		'Result table filters are recorded in the URL and survive a reload',
+		{ tag: ['@run', '@url-params'] },
+		async ({ page }) => {
+			const testCase = artifactRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run with the result table narrowed by an artifact badge',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'artifacts'
+					);
+
+					await runPage.clickResultBadge(table, 'artifacts', badge.text);
+					await runPage.expectResultRowsNarrowedTo(
+						table,
+						'artifacts',
+						badge.text,
+						badge.matchingRows
+					);
+				}
+			);
+			await then('the URL carries the result table column filters', () =>
+				runPage.expectColumnFiltersInUrl()
+			);
+			await when('I reload the page', async () => {
+				await page.reload();
+				await runPage.expectLoaded(testCase.bundle.expectedRuns[0].name);
+			});
+			await then(
+				'the result table is still narrowed the same way',
+				async () => {
+					const restored = runPage.resultTable(testCase.testName).first();
+					await expect(restored).toBeVisible({ timeout: 60_000 });
+					await runPage.expectResultRowsNarrowedTo(
+						restored,
+						'artifacts',
+						badge.text,
+						badge.matchingRows
+					);
+				}
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a verdict badge narrows the result table to the results reporting it',
+		{ tag: ['@run', '@needs-nok'] },
+		async ({ page }) => {
+			// The runs that report requirements are the fixture plan's large ones.
+			test.slow();
+
+			const testCase = requirementRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run whose results carry both requirements and verdicts',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'obtained-result',
+						'verdicts'
+					);
+				}
+			);
+			await when(
+				'I click a verdict badge that only some of the results carry',
+				() =>
+					runPage
+						.verdictBadges(table, badge.rowIndex)
+						.filter({ hasText: badge.text })
+						.first()
+						.click()
+			);
+			await then('only the results carrying that verdict are listed', () =>
+				runPage.expectResultRowsNarrowedTo(
+					table,
+					'obtained-result',
+					badge.text,
+					badge.matchingRows,
+					'verdicts'
+				)
+			);
+			await and('the Verdicts filter of the toolbar reports it', () =>
+				runPage.expectFacetedFilterReports(table, 'Verdicts', badge.text)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clicking a requirement badge narrows the result table to that requirement',
+		{ tag: ['@run', '@needs-nok'] },
+		async ({ page }) => {
+			test.slow();
+
+			const testCase = requirementRun();
+			let runPage!: RunPage;
+			let table!: Locator;
+			let badge!: DiscriminatingResultBadge;
+
+			await given(
+				'I open a run whose results carry both requirements and verdicts',
+				async () => {
+					({ runPage, table } = await openResultTable(page, testCase));
+					badge = await runPage.pickDiscriminatingResultBadge(
+						table,
+						'requirements'
+					);
+				}
+			);
+			await when(
+				'I click a requirement badge that only some of the results carry',
+				() => runPage.clickResultBadge(table, 'requirements', badge.text)
+			);
+			await then('only the results carrying that requirement are listed', () =>
+				runPage.expectResultRowsNarrowedTo(
+					table,
+					'requirements',
+					badge.text,
+					badge.matchingRows
+				)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'A run comment can be added and then removed',
