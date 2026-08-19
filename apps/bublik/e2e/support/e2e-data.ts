@@ -43,6 +43,62 @@ interface ReportConfig {
 	name: string;
 }
 
+interface ReportPoint {
+	metadata?: { result_id?: number };
+}
+
+interface ReportRecordBlock {
+	id: string;
+	label?: string | null;
+	table?: { data: { points: ReportPoint[] }[] } | null;
+}
+
+interface ReportMeasurementBlock {
+	id: string;
+	label: string;
+	content: ReportRecordBlock[];
+}
+
+interface ReportArgsValBlock {
+	id: string;
+	label: string;
+	content: ReportMeasurementBlock[];
+}
+
+interface ReportTestBlock {
+	id: string;
+	type: string;
+	label: string;
+	content: ReportArgsValBlock[];
+}
+
+interface ReportPayload {
+	content: ReportTestBlock[];
+}
+
+interface ReportItem {
+	id: string;
+	label: string;
+}
+
+/** A table cell that carries a result id, so clicking it opens the log preview. */
+interface ReportCell {
+	recordId: string;
+	resultId: number;
+}
+
+interface ReportFixture {
+	runCase: ImportedRunCase;
+	runId: number;
+	configId: number;
+	testBlocks: ReportItem[];
+	/** Only the blocks j/k stops at: the ones with a non-empty label. */
+	argValItems: ReportItem[];
+	measurementItems: ReportItem[];
+	recordItems: ReportItem[];
+	cells: ReportCell[];
+}
+
 function importedRunId(bundle: Bundle): number {
 	if (!bundle.runId) {
 		throw new Error(`Fixture run "${bundle.id}" has no imported runId.`);
@@ -215,6 +271,77 @@ async function firstReportConfig(
 }
 
 /**
+ * Everything the report scenarios assert against comes from the report payload
+ * itself, so a fixture change moves the tests with it instead of breaking them.
+ * The endpoint is the one the app uses (see report-endpoints.ts) — the trailing
+ * slash matters, without it the proxy answers a redirect.
+ */
+async function reportFixture(
+	page: Page,
+	manifest: E2EManifest
+): Promise<ReportFixture> {
+	const runCase = reportConfiguredImportedRun(manifest);
+	const config = await firstReportConfig(page, runCase.runId);
+
+	if (!config) {
+		throw new Error(
+			`Fixture setup did not create a report config for run ${runCase.runId}.`
+		);
+	}
+
+	const response = await page.request.get(
+		`/api/v2/report/${runCase.runId}/?config=${config.id}`
+	);
+	expect(response.ok()).toBeTruthy();
+
+	const payload = (await response.json()) as ReportPayload;
+	const testBlocks = payload.content.filter(
+		(block) => block.type === 'test-block'
+	);
+
+	if (!testBlocks.length) {
+		throw new Error(
+			`Report ${config.id} for run ${runCase.runId} contains no test blocks.`
+		);
+	}
+
+	const argValBlocks = testBlocks.flatMap((block) => block.content);
+	const measurementBlocks = argValBlocks.flatMap((block) => block.content);
+	const recordBlocks = measurementBlocks.flatMap((block) => block.content);
+	const cells: ReportCell[] = [];
+
+	for (const record of recordBlocks) {
+		for (const series of record.table?.data ?? []) {
+			for (const point of series.points) {
+				const resultId = point.metadata?.result_id;
+
+				if (typeof resultId === 'number') {
+					cells.push({ recordId: record.id, resultId });
+				}
+			}
+		}
+	}
+
+	const toItem = (block: { id: string; label?: string | null }) => ({
+		id: block.id,
+		label: block.label ?? ''
+	});
+
+	return {
+		runCase,
+		runId: runCase.runId,
+		configId: config.id,
+		testBlocks: testBlocks.map(toItem),
+		// Blocks with an empty label are hidden and skipped by j/k navigation —
+		// getVisibleArgsValNavigationItems applies the same filter.
+		argValItems: argValBlocks.filter((block) => block.label.trim()).map(toItem),
+		measurementItems: measurementBlocks.map(toItem),
+		recordItems: recordBlocks.map(toItem),
+		cells
+	};
+}
+
+/**
  * The dashboard, and everything reachable from it, is scoped by the project id
  * carried in `?project=`. Tests know projects by the name the fixture manifest
  * records, so the id has to be looked up.
@@ -262,7 +389,16 @@ export {
 	importedRunId,
 	projectIdByName,
 	reportConfiguredImportedRun,
+	reportFixture,
 	representativeImportedRun
 };
 
-export type { ImportedRunCase, ResultNodeCase, TreeNode, TreeResponse };
+export type {
+	ImportedRunCase,
+	ReportCell,
+	ReportFixture,
+	ReportItem,
+	ResultNodeCase,
+	TreeNode,
+	TreeResponse
+};

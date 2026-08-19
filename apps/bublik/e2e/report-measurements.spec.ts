@@ -1,93 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-/* Implements features/run-report.feature and features/measurements.feature */
+/* Implements features/measurements.feature */
 import { expect, test } from '@playwright/test';
 import type { APIRequestContext, Page } from '@playwright/test';
 
 import { MeasurementsPage } from './pages/measurements-page';
-import { RunReportPage } from './pages/run-report-page';
 import { requireManifest } from './support/manifest';
 import { requireCapability } from './support/capabilities';
-import {
-	firstMeasurementResultNode,
-	firstReportConfig,
-	reportConfiguredImportedRun
-} from './support/e2e-data';
+import { firstMeasurementResultNode } from './support/e2e-data';
 import { and, given, then, when } from './support/gherkin';
-
-test.describe('Run Report Page', () => {
-	// Assertions are encapsulated by RunReportPage.
-	// eslint-disable-next-line playwright/expect-expect
-	test('A report without a configuration reports the missing config', async ({
-		page
-	}) => {
-		const reportPage = new RunReportPage(page);
-		const runCase = reportConfiguredImportedRun(requireManifest());
-
-		await given(
-			'the fixture manifest describes a run whose project has a report config',
-			() => expect(runCase.runId).toBeGreaterThan(0)
-		);
-		await when(
-			"I open that run's report without choosing a configuration",
-			() => reportPage.goto(runCase.runId)
-		);
-		await then('the page reports that the config id is missing', () =>
-			reportPage.expectMissingConfig()
-		);
-	});
-
-	// Assertions are encapsulated by RunReportPage.
-	// eslint-disable-next-line playwright/expect-expect
-	test(
-		'A report renders for the configured report config',
-		{ tag: ['@needs-report'] },
-		async ({ page }) => {
-			const reportPage = new RunReportPage(page);
-			const runCase = reportConfiguredImportedRun(requireManifest());
-			const config = requireCapability(
-				await firstReportConfig(page, runCase.runId),
-				'Fixture setup did not create a report config for this run.'
-			);
-
-			await given('a report config exists for that run', () =>
-				expect(config.id).toBeTruthy()
-			);
-			await when("I open the run's report for that config", () =>
-				reportPage.goto(runCase.runId, config.id)
-			);
-			await then('the report page is rendered', () =>
-				reportPage.expectLoaded()
-			);
-		}
-	);
-
-	// Assertions are encapsulated by RunReportPage.
-	// eslint-disable-next-line playwright/expect-expect
-	test(
-		'The report links back to the configuration that produced it',
-		{ tag: ['@needs-report'] },
-		async ({ page }) => {
-			const reportPage = new RunReportPage(page);
-			const runCase = reportConfiguredImportedRun(requireManifest());
-			const config = requireCapability(
-				await firstReportConfig(page, runCase.runId),
-				'Fixture setup did not create a report config for this run.'
-			);
-
-			await given('I open a rendered report', async () => {
-				await reportPage.goto(runCase.runId, config.id);
-				await reportPage.expectLoaded();
-			});
-			await when('I follow the Config link', () =>
-				reportPage.openConfigEditor()
-			);
-			await then('the configuration editor opens for that config', () =>
-				expect(page).toHaveURL(/\/admin\/config\?configId=/)
-			);
-		}
-	);
-});
 
 test.describe('Measurements Page', () => {
 	test.describe('The measurements page renders every layout mode', () => {

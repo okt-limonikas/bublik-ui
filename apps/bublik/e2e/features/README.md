@@ -71,7 +71,7 @@ test(
   `// eslint-disable-next-line playwright/expect-expect` comment, as the older specs do.
 - Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
 - Area tags name the page a scenario belongs to, so one page's suite can be run on its own
-  (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`.
+  (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`, `@report`.
 
 ## Checking
 
