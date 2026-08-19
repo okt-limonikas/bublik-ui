@@ -205,6 +205,7 @@ function RunsRow({ row, onRowClick }: RunsRowProps) {
 				return (
 					<td
 						key={cell.id}
+						data-column-id={cell.column.id}
 						className={cn(
 							`bg-white py-2 px-1 border-transparent transition-colors`,
 							cellIdx !== 0 && 'border-y',
