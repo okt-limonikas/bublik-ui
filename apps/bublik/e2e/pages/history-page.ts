@@ -3,6 +3,7 @@
 import { expect, Locator, Page, Request } from '@playwright/test';
 
 import { exactText } from '../support/e2e-data';
+import { UrlParams, urlParams } from '../support/url-params';
 import { HistoryGlobalSearchForm } from './history-global-search-form';
 
 /**
@@ -328,6 +329,7 @@ class HistoryPage {
 	readonly table: Locator;
 	readonly pagination: Locator;
 	readonly globalSearchForm: HistoryGlobalSearchForm;
+	private readonly url: UrlParams;
 
 	constructor(page: Page) {
 		this.page = page;
@@ -340,6 +342,7 @@ class HistoryPage {
 		this.table = this.root.locator('[role="table"]').first();
 		this.pagination = this.root.getByTestId('tw-pagination').first();
 		this.globalSearchForm = new HistoryGlobalSearchForm(page);
+		this.url = urlParams(page);
 	}
 
 	async goto(searchParams?: URLSearchParams | string): Promise<void> {
@@ -391,14 +394,7 @@ class HistoryPage {
 	 * flaky. Polls because every write is an async history replace.
 	 */
 	async expectParams(expected: Record<string, string | null>): Promise<void> {
-		for (const [key, value] of Object.entries(expected)) {
-			await expect
-				.poll(() => new URL(this.page.url()).searchParams.get(key), {
-					timeout: 15_000,
-					message: `URL parameter "${key}"`
-				})
-				.toBe(value);
-		}
+		await this.url.expect(expected);
 	}
 
 	/**
@@ -408,16 +404,42 @@ class HistoryPage {
 	 * silently stopped being serialized fails here.
 	 */
 	async expectParamsPresent(keys: readonly string[]): Promise<void> {
-		await expect
-			.poll(
-				() => {
-					const params = new URL(this.page.url()).searchParams;
+		await this.url.expectPresent(keys);
+	}
 
-					return keys.filter((key) => !params.has(key));
-				},
-				{ timeout: 15_000, message: 'URL parameters that are not written' }
-			)
-			.toEqual([]);
+	/** The raw value of one key, for assertions the helpers do not cover. */
+	paramValue(key: string): string | null {
+		return this.url.get(key);
+	}
+
+	/** Every value of a repeated key — an ArrayParam, not a `;`-joined list. */
+	paramValues(key: string): string[] {
+		return this.url.getAll(key);
+	}
+
+	/** `;`-joined lists: membership, since the app chooses the order. */
+	async expectDelimitedParam(key: string, ...values: string[]): Promise<void> {
+		await this.url.expectDelimitedContains(key, ...values);
+	}
+
+	/** `ArrayParam` lists: one repeated key per value, not a joined string. */
+	async expectRepeatedParam(
+		key: string,
+		values: readonly string[]
+	): Promise<void> {
+		await this.url.expectRepeated(key, values);
+	}
+
+	/**
+	 * The keyed form of `expectUrlUnchangedWhile`, for scenarios where the
+	 * sidebar is free to write `_s` while the history query must not move.
+	 */
+	async expectParamsUnchangedWhile(
+		keys: readonly string[],
+		action: () => Promise<void>,
+		settleMs = 2_000
+	): Promise<void> {
+		await this.url.expectUnchangedWhile(keys, action, settleMs);
 	}
 
 	/**

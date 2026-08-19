@@ -23,3 +23,30 @@ Feature: Run comparison
     When I switch to the info diff
     And I follow the left run's Log link
     Then the log page is open
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # The diff opens with its first row already expanded, so toggling it collapses
+  # it — which is the same contract in the other direction, and the reason these
+  # steps say "toggle" rather than "expand". The round trip is asserted through
+  # the rendered rows rather than the parameter's value, so it holds whichever
+  # encoding the state travels in.
+
+  @runs @url-params
+  Scenario: Toggling a row in the comparison is recorded in the URL and survives a reload
+    Given I open the compare page for two runs
+    When I toggle the first row of the diff
+    Then the diff records the expanded rows in the URL
+    And the rows it renders have changed
+    When I reload the page
+    Then the diff renders the same rows again
+
+  @runs @url-params
+  Scenario: A compare link restores both sides it names
+    Given a link that pins two runs to compare
+    When I open that link
+    Then the diff is rendered
+    And the link still carries both sides
+

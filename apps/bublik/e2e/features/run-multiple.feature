@@ -29,3 +29,29 @@ Feature: Multiple runs
     Given I open the multiple page for a run with unexpected results
     When I press Preview NOK
     Then the tests with unexpected results are listed
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # `runIds` repeats its key rather than joining the ids, and `selected` is
+  # resolved rather than written when a link omits it — so the rendered state
+  # and the URL disagree on purpose, and both halves need pinning.
+
+  @runs @url-params
+  Scenario: A multiple-runs link restores every run it pins and the one it selected
+    Given a link that pins two runs and selects the second
+    When I open that link
+    Then the merged tree of both runs is shown
+    And the link still repeats both run ids and names the selection
+
+  @runs @url-params
+  Scenario: The multiple view falls back to the first run when the link names no selection
+    Given a link that pins two runs without naming a selection
+    When I open that link
+    Then the merged tree of both runs is shown
+    And no selection is written to the URL
+    When I select the second run
+    Then the selection is recorded in the URL
+    And both run ids are still pinned
+

@@ -7,7 +7,8 @@ import { expect, test } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 
 import { ConfigPage } from './pages/config-page';
-import { given, then, when } from './support/gherkin';
+import { and, given, then, when } from './support/gherkin';
+import { urlParams } from './support/url-params';
 import { requireCapability } from './support/capabilities';
 import { requireManifest } from './support/manifest';
 
@@ -57,7 +58,7 @@ test.describe('Configuration Page', () => {
 
 	test(
 		'Opening a configuration shows its JSON in the editor',
-		{ tag: ['@admin'] },
+		{ tag: ['@admin', '@url-params'] },
 		async ({ page, request }) => {
 			const configPage = new ConfigPage(page);
 			let config = { id: 0, name: '' };
@@ -87,6 +88,34 @@ test.describe('Configuration Page', () => {
 			});
 			await when('I open the schema view', () => configPage.openSchema());
 			await then('the schema is shown', () => configPage.expectSchemaVisible());
+		}
+	);
+
+	test(
+		'A malformed new configuration link falls back to the default editor',
+		{ tag: ['@admin', '@url-params'] },
+		async ({ page }) => {
+			const configPage = new ConfigPage(page);
+			// JsonParam decodes this to nothing, and the schema check turns that
+			// into the default rather than an error — so a stale bookmark opens a
+			// usable page instead of a broken one.
+			const malformed = '{not-json';
+
+			await given(
+				'a link whose new configuration parameter is not valid JSON',
+				() => expect(() => JSON.parse(malformed)).toThrow()
+			);
+			await when('I open that link', () =>
+				page.goto(`admin/config?new_config=${encodeURIComponent(malformed)}`)
+			);
+			await then('the configuration page is ready', () =>
+				expect(configPage.newProjectButton).toBeVisible({ timeout: 30_000 })
+			);
+			// Kept, not corrected: nothing rewrites the URL on the way in, which
+			// is the same contract the other pages' unknown values follow.
+			await and('the link still carries the malformed parameter', () =>
+				urlParams(page).expect({ new_config: malformed })
+			);
 		}
 	);
 });

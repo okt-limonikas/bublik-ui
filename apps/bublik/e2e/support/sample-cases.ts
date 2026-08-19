@@ -154,6 +154,73 @@ function runPairOnDifferentProjects(manifest: E2EManifest): {
  * resolved per project, so pressing it from an older day has to land on this
  * project's latest day — and only its runs.
  */
+/**
+ * The imported run with the most iterations, for scenarios that need a log long
+ * enough to paginate. The manifest does not record how many log lines a run
+ * produced, so the iteration count is the closest proxy the fixture plan offers.
+ *
+ * Currently unused: no fixture run produces a paginating log, so the log page's
+ * `page` parameter has no coverage — see the note in features/log.feature. This
+ * is kept as the lookup such a scenario would need once the fixture plan grows
+ * a longer log; a caller must still check the pager actually rendered, since a
+ * run with many short iterations may fit on one page.
+ */
+function largestImportedRun(manifest: E2EManifest): {
+	bundle: Bundle;
+	expectedRun: ExpectedRun;
+	runId: number;
+	iterationCount: number;
+} | null {
+	let best: {
+		bundle: Bundle;
+		expectedRun: ExpectedRun;
+		runId: number;
+		iterationCount: number;
+	} | null = null;
+
+	for (const bundle of manifest.bundles) {
+		if (!bundle.runId) continue;
+
+		for (const expectedRun of bundle.expectedRuns) {
+			const iterationCount = expectedRun.iterationCount ?? 0;
+			if (best && iterationCount <= best.iterationCount) continue;
+
+			best = {
+				bundle,
+				expectedRun,
+				runId: bundle.runId,
+				iterationCount
+			};
+		}
+	}
+
+	return best;
+}
+
+/**
+ * An ISO 8601 duration long enough to reach back from today to the oldest
+ * fixture run, for the scenarios about the runs page's duration window.
+ *
+ * The window is recomputed against `new Date()` on every read, so a fixed
+ * literal would stop covering the fixtures as they age — and the scenario would
+ * fail as an empty table rather than as the contract it is about.
+ */
+function durationCoveringFixtures(manifest: E2EManifest, padDays = 7): string {
+	const days = manifest.bundles
+		.flatMap((bundle) => bundle.expectedRuns)
+		.map((expectedRun) => Date.parse(`${expectedRun.dashboardDate}T00:00:00Z`))
+		.filter((time) => Number.isFinite(time));
+
+	if (!days.length) {
+		throw new Error('Fixture manifest contains no run with a dashboard date.');
+	}
+
+	const oldest = Math.min(...days);
+	const elapsed = Math.ceil((Date.now() - oldest) / 86_400_000);
+
+	return `P${Math.max(elapsed + padDays, padDays)}D`;
+}
+
 function projectSpanningDays(manifest: E2EManifest): {
 	project: string;
 	latestDate: string;
@@ -657,6 +724,8 @@ export {
 	historyProjectPair,
 	historyProjects,
 	historyTestPathForProject,
+	durationCoveringFixtures,
+	largestImportedRun,
 	mutableRun,
 	projectSpanningDays,
 	representativeNokRun,

@@ -67,6 +67,70 @@ test.describe('Compare Page', () => {
 		);
 		await then('the log page is open', () => logPage.expectLoaded());
 	});
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	test(
+		'Toggling a row in the comparison is recorded in the URL and survives a reload',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const comparePage = new RunDiffPage(page);
+			const [leftRunId, rightRunId] = firstTwoRunIds();
+			let before = 0;
+			let after = 0;
+
+			await given('I open the compare page for two runs', async () => {
+				await comparePage.goto(leftRunId, rightRunId);
+				await comparePage.expectLoaded();
+				before = await comparePage.rowCount();
+				expect(before).toBeGreaterThan(0);
+			});
+			await when('I toggle the first row of the diff', () =>
+				comparePage.toggleFirstRow()
+			);
+			await then('the diff records the expanded rows in the URL', () =>
+				comparePage.expectParamsPresent(['expanded'])
+			);
+			await and('the rows it renders have changed', async () => {
+				await expect
+					.poll(() => comparePage.rowCount(), {
+						timeout: 30_000,
+						message: 'rows after toggling the first one'
+					})
+					.not.toBe(before);
+				after = await comparePage.rowCount();
+			});
+			// The rendered rows, not the parameter's value: the round trip is what
+			// matters, and asserting the encoding would pin how the state travels
+			// rather than that it survives.
+			await when('I reload the page', async () => {
+				await page.reload();
+				await comparePage.expectLoaded();
+			});
+			await then('the diff renders the same rows again', () =>
+				comparePage.expectRowCount(after)
+			);
+		}
+	);
+
+	test(
+		'A compare link restores both sides it names',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+		const comparePage = new RunDiffPage(page);
+		const [leftRunId, rightRunId] = firstTwoRunIds();
+		const link = { left: String(leftRunId), right: String(rightRunId) };
+
+		await given('a link that pins two runs to compare', () =>
+			expect(leftRunId).not.toBe(rightRunId)
+		);
+		await when('I open that link', () => comparePage.gotoWithParams(link));
+		await then('the diff is rendered', () => comparePage.expectLoaded());
+		await and('the link still carries both sides', () =>
+			comparePage.expectParams(link)
+		);
+	});
 });
 
 test.describe('Multiple Runs Page', () => {
@@ -139,4 +203,74 @@ test.describe('Multiple Runs Page', () => {
 			});
 		}
 	);
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	test(
+		'A multiple-runs link restores every run it pins and the one it selected',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+		const multiplePage = new RunMultiplePage(page);
+		const [firstRunId, secondRunId] = firstTwoRunIds();
+
+		await given('a link that pins two runs and selects the second', () =>
+			expect(firstRunId).not.toBe(secondRunId)
+		);
+		await when('I open that link', async () => {
+			await multiplePage.gotoWithParams({
+				runIds: [String(firstRunId), String(secondRunId)],
+				selected: String(secondRunId)
+			});
+			await multiplePage.expectLoaded();
+		});
+		await then('the merged tree of both runs is shown', () =>
+			multiplePage.expectLoaded()
+		);
+		// `runIds` repeats its key rather than joining the ids — a scenario that
+		// expected a joined list would pin a link the page cannot read.
+		await and(
+			'the link still repeats both run ids and names the selection',
+			async () => {
+				await multiplePage.expectRunIdsPinned([firstRunId, secondRunId]);
+				await multiplePage.expectParams({ selected: String(secondRunId) });
+			}
+		);
+	});
+
+	test(
+		'The multiple view falls back to the first run when the link names no selection',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+		const multiplePage = new RunMultiplePage(page);
+		const [firstRunId, secondRunId] = firstTwoRunIds();
+
+		await given('a link that pins two runs without naming a selection', () =>
+			expect(firstRunId).not.toBe(secondRunId)
+		);
+		await when('I open that link', async () => {
+			await multiplePage.gotoWithParams({
+				runIds: [String(firstRunId), String(secondRunId)]
+			});
+			await multiplePage.expectLoaded();
+		});
+		await then('the merged tree of both runs is shown', () =>
+			multiplePage.expectLoaded()
+		);
+		// The fallback to `runIds[0]` is resolved on read and never written back,
+		// so the rendered state and the URL disagree on purpose. Writing it here
+		// would make every such link longer than it needs to be.
+		await and('no selection is written to the URL', () =>
+			multiplePage.expectParams({ selected: null })
+		);
+		await when('I select the second run', () =>
+			multiplePage.selectRun(secondRunId)
+		);
+		await then('the selection is recorded in the URL', () =>
+			multiplePage.expectParams({ selected: String(secondRunId) })
+		);
+		await and('both run ids are still pinned', () =>
+			multiplePage.expectRunIdsPinned([firstRunId, secondRunId])
+		);
+	});
 });

@@ -11,6 +11,7 @@ import type { DiscriminatingResultBadge } from './pages/run-page';
 import { RunsPage } from './pages/runs-page';
 import { HistoryPage } from './pages/history-page';
 import {
+	firstResultNode,
 	importedRunId,
 	reportConfiguredImportedRun,
 	representativeImportedRun
@@ -1117,6 +1118,194 @@ test.describe('Run Details Page', () => {
 				expect(page.getByRole('menuitem', { name: configName })).toBeVisible({
 					timeout: 15_000
 				})
+			);
+		}
+	);
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	test(
+		'Expanding the run tree records the compressed state in the URL',
+		{ tag: ['@run', '@url-params'] },
+		async ({ page }) => {
+			const runPage = new RunPage(page);
+			const { expectedRun, runId } = representativeImportedRun(
+				requireManifest()
+			);
+			let expandedBefore: string[] = [];
+
+			await given("I open an imported run's page", async () => {
+				await runPage.goto(runId);
+				await runPage.expectLoaded(expectedRun.name);
+			});
+			await when('I expand a collapsed package of the tree', async () => {
+				await runPage.toggleTreeNode(
+					runPage.packageRows({ expanded: false }).first()
+				);
+				await runPage.expectExpandedPackage();
+				expandedBefore = await runPage.expandedRowNames();
+				expect(expandedBefore.length).toBeGreaterThan(0);
+			});
+			// Presence only: the value is an lz-string blob, and asserting it
+			// would pin the encoding rather than the state it stands for.
+			await then('the URL carries the compressed expanded state', () =>
+				runPage.expectCompressedParams(['expanded'])
+			);
+			await when('I reload the page', async () => {
+				await page.reload();
+				await runPage.expectLoaded(expectedRun.name);
+			});
+			// The round trip is proved by the rendered rows, which is the only
+			// place a compressed parameter is observable.
+			await then('the same rows are expanded', () =>
+				runPage.expectExpandedRowNames(expandedBefore)
+			);
+		}
+	);
+
+	test(
+		'A shared run link restores the tree the sender had expanded',
+		{ tag: ['@run', '@url-params'] },
+		async ({ page, browser }) => {
+			const runPage = new RunPage(page);
+			const { expectedRun, runId } = representativeImportedRun(
+				requireManifest()
+			);
+			let link = '';
+			let expandedBefore: string[] = [];
+
+			await given('I have expanded a package of the run tree', async () => {
+				await runPage.goto(runId);
+				await runPage.expectLoaded(expectedRun.name);
+				await runPage.toggleTreeNode(
+					runPage.packageRows({ expanded: false }).first()
+				);
+				await runPage.expectExpandedPackage();
+				await runPage.expectCompressedParams(['expanded']);
+
+				link = runPage.captureLink();
+				expandedBefore = await runPage.expandedRowNames();
+			});
+			// A clean context, so the restored tree cannot be coming from the
+			// localStorage fallbacks the same session would still have.
+			await when('I open the link that produced in a clean session', async () => {
+				const context = await browser.newContext();
+				const fresh = await context.newPage();
+				const freshRun = new RunPage(fresh);
+
+				await fresh.goto(link);
+				await freshRun.expectLoaded(expectedRun.name);
+				await freshRun.expectExpandedRowNames(expandedBefore);
+				await context.close();
+			});
+			await then('the same rows are expanded', () =>
+				expect(expandedBefore.length).toBeGreaterThan(0)
+			);
+		}
+	);
+
+	test(
+		'A plainly encoded run table state in the link is rewritten as compressed',
+		{ tag: ['@run', '@url-params'] },
+		async ({ page }) => {
+			const runPage = new RunPage(page);
+			const { expectedRun, runId } = representativeImportedRun(
+				requireManifest()
+			);
+			// Plain JSON is what links from before the compression change carry.
+			// `columnOrder` stays plain by design; `globalFilter` is migrated.
+			const plainGlobalFilter = JSON.stringify([]);
+
+			await given(
+				'a link whose column order is plain JSON and whose global filter is not',
+				() => expect(plainGlobalFilter).toBe('[]')
+			);
+			await when('I open that link', async () => {
+				await runPage.gotoWithParams(runId, {
+					globalFilter: plainGlobalFilter
+				});
+				await runPage.expectLoaded(expectedRun.name);
+			});
+			await then('the run table is rendered', () =>
+				runPage.expectExpandedPackage()
+			);
+			// The migration runs on mount and rewrites with `replaceIn`, so the
+			// key survives but its encoding does not.
+			await and('the global filter is rewritten into the compressed form', () =>
+				expect
+					.poll(() => runPage.paramValue('globalFilter'), {
+						timeout: 15_000,
+						message: 'globalFilter after the legacy migration'
+					})
+					.not.toBe(plainGlobalFilter)
+			);
+		}
+	);
+
+	test(
+		"A run link targeting an iteration opens that result's table",
+		{ tag: ['@run', '@url-params'] },
+		async ({ page, request }) => {
+			const runPage = new RunPage(page);
+			const runCase = representativeImportedRun(requireManifest());
+			const result = requireCapability(
+				await firstResultNode(request, runCase),
+				'Fixture tree contains no test result node.'
+			);
+
+			await given('a link that targets one iteration of an imported run', () =>
+				expect(result.node.id).toBeTruthy()
+			);
+			await when('I open that link', async () => {
+				await runPage.gotoWithParams(runCase.runId, {
+					targetIterationId: String(result.node.id)
+				});
+				await runPage.expectLoaded(runCase.expectedRun.name);
+			});
+			// The target expands the tree down to that iteration and opens its
+			// table, which is the whole reason a log's Run link carries it.
+			await then("that iteration's result table is shown", () =>
+				runPage.expectResultTableVisible()
+			);
+			// A NumberParam, not compressed — so unlike its neighbours on this
+			// page, the value itself is assertable.
+			await and('the link still carries the targeted iteration', () =>
+				runPage.expectParams({ targetIterationId: String(result.node.id) })
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Opening a run from a NOK counter does not record the unexpected filter in the URL',
+		{ tag: ['@run', '@url-params', '@needs-nok'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const runPage = new RunPage(page);
+			const { expectedRun, runId } = nokRun();
+
+			await given('the dashboard lists a run with unexpected results', async () => {
+				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await when("I click the run's NOK counter", () =>
+				dashboard.openUnexpected(runId)
+			);
+			await then('the run page for that run is open', () =>
+				runPage.expectLoaded(expectedRun.name)
+			);
+			// The intent travels as react-router `location.state`, which is
+			// deliberately not shareable and does not survive a reload. A
+			// regression that started writing it would turn a one-shot navigation
+			// into a filter every recipient of the link inherits.
+			await and('no unexpected filter is recorded in the URL', () =>
+				runPage.expectParamsAbsent([
+					'openUnexpected',
+					'openUnexpectedResults',
+					'openUnexpectedIntentId'
+				])
 			);
 		}
 	);

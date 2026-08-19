@@ -10,9 +10,14 @@ import { DashboardPage } from './pages/dashboard-page';
 import { HistoryPage } from './pages/history-page';
 import { ImportPage } from './pages/import-page';
 import { RunsPage } from './pages/runs-page';
+import { RunPage } from './pages/run-page';
+import { LogPage } from './pages/log-page';
 import { requireManifest } from './support/manifest';
-import { representativeImportedRun } from './support/e2e-data';
-import { given, then, when } from './support/gherkin';
+import { projectIdByName, representativeImportedRun } from './support/e2e-data';
+import { requireCapability } from './support/capabilities';
+import { SIDEBAR_ALIASES, sidebarState } from './support/sidebar-state';
+import { urlParams } from './support/url-params';
+import { and, given, then, when } from './support/gherkin';
 
 test.describe('Navigation', () => {
 	test(
@@ -104,4 +109,148 @@ test.describe('Navigation', () => {
 			});
 		});
 	});
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	test(
+		'The selected project follows me between the main pages',
+		{ tag: ['@url-params'] },
+		async ({ page, request }) => {
+			const dashboardPage = new DashboardPage(page);
+			const runsPage = new RunsPage(page);
+			const historyPage = new HistoryPage(page);
+			const runCase = representativeImportedRun(requireManifest());
+			let projectId = '';
+
+			await given('I open the dashboard scoped to one project', async () => {
+				projectId = String(
+					requireCapability(
+						await projectIdByName(request, runCase.bundle.project),
+						`Project "${runCase.bundle.project}" is not registered.`
+					)
+				);
+
+				await dashboardPage.gotoWithParams({
+					main: runCase.expectedRun.dashboardDate,
+					mode: 'rows',
+					project: projectId
+				});
+				await dashboardPage.expectRunIdVisible(runCase.runId);
+			});
+			// The scope is re-injected by navigateWithProject on every
+			// programmatic navigation, so it is the parameter most easily lost by
+			// a change to any one page — and least likely to be noticed there.
+			await when('I move to the runs page and then to the history page', async () => {
+				await page.getByRole('link', { name: 'Runs', exact: true }).click();
+				await runsPage.expectParams({ project: projectId });
+				await page.getByRole('link', { name: 'History', exact: true }).click();
+				await historyPage.expectReady();
+			});
+			await then('each page is still scoped to that project', () =>
+				historyPage.expectParams({ project: projectId })
+			);
+		}
+	);
+
+	test(
+		'The compressed sidebar state remembers the run I was last looking at',
+		{ tag: ['@url-params'] },
+		async ({ page }) => {
+			const runPage = new RunPage(page);
+			const runCase = representativeImportedRun(requireManifest());
+			const sidebar = sidebarState(page);
+
+			await given("I open an imported run's page", async () => {
+				await runPage.goto(runCase.runId);
+				await runPage.expectLoaded(runCase.expectedRun.name);
+			});
+			await when('I move to the dashboard', async () => {
+				await page
+					.getByRole('link', { name: 'Dashboard', exact: true })
+					.click();
+				await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
+			});
+			// `cr` is near the end of the prune order, so it is one of the last
+			// entries the encoder drops when the payload runs out of budget —
+			// which is what makes it safe to assert after a navigation.
+			await then('the compressed sidebar state names that run', () =>
+				sidebar.expectAlias(
+					SIDEBAR_ALIASES.currentRunId,
+					String(runCase.runId)
+				)
+			);
+			await and('it decodes at the version the app writes', () =>
+				sidebar.expectVersion()
+			);
+		}
+	);
+
+	test(
+		'The compressed sidebar state stays inside its length budget',
+		{ tag: ['@url-params'] },
+		async ({ page }) => {
+			const dashboardPage = new DashboardPage(page);
+			const runsPage = new RunsPage(page);
+			const runPage = new RunPage(page);
+			const logPage = new LogPage(page);
+			const runCase = representativeImportedRun(requireManifest());
+			const sidebar = sidebarState(page);
+
+			// Over budget the encoder prunes keys front to back rather than
+			// writing a longer URL, so the loss is bounded and deliberate. A
+			// payload that grew past it would be a URL some proxies refuse.
+			await given(
+				'I visit the dashboard, the runs page, a run and its log in turn',
+				async () => {
+					await dashboardPage.goto(runCase.expectedRun.dashboardDate);
+					await dashboardPage.expectRunIdVisible(runCase.runId);
+					await sidebar.expectWithinBudget();
+
+					await runsPage.gotoForDate(runCase.expectedRun.dashboardDate);
+					await runsPage.expectTableLoaded();
+					await sidebar.expectWithinBudget();
+
+					await runPage.goto(runCase.runId);
+					await runPage.expectLoaded(runCase.expectedRun.name);
+					await sidebar.expectWithinBudget();
+
+					await logPage.goto(runCase.runId, 'mode=treeAndinfoAndlog');
+					await logPage.expectLoaded();
+				}
+			);
+			await then(
+				'the compressed sidebar state is never longer than its budget',
+				() => sidebar.expectWithinBudget()
+			);
+		}
+	);
+
+	test(
+		'Hiding the sidebar through the URL survives moving between pages',
+		{ tag: ['@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			const url = urlParams(page);
+
+			await given('I open the dashboard with the sidebar hidden', async () => {
+				await page.goto('dashboard?hide-sidebar=1');
+				await expect(page.locator('#sidebar')).toHaveCount(0, {
+					timeout: 30_000
+				});
+			});
+			// With no sidebar to click, the move has to be a direct navigation —
+			// which is exactly the case where the parameter could be dropped.
+			await when('I move to the runs page', async () => {
+				await runsPage.gotoWithParams({ 'hide-sidebar': '1', mode: 'table' });
+				await runsPage.expectReady();
+			});
+			await then('no sidebar is shown', () =>
+				expect(page.locator('#sidebar')).toHaveCount(0, { timeout: 30_000 })
+			);
+			await and('the URL still hides the sidebar', () =>
+				url.expect({ 'hide-sidebar': '1' })
+			);
+		}
+	);
 });

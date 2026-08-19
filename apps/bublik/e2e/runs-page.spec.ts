@@ -12,6 +12,7 @@ import { requireCapability } from './support/capabilities';
 import { requireManifest } from './support/manifest';
 import type { Bundle } from './support/manifest';
 import {
+	durationCoveringFixtures,
 	expectedNokCount,
 	representativeNokRun,
 	representativeRun,
@@ -541,6 +542,306 @@ test.describe('Runs Page', () => {
 					});
 					await runsPage.expectRunDataContains(badge.payload);
 				}
+			);
+		}
+	);
+
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	/** Two runs on one date, which is as much as the fixture plan guarantees. */
+	function runPair(): { date: string; runIds: [number, number] } {
+		const pair = requireCapability(
+			runPairOnSameDate(requireManifest()),
+			'Fixture manifest contains no two imported runs sharing a date.'
+		);
+
+		return {
+			date: pair.date,
+			runIds: pair.bundles.map(importedRunId) as [number, number]
+		};
+	}
+
+	/**
+	 * Selecting two runs on the runs table. Shared by the three selection
+	 * scenarios, which differ only in what they do to the selection afterwards.
+	 */
+	async function selectPair(
+		runsPage: RunsPage
+	): Promise<{ date: string; runIds: [number, number] }> {
+		const pair = runPair();
+
+		await runsPage.gotoForDate(pair.date);
+		await runsPage.expectTableLoaded();
+
+		for (const runId of pair.runIds) {
+			await runsPage.expectRowVisible(runId);
+			await runsPage.selectRow(runId);
+		}
+
+		await runsPage.expectSelectedCount(2);
+
+		return pair;
+	}
+
+	test(
+		'A runs link restores the date range, the tag expression and the page size',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			const { bundle } = representativeRun(requireManifest());
+			const date = requireCapability(
+				bundle.expectedRuns[0]?.dashboardDate,
+				'Fixture manifest contains no run with a dashboard date.'
+			);
+			const link = {
+				startDate: date,
+				finishDate: date,
+				calendarMode: 'default',
+				mode: 'table',
+				pageSize: '10',
+				tagExpr: fixtureTagExpr(bundle)
+			};
+
+			await given(
+				'a link that pins a date range, a tag expression and a page size',
+				() => expect(link.tagExpr).not.toBe('')
+			);
+			await when('I open that link', () => runsPage.gotoWithParams(link));
+			await then('the runs table lists the runs of that range', async () => {
+				await runsPage.expectTableLoaded();
+				await runsPage.expectRowVisible(importedRunId(bundle));
+			});
+			await and('the form shows the tag expression the link pinned', () =>
+				runsPage.expectTagExprInput(link.tagExpr)
+			);
+			await and('the link still carries every parameter it was opened with', () =>
+				runsPage.expectParams(link)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Paging the runs table records the page and page size and survives a reload',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			const pair = runPair();
+
+			// The pager renders only when the query spans more than one page, and
+			// the fixture plan does not promise 26 runs on any one day. Pinning a
+			// page size of one splits the two runs the plan does promise, which is
+			// all this needs — the contract under test is the parameters, not the
+			// size of the result set.
+			await given(
+				'I open the runs page for a date with more runs than fit on one page',
+				async () => {
+					await runsPage.gotoWithParams({
+						startDate: pair.date,
+						finishDate: pair.date,
+						calendarMode: 'default',
+						mode: 'table',
+						pageSize: '1'
+					});
+					await runsPage.expectTableLoaded();
+					await runsPage.expectPaginated();
+				}
+			);
+			await when('I open the next page of runs', () => runsPage.openNextPage());
+			await then('the page and the page size are recorded in the URL', () =>
+				runsPage.expectParams({ page: '2', pageSize: '1' })
+			);
+			await when('I reload the page', () => page.reload());
+			await then('the page and the page size are still recorded in the URL', () =>
+				runsPage.expectParams({ page: '2', pageSize: '1' })
+			);
+			await and('the runs table is listing results again', () =>
+				runsPage.expectTableLoaded()
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Submitting the runs form sends the table back to the first page',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			const { bundle } = representativeRun(requireManifest());
+			const date = requireCapability(
+				bundle.expectedRuns[0]?.dashboardDate,
+				'Fixture manifest contains no run with a dashboard date.'
+			);
+			const tagExpr = fixtureTagExpr(bundle);
+
+			await given('I open the second page of a runs query', async () => {
+				await runsPage.gotoWithParams({
+					startDate: date,
+					finishDate: date,
+					calendarMode: 'default',
+					mode: 'table',
+					page: '2',
+					pageSize: '10'
+				});
+				await runsPage.expectParams({ page: '2' });
+			});
+			await when('I type a tag expression and submit the form', async () => {
+				await runsPage.fillTagExpr(tagExpr);
+				await runsPage.submit();
+			});
+			await then('the URL is back on the first page', () =>
+				runsPage.expectOnFirstPage()
+			);
+			await and('the page size and the tag expression are pinned', () =>
+				runsPage.expectParams({ pageSize: '10', tagExpr })
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Resetting the runs form drops the duration but keeps the calendar mode',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+
+			// A short window that reaches no fixture run is fine here: this
+			// scenario is about which keys survive a reset, and waiting for rows
+			// would make it fail as an empty table instead.
+			await given('I open the runs page with a duration window applied', async () => {
+				await runsPage.gotoWithParams({
+					calendarMode: 'duration',
+					duration: 'P7D',
+					mode: 'table'
+				});
+				await runsPage.expectReady();
+			});
+			// Reset deletes the key rather than emptying it, so `null` and not ''.
+			await when('I reset the form', () => runsPage.resetForm());
+			await then('the duration is dropped from the URL', () =>
+				runsPage.expectParams({ duration: null })
+			);
+			await and('the calendar mode is still recorded in the URL', () =>
+				runsPage.expectCalendarMode('duration')
+			);
+		}
+	);
+
+	test(
+		'A duration link overrides the dates pinned beside it',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			// The discriminator: a window wide enough to reach the fixture runs,
+			// beside a range far enough in the past that it reaches nothing. Rows
+			// can only appear if the duration was used and the dates were not.
+			const link = {
+				calendarMode: 'duration',
+				duration: durationCoveringFixtures(requireManifest()),
+				startDate: '2000-01-01',
+				finishDate: '2000-01-02',
+				mode: 'table'
+			};
+
+			await given('a link that pins a duration alongside a stale date range', () =>
+				expect(link.duration).toMatch(/^P\d+D$/)
+			);
+			await when('I open that link', () => runsPage.gotoWithParams(link));
+			await then('the runs table is listing results again', () =>
+				runsPage.expectTableLoaded()
+			);
+			// The window itself is recomputed from `new Date()` on every read, so
+			// the dates it produces are not assertable as literals — what is
+			// assertable is that nothing rewrote the link on the way in.
+			await and('the link still carries the duration and both dates', () =>
+				runsPage.expectParams(link)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Selecting runs records the selection in the compressed sidebar state',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			let runIds: [number, number];
+
+			await given('the runs table lists two runs imported on a fixture date', async () => {
+				const pair = runPair();
+				runIds = pair.runIds;
+				await runsPage.gotoForDate(pair.date);
+				await runsPage.expectTableLoaded();
+			});
+			await when('I select both rows', async () => {
+				for (const runId of runIds) {
+					await runsPage.expectRowVisible(runId);
+					await runsPage.selectRow(runId);
+				}
+			});
+			await then('the selection popover reports two selected runs', () =>
+				runsPage.expectSelectedCount(2)
+			);
+			await and('the compressed sidebar state lists both run ids', () =>
+				runsPage.selection.expectSelectedRunIds(runIds)
+			);
+			// There is no `selected` or `runIds` parameter on this page — the whole
+			// point of reading `_s` is that a plain one would be a different
+			// contract from the one the app implements.
+			await and('no plain selection parameter is written to the URL', () =>
+				runsPage.expectParamsAbsent(['selected', 'runIds', 'compare'])
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A selected pair of runs survives a reload of the runs page',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+			let runIds: [number, number];
+
+			await given('I have selected two runs in the runs table', async () => {
+				runIds = (await selectPair(runsPage)).runIds;
+			});
+			await when('I reload the page', async () => {
+				await page.reload();
+				await runsPage.expectTableLoaded();
+			});
+			await then('the selection popover still reports two selected runs', () =>
+				runsPage.expectSelectedCount(2)
+			);
+			await and('the compressed sidebar state still lists both run ids', () =>
+				runsPage.selection.expectSelectedRunIds(runIds)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunsPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Clearing the run selection removes it from the compressed sidebar state',
+		{ tag: ['@runs', '@url-params'] },
+		async ({ page }) => {
+			const runsPage = new RunsPage(page);
+
+			await given('I have selected two runs in the runs table', () =>
+				selectPair(runsPage)
+			);
+			await when('I clear the selection', () => runsPage.clearSelection());
+			await then('the compressed sidebar state carries no selected runs', () =>
+				runsPage.selection.expectNoSelection()
+			);
+			await and('nothing reports a selection any more', () =>
+				runsPage.expectNothingSelected()
 			);
 		}
 	);

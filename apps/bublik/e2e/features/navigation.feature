@@ -45,3 +45,41 @@ Feature: Navigation
   Scenario: An unknown address shows the not-found page
     When I open an address that does not exist
     Then the not-found page is shown
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # These are the contracts no single page owns. The project scope and the
+  # compressed sidebar state are injected into every programmatic navigation by
+  # navigateWithProject, so they are the parameters most likely to be lost by a
+  # change to any one page — and least likely to be noticed there.
+
+  @url-params
+  Scenario: The selected project follows me between the main pages
+    Given I open the dashboard scoped to one project
+    When I move to the runs page and then to the history page
+    Then each page is still scoped to that project
+
+  @url-params
+  Scenario: The compressed sidebar state remembers the run I was last looking at
+    Given I open an imported run's page
+    When I move to the dashboard
+    Then the compressed sidebar state names that run
+    And it decodes at the version the app writes
+
+  # The encoder prunes keys front to back once the payload passes its budget, so
+  # a long session silently loses the earliest entries. Pinning the budget keeps
+  # that a bounded, deliberate loss rather than a broken URL.
+  @url-params
+  Scenario: The compressed sidebar state stays inside its length budget
+    Given I visit the dashboard, the runs page, a run and its log in turn
+    Then the compressed sidebar state is never longer than its budget
+
+  @url-params
+  Scenario: Hiding the sidebar through the URL survives moving between pages
+    Given I open the dashboard with the sidebar hidden
+    When I move to the runs page
+    Then no sidebar is shown
+    And the URL still hides the sidebar
+

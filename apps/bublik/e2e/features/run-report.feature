@@ -51,28 +51,28 @@ Feature: Run report
     When I expand a measurement entry
     Then its records are listed too
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Clicking a table of contents entry scrolls to its block and records the anchor in the URL
     Given I open a rendered report
     When I follow a table of contents entry for a measurement
     Then the report scrolls to that block
     And the URL anchors that block on the same configuration
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Opening the report at an anchor scrolls straight to that block
     Given the report payload lists a record far down the report
     When I open the report at that record's anchor
     Then that record is rendered
     And the report scrolls to that block
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Reloading an anchored report restores the same block
     Given I open the report at a record's anchor
     When I reload the page
     Then that record is rendered
     And the report scrolls to that block
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Browser back returns to the previously anchored block
     Given I follow a table of contents entry for a measurement
     When I follow a table of contents entry for another measurement
@@ -87,7 +87,7 @@ Feature: Run report
     Then the page confirms the location was saved
     And the URL anchors that record
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Collapsing a table of contents entry hides its children and survives a reload
     Given I open a rendered report
     When I collapse a test block in the table of contents
@@ -141,7 +141,7 @@ Feature: Run report
     When I click that cell
     Then the log preview opens for that result
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: The log preview does not change the report URL
     Given I open a rendered report
     When I click a table cell with a result
@@ -154,14 +154,14 @@ Feature: Run report
     Given I click a table cell with a result
     Then the preview links to the log, the run and the result
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Selecting charts for stacked mode records them in the URL
     Given I open a rendered report
     When I add two records to the stacked selection
     Then the URL lists both records as selected
     And the page reports two charts selected
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Opening the stacked drawer keeps the selection in the URL
     Given I have added two records to the stacked selection
     When I open the stacked drawer
@@ -169,10 +169,34 @@ Feature: Run report
     When I reload the page
     Then the stacked chart is shown again with the same selection
 
-  @report @needs-report
+  @report @needs-report @url-params
   Scenario: Toggling the run details mode is reflected in the URL
     Given I open a rendered report
     When I toggle the run details mode
     Then the URL records the short mode
     When I reload the page
     Then the run details are still in the short mode
+
+  # Every scenario above builds its state by clicking. This is the other half:
+  # someone opening the link that state produced, which is what a report is
+  # shared as.
+  @report @needs-report @url-params
+  Scenario: A report link restores the configuration, the detail mode and the selected records
+    Given a link that pins a config, the short detail mode and two selected records
+    When I open that link
+    Then the report is rendered in the short detail mode
+    And the page reports two charts selected
+    And the link still carries every parameter it was opened with
+
+
+  # The report writes with replaceIn, merging into the query rather than
+  # replacing it. If that ever became a full overwrite, the config would vanish
+  # the moment an unrelated control was touched — and the page would report the
+  # config as missing rather than doing anything visibly wrong.
+  @report @needs-report @url-params
+  Scenario: Report controls preserve the configuration and the selected records
+    Given I have added two records to the stacked selection
+    When I toggle the run details mode
+    Then the config and both selected records are still pinned
+    When I collapse a test block in the table of contents
+    Then the config and both selected records are still pinned

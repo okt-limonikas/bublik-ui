@@ -211,7 +211,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Clicking a table of contents entry scrolls to its block and records the anchor in the URL',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			// The last measurement is far enough down that a broken scroll shows up.
@@ -244,7 +244,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Opening the report at an anchor scrolls straight to that block',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const reportPage = new RunReportPage(page);
 			const fixture = await reportFixture(page, requireManifest());
@@ -277,7 +277,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Reloading an anchored report restores the same block',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const reportPage = new RunReportPage(page);
 			const fixture = await reportFixture(page, requireManifest());
@@ -310,7 +310,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Browser back returns to the previously anchored block',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			const first = requireCapability(
@@ -375,7 +375,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Collapsing a table of contents entry hides its children and survives a reload',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			const testBlock = requireCapability(
@@ -618,7 +618,7 @@ test.describe('Run Report Page', () => {
 
 	test(
 		'The log preview does not change the report URL',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			const cell = requireCapability(
@@ -670,7 +670,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Selecting charts for stacked mode records them in the URL',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			const [first, second] = fixture.recordItems;
@@ -701,7 +701,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Opening the stacked drawer keeps the selection in the URL',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage, fixture } = await openRenderedReport(page);
 			const [first, second] = fixture.recordItems;
@@ -747,7 +747,7 @@ test.describe('Run Report Page', () => {
 	// eslint-disable-next-line playwright/expect-expect
 	test(
 		'Toggling the run details mode is reflected in the URL',
-		{ tag: ['@report', '@needs-report'] },
+		{ tag: ['@report', '@needs-report', '@url-params'] },
 		async ({ page }) => {
 			const { reportPage } = await openRenderedReport(page);
 
@@ -766,6 +766,110 @@ test.describe('Run Report Page', () => {
 			});
 			await then('the run details are still in the short mode', () =>
 				reportPage.expectRunDetailsShortMode()
+			);
+		}
+	);
+
+	// Assertions are encapsulated by RunReportPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A report link restores the configuration, the detail mode and the selected records',
+		{ tag: ['@report', '@needs-report', '@url-params'] },
+		async ({ page }) => {
+			const reportPage = new RunReportPage(page);
+			const fixture = await reportFixture(page, requireManifest());
+			const [first, second] = fixture.recordItems;
+
+			requireCapability(
+				second,
+				'Report payload has fewer than two records with charts.'
+			);
+
+			const search = new URLSearchParams({ isFullMode: '0' });
+			search.append('selected-records', first.id);
+			search.append('selected-records', second.id);
+
+			await given(
+				'a link that pins a config, the short detail mode and two selected records',
+				() => expect(fixture.configId).toBeGreaterThan(0)
+			);
+			await when('I open that link', async () => {
+				await reportPage.goto(fixture.runId, fixture.configId, {
+					search: search.toString()
+				});
+				await reportPage.expectLoaded();
+			});
+			await then('the report is rendered in the short detail mode', () =>
+				reportPage.expectRunDetailsShortMode()
+			);
+			await and('the page reports two charts selected', () =>
+				reportPage.expectSelectedChartCount(2)
+			);
+			await and('the link still carries every parameter it was opened with', async () => {
+				await reportPage.expectParams({
+					config: String(fixture.configId),
+					isFullMode: '0'
+				});
+				// An ArrayParam: one key per record, in the order the stacked view
+				// draws them.
+				await reportPage.expectSearchParamValues('selected-records', [
+					first.id,
+					second.id
+				]);
+			});
+		}
+	);
+
+	// Assertions are encapsulated by RunReportPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Report controls preserve the configuration and the selected records',
+		{ tag: ['@report', '@needs-report', '@url-params'] },
+		async ({ page }) => {
+			const { reportPage, fixture } = await openRenderedReport(page);
+			const testBlock = requireCapability(
+				fixture.testBlocks[0],
+				'Report payload contains no test blocks.'
+			);
+			const [first, second] = fixture.recordItems;
+
+			requireCapability(
+				second,
+				'Report payload has fewer than two records with charts.'
+			);
+
+			// Named keys only — the sidebar writes `_s` on the way through, and a
+			// whole-query comparison would fail on a parameter this is not about.
+			const pinned = ['config', 'selected-records'];
+
+			await given('I have added two records to the stacked selection', async () => {
+				await reportPage.addRecordToStacked(first.id);
+				await reportPage.addRecordToStacked(second.id);
+				await reportPage.expectSelectedChartCount(2);
+			});
+			await when('I toggle the run details mode', () =>
+				reportPage.expectParamsUnchangedWhile(pinned, async () => {
+					await reportPage.toggleRunDetailsMode();
+					await reportPage.expectSearchParam('isFullMode', '0');
+				})
+			);
+			await then('the config and both selected records are still pinned', () =>
+				reportPage.expectSearchParamValues('selected-records', [
+					first.id,
+					second.id
+				])
+			);
+			await when('I collapse a test block in the table of contents', () =>
+				reportPage.expectParamsUnchangedWhile(pinned, async () => {
+					await reportPage.toggleTocEntry(testBlock.id);
+					await reportPage.expectBlockCollapsedInUrl(testBlock.id);
+				})
+			);
+			await then('the config and both selected records are still pinned', () =>
+				reportPage.expectSearchParamValues('selected-records', [
+					first.id,
+					second.id
+				])
 			);
 		}
 	);

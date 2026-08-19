@@ -3,6 +3,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 
 import { exactText } from '../support/e2e-data';
+import { UrlParams, urlParams } from '../support/url-params';
 
 /**
  * The result table's own column ids (`result-table/constants.ts`), which the
@@ -44,8 +45,107 @@ interface DiscriminatingResultBadge {
  */
 type ObtainedResultPart = 'all' | 'result' | 'verdicts';
 
+/**
+ * The run table keeps its whole shape in the query string, which is what makes
+ * a run link worth sharing — but most of it is lz-string compressed
+ * (`encodeCompressedState` in
+ * `libs/bublik/features/sidebar/src/lib/sidebar-url.utils.ts`), so the values
+ * are not readable and must not be asserted as literals. What a scenario can
+ * prove is that the key is written, and that opening the same link again
+ * renders the same table.
+ *
+ * Read in `run-table/run-table.hooks.ts` (`useRunTableQueryState`) and
+ * `result-table/result-table.component.tsx` (`useColumnFilters`).
+ *
+ * Not in the URL, deliberately: the unexpected-only expansion the dashboard
+ * and the runs table navigate with. It arrives as react-router `location.state`
+ * (`openUnexpected`, `openUnexpectedIntentId`), so it cannot be deep-linked and
+ * does not survive a reload.
+ */
+const RUN_URL_PARAMS = {
+	expanded: {
+		codec: 'lz-string compressed JSON',
+		values: 'a map of row id to true',
+		whenAbsent: 'the first row is expanded',
+		writtenBy:
+			'the tree toggles. Migrated on mount from plain JSON and from dot-separated legacy row ids'
+	},
+	sorting: {
+		codec: 'lz-string compressed JSON',
+		values: 'a tanstack SortingState',
+		whenAbsent: 'the rows are in tree order',
+		writtenBy: 'the column headers'
+	},
+	globalFilter: {
+		codec: 'lz-string compressed JSON',
+		values: 'a list of strings',
+		whenAbsent: 'no toolbar filter is applied',
+		writtenBy: 'the toolbar search'
+	},
+	rowState: {
+		codec: 'lz-string compressed JSON',
+		values: 'per-row result-table state',
+		whenAbsent: 'no result table is open',
+		writtenBy: 'opening a result table from a count badge'
+	},
+	visibility: {
+		codec: 'lz-string compressed JSON',
+		values: 'a tanstack VisibilityState',
+		whenAbsent:
+			'localStorage `run-column-visibility[:projectId]`, then the computed default — the URL wins over both',
+		writtenBy: 'the Columns menu'
+	},
+	columnFilters: {
+		codec: 'lz-string compressed JSON, written with replaceIn',
+		values: 'a map of row id to a tanstack ColumnFiltersState',
+		whenAbsent: 'no result-table filter is applied',
+		writtenBy: 'result badges and the faceted filters'
+	},
+	columnOrder: {
+		codec: 'JsonParam — plain JSON, *not* compressed',
+		values: 'a list of column ids',
+		whenAbsent:
+			'localStorage `run-column-order[:projectId]`, then the default order',
+		writtenBy: 'dragging a column; written to the URL and localStorage both'
+	},
+	globalRequirements: {
+		codec: 'ArrayParam — the key is repeated once per value',
+		values: 'requirement names',
+		whenAbsent: 'no requirement filter is applied',
+		writtenBy: 'the requirements filter'
+	},
+	targetIterationId: {
+		codec: 'NumberParam',
+		values: 'an iteration id',
+		whenAbsent: 'nothing is targeted',
+		writtenBy: 'links that open a run at one iteration'
+	},
+	resultFilter: {
+		codec: 'StringParam',
+		values: 'a result column id',
+		whenAbsent: 'no column is pre-filtered',
+		writtenBy: 'incoming links only — the table does not write it back'
+	}
+} as const;
+
+type RunUrlParam = keyof typeof RUN_URL_PARAMS;
+
+/** The subset whose values are compressed, and so are presence-only. */
+const RUN_COMPRESSED_URL_PARAMS = [
+	'expanded',
+	'sorting',
+	'globalFilter',
+	'rowState',
+	'visibility',
+	'columnFilters'
+] as const satisfies readonly RunUrlParam[];
+
 class RunPage {
-	constructor(private readonly page: Page) {}
+	private readonly url: UrlParams;
+
+	constructor(private readonly page: Page) {
+		this.url = urlParams(page);
+	}
 
 	async goto(runId: number): Promise<void> {
 		await this.page.goto(`runs/${runId}`);
@@ -510,12 +610,134 @@ class RunPage {
 	 * the round trip is proved by reloading and re-reading the rows.
 	 */
 	async expectColumnFiltersInUrl(): Promise<void> {
+		await this.url.expectWritten('columnFilters');
+	}
+
+
+	/**
+	 * Deep-links a run with an arbitrary query string, so a scenario can open a
+	 * link the way a user who was sent one does. Values for the compressed
+	 * parameters must come from `captureLink()` rather than being hand-built —
+	 * see the note there.
+	 */
+	async gotoWithParams(
+		runId: number,
+		params: Record<string, string | string[]>
+	): Promise<void> {
+		const searchParams = new URLSearchParams();
+		for (const [key, value] of Object.entries(params)) {
+			for (const item of Array.isArray(value) ? value : [value]) {
+				searchParams.append(key, item);
+			}
+		}
+
+		const search = searchParams.size ? `?${searchParams.toString()}` : '';
+		await this.page.goto(`runs/${runId}${search}`);
+		await expect(this.page).toHaveURL(new RegExp(`/runs/${runId}`));
+	}
+
+	async expectParams(expected: Record<string, string | null>): Promise<void> {
+		await this.url.expect(expected);
+	}
+
+	async expectParamsPresent(keys: readonly string[]): Promise<void> {
+		await this.url.expectPresent(keys);
+	}
+
+	async expectParamsAbsent(keys: readonly string[]): Promise<void> {
+		await this.url.expectAbsent(keys);
+	}
+
+	/** The raw value of one key, for the parameters that are not compressed. */
+	paramValue(key: string): string | null {
+		return this.url.get(key);
+	}
+
+
+	/** `globalRequirements` repeats its key rather than joining the values. */
+	async expectRepeatedParam(
+		key: string,
+		values: readonly string[]
+	): Promise<void> {
+		await this.url.expectRepeated(key, values);
+	}
+
+	/**
+	 * The only assertion a compressed parameter supports. Reading the value
+	 * would pin lz-string rather than the state it encodes; the round trip is
+	 * proved by opening the link again and re-reading the rendered rows.
+	 */
+	async expectCompressedParams(
+		keys: readonly string[] = RUN_COMPRESSED_URL_PARAMS
+	): Promise<void> {
+		for (const key of keys) await this.url.expectWritten(key);
+	}
+
+	async expectParamsUnchangedWhile(
+		keys: readonly string[],
+		action: () => Promise<void>
+	): Promise<void> {
+		await this.url.expectUnchangedWhile(keys, action);
+	}
+
+	/**
+	 * The URL as it stands, for scenarios that share a link rather than build
+	 * one. Half of this page's state is compressed, so the only honest way to
+	 * test "someone opened the link I sent" is to let the app write the link
+	 * and then open that — hand-encoding the blob would test lz-string.
+	 */
+	captureLink(): string {
+		return this.page.url();
+	}
+
+	/** Test names of the rows the tree currently has expanded, in tree order. */
+	async expandedRowNames(): Promise<string[]> {
+		return this.page
+			.locator('[data-testid="run-row"][data-expanded="true"]')
+			.evaluateAll((rows) =>
+				rows.map((row) => row.getAttribute('data-test-name') ?? '')
+			);
+	}
+
+	async expectExpandedRowNames(names: readonly string[]): Promise<void> {
 		await expect
-			.poll(() => new URL(this.page.url()).searchParams.has('columnFilters'), {
-				timeout: 15_000,
-				message: 'columnFilters is written to the URL'
+			.poll(async () => (await this.expandedRowNames()).sort(), {
+				timeout: 30_000,
+				message: 'expanded rows'
 			})
-			.toBe(true);
+			.toEqual([...names].sort());
+	}
+
+	/**
+	 * The header labels in the order the table renders them. The `<th>` cells
+	 * carry no column id, so the label is the only handle the DOM offers —
+	 * which means a header rename is a deliberate break of these scenarios.
+	 */
+	async visibleColumnLabels(): Promise<string[]> {
+		return this.page
+			.getByTestId('run-table')
+			.locator('thead th')
+			.evaluateAll((cells) =>
+				cells.map((cell) => (cell.textContent ?? '').trim()).filter(Boolean)
+			);
+	}
+
+	get columnsMenuTrigger(): Locator {
+		return this.page
+			.getByTestId('run-table-toolbar')
+			.getByRole('button', { name: /Columns/ });
+	}
+
+	async openColumnsMenu(): Promise<void> {
+		await this.columnsMenuTrigger.click();
+		await expect(this.page.getByRole('menu')).toBeVisible({ timeout: 15_000 });
+	}
+
+	/** Toggles one column off (or on) from the Columns menu and closes it. */
+	async toggleColumn(label: string): Promise<void> {
+		await this.openColumnsMenu();
+		await this.page.getByRole('menu').getByText(label, { exact: true }).click();
+		await this.page.keyboard.press('Escape');
 	}
 
 	async expectRowCountAbove(previous: number): Promise<void> {
@@ -745,7 +967,7 @@ class RunPage {
 	}
 }
 
-export { RunPage };
+export { RUN_COMPRESSED_URL_PARAMS, RUN_URL_PARAMS, RunPage };
 export type {
 	DiscriminatingResultBadge,
 	ObtainedResultPart,

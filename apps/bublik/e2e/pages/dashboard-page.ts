@@ -3,6 +3,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 
 import { expectConclusionHoverCard } from '../support/conclusion-hover';
+import { UrlParams, urlParams } from '../support/url-params';
 
 /**
  * `rows` is a single day in one column, `rows-line` a single day in two, and
@@ -83,7 +84,11 @@ const DASHBOARD_URL_PARAMS = {
 type DashboardUrlParam = keyof typeof DASHBOARD_URL_PARAMS;
 
 class DashboardPage {
-	constructor(private readonly page: Page) {}
+	private readonly url: UrlParams;
+
+	constructor(private readonly page: Page) {
+		this.url = urlParams(page);
+	}
 
 	async goto(
 		date?: string,
@@ -117,21 +122,34 @@ class DashboardPage {
 	/**
 	 * Asserts the query string the dashboard is currently carrying. A `null`
 	 * expectation means the key must be absent, `''` means present but empty —
-	 * the two are different states, and the dashboard uses both.
-	 *
-	 * Only the named keys are read: the URL also carries sidebar state the
-	 * dashboard does not own, so asserting the whole query string would be
-	 * flaky. Polls because every write is an async history replace.
+	 * the two are different states, and the dashboard uses both. Only the named
+	 * keys are read; see `support/url-params.ts` for why.
 	 */
 	async expectParams(expected: Record<string, string | null>): Promise<void> {
-		for (const [key, value] of Object.entries(expected)) {
-			await expect
-				.poll(() => new URL(this.page.url()).searchParams.get(key), {
-					timeout: 15_000,
-					message: `URL parameter "${key}"`
-				})
-				.toBe(value);
-		}
+		await this.url.expect(expected);
+	}
+
+	/** Asserts the keys are written whatever their values. */
+	async expectParamsPresent(keys: readonly string[]): Promise<void> {
+		await this.url.expectPresent(keys);
+	}
+
+	/** Asserts the keys are not written at all. */
+	async expectParamsAbsent(keys: readonly string[]): Promise<void> {
+		await this.url.expectAbsent(keys);
+	}
+
+	/** `project` repeats the key once per project rather than joining them. */
+	async expectProjectsPinned(projectIds: readonly number[]): Promise<void> {
+		await this.url.expectRepeated('project', projectIds.map(String));
+	}
+
+	/** "This control left the rest of the view alone." */
+	async expectParamsUnchangedWhile(
+		keys: readonly string[],
+		action: () => Promise<void>
+	): Promise<void> {
+		await this.url.expectUnchangedWhile(keys, action);
 	}
 
 	row(runId: number): Locator {

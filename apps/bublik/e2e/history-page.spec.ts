@@ -1682,4 +1682,275 @@ test.describe('History Page', () => {
 			);
 		}
 	);
+
+	test(
+		'Adding trend charts to the combined view records them in the URL',
+		HISTORY_URL_MEASUREMENTS,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const measurements = measurementCase();
+
+			await given(
+				'I open the history page for a path with measurements in the trend charts mode',
+				async () => {
+					await historyPage.gotoWithTestPath(measurements.testPath, {
+						...dateRange(),
+						mode: 'measurements'
+					});
+					await historyPage.expectModeReady('measurements');
+					// Two charts have to exist before two can be stacked; the manifest
+					// records measurements but not how many charts they draw, so this
+					// is read from the page and fails loudly rather than silently
+					// asserting one chart twice.
+					await expect
+						.poll(() => historyPage.charts().count(), { timeout: 60_000 })
+						.toBeGreaterThan(1);
+				}
+			);
+			await when('I add two charts to the combined view', async () => {
+				await historyPage.addChartToCombined(0);
+				await historyPage.addChartToCombined(1);
+			});
+			// `;`-joined, unlike the series filters on the same page, which repeat
+			// their key — the two encodings must not be confused.
+			await then('both chart ids are recorded in the URL as combined plots', () =>
+				expect
+					.poll(
+						() =>
+							(historyPage.paramValue('combinedPlots') ?? '')
+								.split(';')
+								.filter(Boolean).length,
+						{ timeout: 15_000, message: 'chart ids in combinedPlots' }
+					)
+					.toBe(2)
+			);
+			await and('the chart group is recorded in the URL', () =>
+				historyPage.expectParamsPresent(['chart-group'])
+			);
+		}
+	);
+
+	test(
+		'The substring filter is not recorded in the URL and is lost on a reload',
+		HISTORY_URL,
+		async ({ page }) => {
+			const historyPage = new HistoryPage(page);
+			const testPath = badgeCase().testPath;
+			let before = 0;
+
+			await given('I open a history query with results listed', async () => {
+				await openBadgeCase(historyPage, 'linear');
+				before = await historyPage.rows().count();
+				expect(before).toBeGreaterThan(0);
+			});
+			await when('I narrow the results with the substring filter', async () => {
+				await expect(historyPage.substringFilter).toBeVisible({
+					timeout: 30_000
+				});
+				await historyPage.substringFilter.fill('no-result-matches-this');
+			});
+			await then('fewer results are listed', () =>
+				expect
+					.poll(() => historyPage.rows().count(), {
+						timeout: 30_000,
+						message: 'rows after the substring filter'
+					})
+					.toBeLessThan(before)
+			);
+			// Named keys, not the whole query string: the sidebar is free to write
+			// `_s` here, and this scenario is not about the sidebar.
+			await and('the query parameters are unchanged', () =>
+				historyPage.expectParams({
+					testName: testPath,
+					mode: 'linear',
+					substring: null,
+					filter: null
+				})
+			);
+			await when('I reload the page', async () => {
+				await page.reload();
+				await historyPage.expectModeReady('linear');
+			});
+			await then('every result of the query is listed again', () =>
+				expect
+					.poll(() => historyPage.rows().count(), {
+						timeout: 60_000,
+						message: 'rows after the reload'
+					})
+					.toBe(before)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'Switching the history mode from the sidebar keeps the query it was showing',
+		HISTORY_URL,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const range = dateRange();
+			const testPath = badgeCase().testPath;
+
+			await given('I open a history query in the list of results', async () => {
+				await historyPage.gotoWithTestPath(testPath, {
+					...range,
+					mode: 'linear'
+				});
+				await historyPage.expectModeReady('linear');
+			});
+			// The sidebar writes through its own state writer rather than the
+			// search form, so this is the path most likely to drop the query.
+			await when('I switch to the grouped results from the sidebar', async () => {
+				await page.getByRole('link', { name: 'Groups Of Results' }).click();
+				await historyPage.expectModeReady('aggregation');
+			});
+			await then('the mode is recorded in the URL', () =>
+				historyPage.expectParams({ mode: 'aggregation' })
+			);
+			await and('the test path and the dates are still pinned', () =>
+				historyPage.expectParams({
+					testName: testPath,
+					startDate: range.startDate,
+					finishDate: range.finishDate
+				})
+			);
+		}
+	);
+
+	test(
+		'The parameter filter of the series charts repeats one key per parameter',
+		HISTORY_URL_MEASUREMENTS,
+		async ({ page }) => {
+			test.slow();
+
+			const historyPage = new HistoryPage(page);
+			const measurements = measurementCase();
+
+			await given(
+				'I open the history page for a path with measurements in the series charts mode',
+				async () => {
+					await historyPage.gotoWithTestPath(measurements.testPath, {
+						...dateRange(),
+						mode: 'measurements-by-iteration'
+					});
+					await historyPage.expectModeReady('measurements-by-iteration');
+				}
+			);
+			await when('I pick a parameter in the Parameters filter', async () => {
+				await page
+					.getByRole('button', { name: 'Parameters', exact: true })
+					.click();
+				await page.locator('[role="option"]').first().click();
+				await historyPage.expectParamsPresent(['parametersByResultFilter']);
+			});
+			// An ArrayParam, so one key per value — the sibling list parameters on
+			// this page join with `;` instead, and a test that checked for a joined
+			// string here would pass against a filter matching nothing.
+			await then('the parameter filter is recorded in the URL as a repeated key', () =>
+				expect
+					.poll(() => historyPage.paramValues('parametersByResultFilter').length, {
+						timeout: 15_000,
+						message: 'repeated parametersByResultFilter keys'
+					})
+					.toBeGreaterThan(0)
+			);
+			await when('I reload the page', () => page.reload());
+			await then('the parameter filter is still recorded in the URL', () =>
+				historyPage.expectParamsPresent(['parametersByResultFilter'])
+			);
+			await and('the series charts are rendered', () =>
+				historyPage.expectModeReady('measurements-by-iteration')
+			);
+		}
+	);
+
+	test(
+		"The history request translates the expression filters into the API's names",
+		HISTORY_URL,
+		async ({ page }) => {
+			const historyPage = new HistoryPage(page);
+			const range = dateRange();
+			const link = {
+				testName: firstHistoryTestPath(),
+				startDate: range.startDate,
+				finishDate: range.finishDate,
+				tagExpr: 'medford',
+				branchExpr: 'master',
+				labelExpr: 'nightly',
+				testArgExpr: 'pkt_size > 100',
+				verdictExpr: 'timeout',
+				runProperties: 'notcompromised'
+			};
+
+			await given('a link that pins every expression filter the form offers', () =>
+				expect(Object.values(link).every(Boolean)).toBe(true)
+			);
+
+			// Armed before navigating, and matched on the endpoint alone — a broken
+			// rename should fail as a mismatched parameter, not as a request that
+			// never arrived.
+			const historyRequest = historyPage.waitForHistoryRequest();
+
+			await when('I open that link', () => historyPage.gotoWithParams(link));
+			await then(
+				'the history request carries each expression under its API name',
+				async () => {
+					const sent = new URL((await historyRequest).url()).searchParams;
+
+					expect(sent.get('tag_expr')).toBe(link.tagExpr);
+					expect(sent.get('branch_expr')).toBe(link.branchExpr);
+					expect(sent.get('label_expr')).toBe(link.labelExpr);
+					expect(sent.get('test_arg_expr')).toBe(link.testArgExpr);
+					expect(sent.get('verdict_expr')).toBe(link.verdictExpr);
+					expect(sent.get('run_properties')).toBe(link.runProperties);
+				}
+			);
+			await and('the link still carries every expression unchanged', () =>
+				historyPage.expectParams(link)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by HistoryPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test('A history link is read back into the search form', HISTORY_URL, async ({
+		page
+	}) => {
+		const historyPage = new HistoryPage(page);
+		const form = historyPage.globalSearchForm;
+		const range = dateRange();
+		const link = {
+			testName: firstHistoryTestPath(),
+			startDate: range.startDate,
+			finishDate: range.finishDate,
+			hash: 'abc123',
+			tagExpr: 'medford'
+		};
+
+		await given('a link that pins a test path, a hash and a tag expression', () =>
+			expect(link.hash).toBe('abc123')
+		);
+		await when('I open that link and edit the search', async () => {
+			await historyPage.gotoWithParams(link);
+			await historyPage.expectReady();
+			await historyPage.openGlobalSearchForm();
+		});
+		// The recipient of a shared link has to be able to edit the query without
+		// retyping it, which only works if the URL hydrates the form on mount.
+		await then(
+			'the form shows the test path, the hash and the tag expression the link pinned',
+			async () => {
+				await expect(form.testPathInput).toHaveValue(link.testName, {
+					timeout: 15_000
+				});
+				await expect(form.hashInput).toHaveValue(link.hash);
+				await expect(form.tagExpressionInput).toHaveValue(link.tagExpr);
+			}
+		);
+	});
 });

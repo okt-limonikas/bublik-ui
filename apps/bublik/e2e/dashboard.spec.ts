@@ -745,4 +745,131 @@ test.describe('Dashboard', () => {
 			);
 		}
 	);
+
+	test(
+		'A legacy dates link is rewritten into the pinned days',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			const later = expectedRun.dashboardDate;
+			const earlier = shiftDate(later, -1);
+			// The old encoding: base64 of a JSON object of API-format days. The
+			// page sorts them, so which key holds which day does not matter.
+			const dates = Buffer.from(
+				JSON.stringify({ startDate: earlier, endDate: later })
+			).toString('base64');
+
+			await given(
+				'a link that pins its two days in the old encoded dates parameter',
+				() => expect(dates).not.toBe('')
+			);
+			await when('I open that link', async () => {
+				await dashboard.gotoWithParams({ dates, mode: 'columns' });
+				await dashboard.expectRunIdVisible(runId);
+			});
+			await then(
+				'the URL pins the earlier day as the second date and the later as the first',
+				() => dashboard.expectParams({ main: later, secondary: earlier })
+			);
+			// The rewrite is a `Navigate` with `replace`, so the original key is
+			// gone rather than merely ignored — and back will not return to it.
+			await and('the URL no longer carries the encoded dates parameter', () =>
+				dashboard.expectParamsAbsent(['dates'])
+			);
+			await and('the layout the link asked for is still selected', () =>
+				dashboard.expectParams({ mode: 'columns' })
+			);
+		}
+	);
+
+	test(
+		'A TV mode link opens the dashboard full screen without forcing auto reload',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			const link = {
+				main: expectedRun.dashboardDate,
+				mode: 'rows',
+				tv: '1',
+				reload: '0'
+			};
+
+			await given('a link that pins a day and asks for TV mode', () =>
+				expect(expectedRun.dashboardDate).toBeTruthy()
+			);
+			await when('I open that link', () => dashboard.gotoWithParams(link));
+			await then("the TV screen is shown with that day's run", async () => {
+				await dashboard.expectTvScreenVisible();
+				await dashboard.expectTvRunVisible(runId);
+			});
+			// The TV button forces `reload=1`; a link does not. Pressing the button
+			// and following a link are two different writes, and only one of them
+			// is allowed to change auto reload.
+			await and('auto reload is left as the link set it', () =>
+				dashboard.expectParams({ reload: '0', tv: '1' })
+			);
+		}
+	);
+
+	test(
+		'A dashboard link pinning two days shows both of them',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const spanning = requireCapability(
+				projectSpanningDays(requireManifest()),
+				'Fixture manifest contains no project with runs on two days.'
+			);
+			const link = {
+				main: spanning.latestDate,
+				secondary: spanning.earlierDate,
+				mode: 'columns'
+			};
+
+			await given(
+				'a link that pins two days a project has runs on in the two-day layout',
+				() => expect(spanning.latestDate).not.toBe(spanning.earlierDate)
+			);
+			await when('I open that link', () => dashboard.gotoWithParams(link));
+			await then('the runs of both days are listed', async () => {
+				await dashboard.expectRunIdsVisible(spanning.latestRunIds);
+				await dashboard.expectRunIdVisible(spanning.earlierRunId);
+			});
+			await and('the link still carries both days', () =>
+				dashboard.expectParams(link)
+			);
+		}
+	);
+
+	// Assertions are encapsulated by DashboardPage.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A dashboard link with an empty search term lists every run of the day',
+		{ tag: ['@dashboard', '@url-params'] },
+		async ({ page }) => {
+			const dashboard = new DashboardPage(page);
+			const { expectedRun, runId } = anyRun();
+			// `search=` is what clearing the box leaves behind — StringParam keeps
+			// the key rather than deleting it — so this is a link users really do
+			// share, not a synthetic one.
+			const link = {
+				main: expectedRun.dashboardDate,
+				mode: 'rows',
+				search: ''
+			};
+
+			await given('a link that pins a day and an empty search term', () =>
+				expect(link.search).toBe('')
+			);
+			await when('I open that link', () => dashboard.gotoWithParams(link));
+			await then('the runs of that day are listed', () =>
+				dashboard.expectRunIdVisible(runId)
+			);
+			await and('the URL still carries the empty search term', () =>
+				dashboard.expectParams({ search: '' })
+			);
+		}
+	);
 });

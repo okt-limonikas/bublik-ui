@@ -137,6 +137,89 @@ Feature: Runs
     When I type a tag expression and submit the form
     Then the URL carries both the tag expression and the run data
 
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # The runs page reads its query string raw, with no codec and no validation,
+  # so nothing catches a parameter that stops being written or stops being read
+  # until a shared link quietly lists the wrong runs. See RUNS_URL_PARAMS in
+  # pages/runs-page.ts for the inventory these scenarios are written against.
+
+  @runs @url-params
+  Scenario: A runs link restores the date range, the tag expression and the page size
+    Given a link that pins a date range, a tag expression and a page size
+    When I open that link
+    Then the runs table lists the runs of that range
+    And the form shows the tag expression the link pinned
+    And the link still carries every parameter it was opened with
+
+  # The pager is the one control that does not go through the form, so it is
+  # also the one that can drift from it. Reloading proves the page it wrote is
+  # read back rather than merely displayed.
+  @runs @url-params
+  Scenario: Paging the runs table records the page and page size and survives a reload
+    Given I open the runs page for a date with more runs than fit on one page
+    When I open the next page of runs
+    Then the page and the page size are recorded in the URL
+    When I reload the page
+    Then the page and the page size are still recorded in the URL
+    And the runs table is listing results again
+
+  # A filter that narrowed the results while the table sat on a later page
+  # would otherwise land the user on an empty page they never asked for.
+  @runs @url-params
+  Scenario: Submitting the runs form sends the table back to the first page
+    Given I open the second page of a runs query
+    When I type a tag expression and submit the form
+    Then the URL is back on the first page
+    And the page size and the tag expression are pinned
+
+  # Reset deletes `duration` outright rather than emptying it, because an empty
+  # duration in duration mode would describe a zero-length window.
+  @runs @url-params
+  Scenario: Resetting the runs form drops the duration but keeps the calendar mode
+    Given I open the runs page with a duration window applied
+    When I reset the form
+    Then the duration is dropped from the URL
+    And the calendar mode is still recorded in the URL
+
+  # `duration` is recomputed against the current time on every read, so the
+  # dates beside it are ignored rather than merged — a link that carries both
+  # must not resolve to the stale ones.
+  @runs @url-params
+  Scenario: A duration link overrides the dates pinned beside it
+    Given a link that pins a duration alongside a stale date range
+    When I open that link
+    Then the runs table is listing results again
+    And the link still carries the duration and both dates
+
+  # The selection is the one piece of state a user builds by clicking that is
+  # not a query parameter of its own: it lives in the compressed sidebar blob.
+  # Asserting the Compare link would pass wherever it was stored, so these read
+  # `_s` itself. See support/sidebar-state.ts.
+  @runs @url-params
+  Scenario: Selecting runs records the selection in the compressed sidebar state
+    Given the runs table lists two runs imported on a fixture date
+    When I select both rows
+    Then the selection popover reports two selected runs
+    And the compressed sidebar state lists both run ids
+    And no plain selection parameter is written to the URL
+
+  @runs @url-params
+  Scenario: A selected pair of runs survives a reload of the runs page
+    Given I have selected two runs in the runs table
+    When I reload the page
+    Then the selection popover still reports two selected runs
+    And the compressed sidebar state still lists both run ids
+
+  @runs @url-params
+  Scenario: Clearing the run selection removes it from the compressed sidebar state
+    Given I have selected two runs in the runs table
+    When I clear the selection
+    Then the compressed sidebar state carries no selected runs
+    And nothing reports a selection any more
+
   Scenario Outline: The runs page renders every view mode
     When I open the runs page in the given mode
     Then the mode's own section is rendered

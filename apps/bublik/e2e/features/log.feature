@@ -56,3 +56,90 @@ Feature: Log
     When I open the log focused on that result
     And I follow the Result link
     Then the measurements page is open
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # A log link is how one engineer sends another to the exact line they are
+  # looking at, so the parameters below are the whole point of the page. Three
+  # of them delete each other on write — focusing a result throws away the
+  # bookmarked line and the page, and so does paging — because a bookmark
+  # belongs to one result and would otherwise be restored against another. See
+  # LOG_URL_PARAMS in pages/log-page.ts.
+
+  @log @url-params
+  Scenario: A log link restores the focused result and the layout
+    Given a link that focuses one result of a run in the tree-and-log layout
+    When I open that link
+    Then the tree marks that result as focused
+    And the tree is shown and the info panel is not
+    And the link still carries the focused result and the layout
+
+  @log @url-params
+  Scenario: Focusing a result clears the bookmarked line and the page
+    Given I open a log carrying a bookmarked line and a page
+    When I focus a result in the tree
+    Then the focused result is recorded in the URL
+    And the bookmarked line and the page are dropped from the URL
+
+  @log @url-params
+  Scenario: Going back to the run log drops the focus, the line and the page
+    Given I open a log focused on a result with a bookmarked line
+    When I go back to the run log
+    Then the focused result, the bookmarked line and the page are all dropped from the URL
+    And the JSON log is rendered
+
+  # There is no fallback here, unlike the dashboard and the history page: the
+  # layout conditions compare the raw value against LogPageMode by equality, so
+  # an unrecognised mode matches neither panel and renders the log alone. That
+  # is the contract, not a bug to be papered over by a test that accepts any
+  # layout.
+  @log @url-params
+  Scenario: An unknown log layout in the link renders the log on its own
+    Given a link whose layout is not a layout the log renders
+    When I open that link
+    Then neither the tree nor the info panel is shown
+    And the URL still carries the unknown layout
+
+  @log @url-params
+  Scenario: Turning on the legacy log records it in the URL and survives a reload
+    Given I open the log of an imported run
+    When I turn on the legacy log
+    Then the URL records the legacy renderer
+    When I reload the page
+    Then the legacy log frame is shown
+    When I turn off the legacy log
+    Then the URL records the legacy renderer as off
+
+  # `experimental` is read but never written any more. A link that still carries
+  # it must keep working, and the toggle must clear it rather than leave two
+  # parameters disagreeing about which renderer is in use.
+  @log @url-params
+  Scenario: A link using the deprecated experimental parameter still opens the legacy log
+    Given a link that asks for the legacy log through the deprecated parameter
+    When I open that link
+    Then the legacy log frame is shown
+    When I turn off the legacy log
+    Then the deprecated parameter is dropped from the URL
+    And the URL records the legacy renderer as off
+
+  # NOT COVERED: `page` (a page number, or 0 for every page at once).
+  #
+  # No fixture log paginates — the largest fixture run's result still renders a
+  # single page and no pager — so neither the write side (the All pages button)
+  # nor the read side can be exercised. Worse, on a single-page log the backend
+  # answers 404 for *any* explicit page, `page=0` included, so a read-side
+  # scenario would pin a 404 rather than the contract. Covering this needs a
+  # fixture whose log spans several pages; until then the deletion rules around
+  # `page` are pinned indirectly by the two clear-on-write scenarios above.
+
+  # The tree filter is deliberately not shareable: it is a reading aid, not part
+  # of the view a link describes. A regression that started writing it would
+  # make every shared link narrower than the sender meant.
+  @log @url-params
+  Scenario: The NOK-only tree toggle is not recorded in the URL
+    Given I open the log of a run with unexpected results
+    When I turn on the NOK-only tree
+    Then the tree lists fewer results
+    And the log parameters are unchanged

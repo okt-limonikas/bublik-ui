@@ -395,3 +395,66 @@ Feature: History
     And I reload the page
     Then the picked chart is still recorded in the URL
     And the series charts are rendered
+
+  # The trend view's stacked selection is the one chart state a link carries.
+  # `combinedPlots` joins its ids with `;` while the series filters repeat their
+  # keys — two encodings on one page, so a scenario that asserts the wrong one
+  # passes against a filter matching nothing.
+  @history @url-params @needs-measurements
+  Scenario: Adding trend charts to the combined view records them in the URL
+    Given I open the history page for a path with measurements in the trend charts mode
+    When I add two charts to the combined view
+    Then both chart ids are recorded in the URL as combined plots
+    And the chart group is recorded in the URL
+
+  # The substring filter is deliberately Redux-only: it narrows what is already
+  # on screen rather than the query. A regression that started writing it would
+  # make every shared link narrower than the sender meant — and one that started
+  # *reading* it would re-apply a filter the sender had already dismissed.
+  @history @url-params
+  Scenario: The substring filter is not recorded in the URL and is lost on a reload
+    Given I open a history query with results listed
+    When I narrow the results with the substring filter
+    Then fewer results are listed
+    And the query parameters are unchanged
+    When I reload the page
+    Then every result of the query is listed again
+
+  # Switching mode from the sidebar goes through the sidebar's own writer rather
+  # than the search form, so it is the path most likely to drop the query.
+  @history @url-params
+  Scenario: Switching the history mode from the sidebar keeps the query it was showing
+    Given I open a history query in the list of results
+    When I switch to the grouped results from the sidebar
+    Then the mode is recorded in the URL
+    And the test path and the dates are still pinned
+
+  @history @url-params @needs-measurements
+  Scenario: The parameter filter of the series charts repeats one key per parameter
+    Given I open the history page for a path with measurements in the series charts mode
+    When I pick a parameter in the Parameters filter
+    Then the parameter filter is recorded in the URL as a repeated key
+    When I reload the page
+    Then the parameter filter is still recorded in the URL
+    And the series charts are rendered
+
+  # The rename scenario above covers the value filters. The expression filters
+  # are renamed too, and a dropped one is worse than a dropped value: the query
+  # widens silently to every result instead of erroring, so the page looks like
+  # it worked and simply found more.
+  @history @url-params
+  Scenario: The history request translates the expression filters into the API's names
+    Given a link that pins every expression filter the form offers
+    When I open that link
+    Then the history request carries each expression under its API name
+    And the link still carries every expression unchanged
+
+  # The inverse of "Applying the search form writes the whole query into the
+  # URL": a shared link has to be readable back into the form, or the recipient
+  # cannot edit the query they were sent without retyping it.
+  @history @url-params
+  Scenario: A history link is read back into the search form
+    Given a link that pins a test path, a hash and a tag expression
+    When I open that link and edit the search
+    Then the form shows the test path, the hash and the tag expression the link pinned
+

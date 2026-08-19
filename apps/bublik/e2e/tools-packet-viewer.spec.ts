@@ -3,7 +3,11 @@
 /* Implements apps/bublik/e2e/features/tools-packet-viewer.feature */
 import { expect, test } from '@playwright/test';
 
-import { and, then, when } from './support/gherkin';
+import { and, given, then, when } from './support/gherkin';
+import { requireManifest } from './support/manifest';
+import { importedRunId } from './support/e2e-data';
+import { representativeRun } from './support/sample-cases';
+import { urlParams } from './support/url-params';
 
 test.describe('Packet Viewer Page', () => {
 	test('Opening the packet viewer without a capture explains what is required', async ({
@@ -35,4 +39,58 @@ test.describe('Packet Viewer Page', () => {
 			})
 		);
 	});
+
+	test(
+		'A packet viewer link carrying a capture, a run and a result is accepted',
+		{ tag: ['@url-params'] },
+		async ({ page }) => {
+			const url = urlParams(page);
+			const { bundle } = representativeRun(requireManifest());
+			// A real address rather than an invented one: the assertion is that
+			// the parameters validate, and the viewer fetches the capture
+			// separately, so what matters is that this parses as a URL.
+			const link = {
+				fileUrl: bundle.importUrl,
+				runId: String(importedRunId(bundle)),
+				resultId: '1'
+			};
+
+			await given(
+				'a link that names a capture URL, a run id and a result id',
+				() => expect(() => new URL(link.fileUrl)).not.toThrow()
+			);
+			await when('I open that link', () =>
+				page.goto(`tools/packet-viewer?${new URLSearchParams(link)}`)
+			);
+			await then('the invalid parameters panel is not shown', () =>
+				expect(page.getByText('Invalid URL Parameters')).toHaveCount(0, {
+					timeout: 15_000
+				})
+			);
+			await and('the link still carries all three parameters', () =>
+				url.expect(link)
+			);
+		}
+	);
+
+	test(
+		'A packet viewer link whose run id is not a number is rejected',
+		{ tag: ['@url-params'] },
+		async ({ page }) => {
+			// `runId` is coerced with z.coerce.number(), so a non-numeric value
+			// becomes NaN and fails the schema rather than reaching the viewer.
+			await when(
+				'I open the packet viewer with a run reference that is not a number',
+				() =>
+					page.goto(
+						'tools/packet-viewer?fileUrl=https://example.com/capture.pcap&runId=not-a-number'
+					)
+			);
+			await then('it reports invalid URL parameters', () =>
+				expect(page.getByText('Invalid URL Parameters')).toBeVisible({
+					timeout: 15_000
+				})
+			);
+		}
+	);
 });

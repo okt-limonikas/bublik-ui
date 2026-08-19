@@ -42,3 +42,30 @@ Feature: Measurements
     Given the API reports measurement tables for that result
     When I open the measurements page in the tables mode
     Then every reported measurement is listed with its tool and name
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # This page is the app's only remaining `useSearchState` consumer, whose
+  # serializer writes scalars plain and objects as base64 of their JSON — so the
+  # mode looks ordinary while the machinery behind it is not shared with any
+  # other page. See MEASUREMENTS_URL_PARAMS in pages/measurements-page.ts.
+
+  @measurements @url-params @needs-measurements
+  Scenario: A measurements link restores the layout and the selected charts
+    Given a link that pins the overlay layout and two selected charts
+    When I open that link
+    Then the page reports the overlay layout
+    And the link still carries both chart ids as repeated keys
+
+  # `selectedCharts` is a NumericArrayParam: one key per chart rather than a
+  # joined list, unlike the semicolon-joined lists on the history page.
+  @measurements @url-params @needs-measurements
+  Scenario: Selecting charts records one repeated key per chart and survives a reload
+    Given I open the measurements page in the charts layout
+    When I select two charts
+    Then each chart id is written as its own repeated key in the URL
+    When I reload the page
+    Then both chart ids are still recorded in the URL
+

@@ -72,8 +72,14 @@ test(
 - Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
 - `@url-params` marks the scenarios that pin a page's query-string contract, so the
   parameter surface can be checked on its own (`playwright test --grep @url-params`).
+  Each page's inventory of parameters lives beside its page object as a
+  `*_URL_PARAMS` table (`pages/dashboard-page.ts`, `pages/runs-page.ts`, …), and the
+  shared reading helpers are in `support/url-params.ts`. The compressed sidebar
+  state (`_s`) is decoded by `support/sidebar-state.ts` — it is where the runs
+  selection lives, so it is not readable as a plain parameter.
 - Area tags name the page a scenario belongs to, so one page's suite can be run on its own
-  (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`, `@report`.
+  (`playwright test --grep @dashboard`). In use: `@dashboard`, `@history`, `@runs`,
+  `@run`, `@log`, `@measurements`, `@report`.
 
 ## Checking
 

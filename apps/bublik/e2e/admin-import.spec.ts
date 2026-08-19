@@ -6,6 +6,7 @@ import type { APIRequestContext } from '@playwright/test';
 
 import { ImportPage, normalizeUrl } from './pages/import-page';
 import { given, then, when } from './support/gherkin';
+import { urlParams } from './support/url-params';
 import { requireCapability } from './support/capabilities';
 
 /**
@@ -26,6 +27,23 @@ async function recordedSourceUrl(request: APIRequestContext): Promise<string> {
 	return requireCapability(
 		payload.results?.[0]?.run_source_url,
 		'Instance has no recorded import events.'
+	);
+}
+
+/** The celery task id of a recorded import event, for the deep-link scenario. */
+async function recordedTaskId(request: APIRequestContext): Promise<string> {
+	const response = await request.get(
+		'/api/v2/session_import/?page=1&page_size=20'
+	);
+	expect(response.ok()).toBeTruthy();
+
+	const payload = (await response.json()) as {
+		results?: { celery_task?: string | null }[];
+	};
+
+	return requireCapability(
+		payload.results?.find((result) => result.celery_task)?.celery_task,
+		'Instance has no import event carrying a celery task id.'
 	);
 }
 
@@ -125,6 +143,46 @@ test.describe('Import Page', () => {
 			);
 			await then('the import form is gone', () =>
 				expect(importPage.importModal).toBeHidden({ timeout: 15_000 })
+			);
+		}
+	);
+
+	test(
+		"An import task link opens that task's log and closing it clears the URL",
+		{ tag: ['@admin', '@url-params'] },
+		async ({ page, request }) => {
+			const url = urlParams(page);
+			let taskId = '';
+
+			await given(
+				'a link that names a recorded import task and asks to follow it',
+				async () => {
+					taskId = await recordedTaskId(request);
+				}
+			);
+			// Deliberately not waiting for the page's own controls first: the
+			// drawer this link opens covers them, so `toBeVisible` on the Import
+			// button would fail on a page that worked exactly as intended.
+			await when('I open that link', () =>
+				page.goto(
+					`admin/import?${new URLSearchParams({ taskId, poll: '1' })}`
+				)
+			);
+			// The drawer's open state is derived from `taskId` alone, so the link
+			// is the whole of what opens it.
+			await then('the import task log is open', () =>
+				expect(page.getByRole('dialog')).toBeVisible({ timeout: 30_000 })
+			);
+			await when('I close the log', async () => {
+				await page.keyboard.press('Escape');
+				await expect(page.getByRole('dialog')).toHaveCount(0, {
+					timeout: 15_000
+				});
+			});
+			// Both, not just `taskId`: a leftover `poll` would keep a closed
+			// drawer refetching for as long as the tab stayed open.
+			await then('the task and the polling flag are both dropped from the URL', () =>
+				url.expect({ taskId: null, poll: null })
 			);
 		}
 	);

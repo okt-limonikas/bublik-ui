@@ -146,4 +146,113 @@ test.describe('Measurements Page', () => {
 			);
 		}
 	);
+	/* ------------------------------------------------------------------ *
+	 * URL parameters
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Opens the charts layout and picks two charts, resolving with their ids.
+	 * The ids are not exposed in the DOM, so they can only be learned from the
+	 * URL the selection wrote — which makes this the only way a link pinning
+	 * them can be built without inventing values.
+	 */
+	async function selectTwoCharts(
+		page: Page,
+		request: APIRequestContext
+	): Promise<{ runId: number; resultId: string | number; chartIds: string[] }> {
+		const measurementsPage = new MeasurementsPage(page);
+		const result = requireCapability(
+			await firstMeasurementResultNode(request, requireManifest()),
+			'Fixture manifest contains no result with measurements.'
+		);
+
+		await measurementsPage.goto(
+			result.runCase.runId,
+			result.node.id,
+			'mode=charts'
+		);
+		await measurementsPage.expectLoaded('charts');
+
+		// The manifest records that a result has measurements, not how many
+		// charts they draw, so the count is read from the page and fails loudly
+		// rather than quietly asserting one chart twice.
+		await expect
+			.poll(() => measurementsPage.chartSelectButtons().count(), {
+				timeout: 30_000,
+				message: 'charts rendered for the measurement result'
+			})
+			.toBeGreaterThan(1);
+
+		const chartIds = [
+			await measurementsPage.selectChart(0),
+			await measurementsPage.selectChart(1)
+		];
+
+		return {
+			runId: result.runCase.runId,
+			resultId: result.node.id,
+			chartIds
+		};
+	}
+
+	// Assertions are encapsulated by the page object.
+	// eslint-disable-next-line playwright/expect-expect
+	test(
+		'A measurements link restores the layout and the selected charts',
+		{ tag: ['@measurements', '@url-params', '@needs-measurements'] },
+		async ({ page, request }) => {
+			const measurementsPage = new MeasurementsPage(page);
+			let link: { runId: number; resultId: string | number; chartIds: string[] };
+
+			await given(
+				'a link that pins the overlay layout and two selected charts',
+				async () => {
+					link = await selectTwoCharts(page, request);
+				}
+			);
+			await when('I open that link', async () => {
+				await measurementsPage.gotoWithParams(link.runId, link.resultId, {
+					mode: 'overlay',
+					selectedCharts: link.chartIds
+				});
+				await measurementsPage.expectLoaded('overlay');
+			});
+			await then('the page reports the overlay layout', () =>
+				measurementsPage.expectParams({ mode: 'overlay' })
+			);
+			// One key per chart, not a joined list — the sibling lists on the
+			// history page join with `;`, and confusing the two would pin a
+			// filter that selects nothing.
+			await and('the link still carries both chart ids as repeated keys', () =>
+				measurementsPage.expectSelectedCharts(link.chartIds)
+			);
+		}
+	);
+
+	test(
+		'Selecting charts records one repeated key per chart and survives a reload',
+		{ tag: ['@measurements', '@url-params', '@needs-measurements'] },
+		async ({ page, request }) => {
+			const measurementsPage = new MeasurementsPage(page);
+			let chartIds: string[] = [];
+
+			await given('I open the measurements page in the charts layout', async () => {
+				const selection = await selectTwoCharts(page, request);
+				chartIds = selection.chartIds;
+			});
+			await when('I select two charts', () =>
+				expect(new Set(chartIds).size).toBe(2)
+			);
+			await then('each chart id is written as its own repeated key in the URL', () =>
+				measurementsPage.expectSelectedCharts(chartIds)
+			);
+			await when('I reload the page', async () => {
+				await page.reload();
+				await measurementsPage.expectLoaded('charts');
+			});
+			await then('both chart ids are still recorded in the URL', () =>
+				measurementsPage.expectSelectedCharts(chartIds)
+			);
+		}
+	);
 });

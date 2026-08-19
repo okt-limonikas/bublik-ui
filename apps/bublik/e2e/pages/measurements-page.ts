@@ -1,9 +1,43 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { expect, Page } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
+
+import { UrlParams, urlParams } from '../support/url-params';
+
+/**
+ * `mode` is the app's only remaining `useSearchState` consumer
+ * (`measurement.container.tsx`), whose serializer writes scalars plain and
+ * objects as base64 of their JSON — a mode is a scalar, so it appears
+ * unencoded. `data-measurements-mode` reflects the raw value, and an
+ * unrecognised one renders the default layout while staying in the URL.
+ *
+ * `selectedCharts` is a `NumericArrayParam`: the key is repeated once per
+ * chart, not joined. The chart ids are not exposed in the DOM, so a scenario
+ * learns them by selecting a chart and reading the URL back.
+ */
+const MEASUREMENTS_URL_PARAMS = {
+	mode: {
+		codec: 'useSearchState (plain for scalars)',
+		values: 'default | charts | tables | split | overlay',
+		whenAbsent: 'the default layout',
+		writtenBy: 'the mode picker and the Open button of the chart selection'
+	},
+	selectedCharts: {
+		codec: 'NumericArrayParam — the key is repeated once per value',
+		values: 'chart ids',
+		whenAbsent: 'nothing is selected',
+		writtenBy: 'the Add to combined chart button on each chart'
+	}
+} as const;
+
+type MeasurementsUrlParam = keyof typeof MEASUREMENTS_URL_PARAMS;
 
 class MeasurementsPage {
-	constructor(private readonly page: Page) {}
+	private readonly url: UrlParams;
+
+	constructor(private readonly page: Page) {
+		this.url = urlParams(page);
+	}
 
 	async goto(
 		runId: number,
@@ -45,6 +79,72 @@ class MeasurementsPage {
 		).toBeVisible();
 	}
 
+
+	async gotoWithParams(
+		runId: number,
+		resultId: string | number,
+		params: Record<string, string | string[]>
+	): Promise<void> {
+		const searchParams = new URLSearchParams();
+		for (const [key, value] of Object.entries(params)) {
+			for (const item of Array.isArray(value) ? value : [value]) {
+				searchParams.append(key, item);
+			}
+		}
+
+		await this.goto(runId, resultId, searchParams);
+	}
+
+	async expectParams(expected: Record<string, string | null>): Promise<void> {
+		await this.url.expect(expected);
+	}
+
+	/** Repeated keys, one per chart — never a joined list. */
+	async expectSelectedCharts(chartIds: readonly string[]): Promise<void> {
+		await this.url.expectRepeated('selectedCharts', chartIds);
+	}
+
+	selectedChartsInUrl(): string[] {
+		return this.url.getAll('selectedCharts');
+	}
+
+	/** One toolbar button per rendered chart, in render order. */
+	chartSelectButtons(): Locator {
+		return this.page
+			.getByTestId('measurements-page')
+			.getByRole('button', { name: 'Add to combined chart' });
+	}
+
+	/**
+	 * Selects the chart at `index` and resolves with the id it added. The ids
+	 * are not in the DOM, so the URL is the only place to learn them — which
+	 * also means this doubles as proof that the click wrote one.
+	 */
+	async selectChart(index: number): Promise<string> {
+		const before = new Set(this.selectedChartsInUrl());
+
+		await this.chartSelectButtons().nth(index).click();
+		await expect
+			.poll(() => this.selectedChartsInUrl().length, {
+				timeout: 15_000,
+				message: 'selectedCharts should grow when a chart is added'
+			})
+			.toBeGreaterThan(before.size);
+
+		const added = this.selectedChartsInUrl().find((id) => !before.has(id));
+
+		return added ?? '';
+	}
+
+	/** The selection popover's Open button, which switches to the overlay. */
+	async openOverlayFromSelection(): Promise<void> {
+		await this.page
+			.locator('#page-container')
+			.getByRole('button', { name: 'Open', exact: true })
+			.click();
+		await expect(this.page).toHaveURL(/mode=overlay/, { timeout: 15_000 });
+	}
+
 	async openRun(): Promise<void> {
 		await this.page
 			.getByTestId('measurements-page')
@@ -62,4 +162,5 @@ class MeasurementsPage {
 	}
 }
 
-export { MeasurementsPage };
+export { MEASUREMENTS_URL_PARAMS, MeasurementsPage };
+export type { MeasurementsUrlParam };

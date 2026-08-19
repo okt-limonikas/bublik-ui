@@ -193,3 +193,46 @@ Feature: Dashboard
     When I open that link
     Then the dashboard shows the latest day of that project
     And the URL still carries the unparsable date
+
+  # The dashboard used to encode both of its days into one base64 parameter.
+  # Links from that era are still in wikis and chat logs, and the page rewrites
+  # them on load — losing everything except the layout, which is why the project
+  # is deliberately absent from the assertions below.
+  @dashboard @url-params
+  Scenario: A legacy dates link is rewritten into the pinned days
+    Given a link that pins its two days in the old encoded dates parameter
+    When I open that link
+    Then the URL pins the earlier day as the second date and the later as the first
+    And the URL no longer carries the encoded dates parameter
+    And the layout the link asked for is still selected
+
+  # Deep-linking TV mode is not the same path as pressing the button: the button
+  # forces auto reload on, a link leaves `reload` exactly as it found it.
+  @dashboard @url-params
+  Scenario: A TV mode link opens the dashboard full screen without forcing auto reload
+    Given a link that pins a day and asks for TV mode
+    When I open that link
+    Then the TV screen is shown with that day's run
+    And auto reload is left as the link set it
+
+  # The mode picker writes `secondary` as the day before `main`. A link is free
+  # to pin any two days, and reading them back is the half that sharing depends
+  # on.
+  @dashboard @url-params
+  Scenario: A dashboard link pinning two days shows both of them
+    Given a link that pins two days a project has runs on in the two-day layout
+    When I open that link
+    Then the runs of both days are listed
+    And the link still carries both days
+
+
+  # Clearing the search leaves `search=` behind rather than deleting the key, so
+  # the read side has to treat an empty term as no filter. Treating it as a
+  # filter would empty the table for anyone who cleared the box and shared the
+  # link.
+  @dashboard @url-params
+  Scenario: A dashboard link with an empty search term lists every run of the day
+    Given a link that pins a day and an empty search term
+    When I open that link
+    Then the runs of that day are listed
+    And the URL still carries the empty search term

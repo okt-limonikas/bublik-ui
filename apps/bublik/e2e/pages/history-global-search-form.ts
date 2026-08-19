@@ -72,7 +72,11 @@ class HistoryGlobalSearchForm {
 		);
 		this.revisionExpressionInput = this.root.getByLabel('Revision Expression');
 		this.tagsInput = this.root.getByPlaceholder('medford');
-		this.tagExpressionInput = this.root.getByLabel('Tag Expression');
+		// `getByLabel` also matches the section's Hide/Show toggle button, which
+		// carries the same accessible name — so the field is addressed by role.
+		this.tagExpressionInput = this.root.getByRole('textbox', {
+			name: 'Tag Expression'
+		});
 		this.verdictInput = this.root.locator('input[name="verdict"]');
 		this.verdictExpressionInput = this.root.getByLabel('Verdict Expression');
 		this.verdictLookupGroup = this.root.getByRole('radiogroup', {

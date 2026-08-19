@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page, Request } from '@playwright/test';
 
 import { badgeTextToPayload, exactText } from '../support/e2e-data';
 import { expectConclusionHoverCard } from '../support/conclusion-hover';
+import { SidebarState, sidebarState } from '../support/sidebar-state';
+import { UrlParams, urlParams } from '../support/url-params';
 
 /** Sidebar view modes of the runs page: the table, the charts, the matrix. */
 type RunsMode = 'table' | 'charts' | 'progress';
@@ -32,8 +34,98 @@ interface DiscriminatingBadge {
 	withoutIt: number[];
 }
 
+/**
+ * The runs page reads its query string raw — `useSearchParams`, no codecs — so
+ * every value here is a plain string and `whenAbsent` is the honest column.
+ * Declared across `libs/bublik/features/runs/src/lib/hooks.ts` (paging, the
+ * query) and `runs-form/runs-form.container.tsx` (everything the form writes).
+ *
+ * Two things this page deliberately does *not* keep in the query string:
+ *
+ * - **The selection.** Runs picked for Compare and Multiple live in the
+ *   compressed `_s` sidebar blob under `global.runs.selected` (alias `rs`),
+ *   written by `useRunsSelection`. `support/sidebar-state.ts` reads it.
+ * - **The sort.** There is no sorting parameter; `sortBySummary` is a
+ *   client-side table sort and is lost on reload, by design.
+ *
+ * `_s` and `hide-sidebar` ride along on every navigation without belonging to
+ * this page, so assertions name the keys they read.
+ */
+const RUNS_URL_PARAMS = {
+	mode: {
+		codec: 'raw',
+		values: 'table | charts | progress',
+		whenAbsent: 'the runs table',
+		writtenBy: 'the sidebar mode links'
+	},
+	page: {
+		codec: 'raw, 1-based',
+		values: 'page number',
+		whenAbsent: 'the first page',
+		writtenBy:
+			'the pagination control; forced back to 1 by every form submit and reset'
+	},
+	pageSize: {
+		codec: 'raw',
+		values: 'rows per page',
+		whenAbsent: '25',
+		writtenBy: 'the pagination control'
+	},
+	calendarMode: {
+		codec: 'raw',
+		values: 'default | duration',
+		whenAbsent: 'default',
+		writtenBy: 'the calendar mode picker; always stamped by a form write'
+	},
+	startDate: {
+		codec: 'raw',
+		values: 'YYYY-MM-DD',
+		whenAbsent: "the backend's default window",
+		writtenBy: 'the form date picker; deleted together with finishDate'
+	},
+	finishDate: {
+		codec: 'raw',
+		values: 'YYYY-MM-DD',
+		whenAbsent: "the backend's default window",
+		writtenBy: 'the form date picker; deleted together with startDate'
+	},
+	duration: {
+		codec: 'raw, ISO 8601 duration',
+		values: 'P1M | P7D | …',
+		whenAbsent: 'the pinned dates are used as they are',
+		writtenBy:
+			'the form in duration mode. Read only when calendarMode=duration, and then it wins: the window is recomputed from now, so the dates beside it are ignored. Deleted by Reset form'
+	},
+	tagExpr: {
+		codec: 'raw',
+		values: 'tag expression',
+		whenAbsent: 'no expression is applied',
+		writtenBy: 'the form; deleted when the field is emptied'
+	},
+	runData: {
+		codec: 'raw, `;`-joined',
+		values: 'key=value list, deduped and localeCompare-sorted on write',
+		whenAbsent: 'no metas filter is applied',
+		writtenBy: 'a badge click and the Metas field; deleted when emptied'
+	},
+	project: {
+		codec: 'raw, repeatable',
+		values: 'project id',
+		whenAbsent: 'every project is listed',
+		writtenBy: 'the sidebar project picker; re-injected by navigateWithProject'
+	}
+} as const;
+
+type RunsUrlParam = keyof typeof RUNS_URL_PARAMS;
+
 class RunsPage {
-	constructor(private readonly page: Page) {}
+	private readonly url: UrlParams;
+	readonly selection: SidebarState;
+
+	constructor(private readonly page: Page) {
+		this.url = urlParams(page);
+		this.selection = sidebarState(page);
+	}
 
 	async goto(): Promise<void> {
 		await this.page.goto('runs');
@@ -505,7 +597,127 @@ class RunsPage {
 		expect(href).toContain(`left=${runIds[0]}`);
 		expect(href).toContain(`right=${runIds[1]}`);
 	}
+
+	/**
+	 * Deep-links the runs page with an arbitrary query string, so a scenario can
+	 * open a link the way a user who bookmarked one does. The narrower helpers
+	 * above cover the common cases; this one exists for the parameters they do
+	 * not name, and for values that are deliberately stale or malformed.
+	 */
+	async gotoWithParams(params: Record<string, string>): Promise<void> {
+		const searchParams = new URLSearchParams(params);
+		const search = searchParams.size ? `?${searchParams.toString()}` : '';
+
+		await this.page.goto(`runs${search}`);
+		await expect(this.page).toHaveURL(/\/runs(?:$|\?)/);
+	}
+
+	/**
+	 * Asserts the query string the runs page is currently carrying. `null` means
+	 * the key must be absent, `''` present but empty — this page uses the first
+	 * heavily, since the form deletes a parameter rather than emptying it.
+	 */
+	async expectParams(expected: Record<string, string | null>): Promise<void> {
+		await this.url.expect(expected);
+	}
+
+	async expectParamsPresent(keys: readonly string[]): Promise<void> {
+		await this.url.expectPresent(keys);
+	}
+
+	async expectParamsAbsent(keys: readonly string[]): Promise<void> {
+		await this.url.expectAbsent(keys);
+	}
+
+	/** "This control left the rest of the query alone." */
+	async expectParamsUnchangedWhile(
+		keys: readonly string[],
+		action: () => Promise<void>
+	): Promise<void> {
+		await this.url.expectUnchangedWhile(keys, action);
+	}
+
+	/**
+	 * Resolves with the request the page sent for the run list. Scenarios that
+	 * care about paging assert the rows, but arming this before a navigation
+	 * gives them something to await that is not a timeout.
+	 */
+	waitForRunsRequest(): Promise<Request> {
+		return this.page.waitForRequest((request) =>
+			new URL(request.url()).pathname.endsWith('/api/v2/runs/')
+		);
+	}
+
+	get pagination(): Locator {
+		return this.page.getByTestId('tw-pagination').first();
+	}
+
+	/**
+	 * The control renders only when the query spans more than one page, so a
+	 * scenario that pages has to pin a page size small enough to split the
+	 * fixture runs across two pages.
+	 */
+	async expectPaginated(): Promise<void> {
+		await expect(this.pagination).toBeVisible({ timeout: 30_000 });
+	}
+
+	async openNextPage(): Promise<void> {
+		await this.pagination.getByRole('button', { name: 'Next' }).click();
+	}
+
+	async openPreviousPage(): Promise<void> {
+		await this.pagination.getByRole('button', { name: 'Previous' }).click();
+	}
+
+	/** The form is hydrated from the URL on mount; this proves it read the link. */
+	async expectTagExprInput(expr: string): Promise<void> {
+		await expect(this.tagExprInput).toHaveValue(expr, { timeout: 15_000 });
+	}
+
+	/**
+	 * A duration window is recomputed from `new Date()` on every read, so the
+	 * dates it produces are not assertable as literals. What is assertable is
+	 * that the picker ended up in duration mode showing *some* range — which is
+	 * what distinguishes "the duration was applied" from "the stale dates were".
+	 */
+	async expectCalendarMode(mode: 'default' | 'duration'): Promise<void> {
+		await this.expectParams({ calendarMode: mode });
+	}
+
+	/**
+	 * Opens the selection popover if its footer is not already reachable. The
+	 * popover remembers whether it was collapsed, so this cannot be assumed.
+	 */
+	async openSelectionPopover(): Promise<void> {
+		const reset = this.selectionResetButton;
+		if (await reset.isVisible()) return;
+
+		await this.selectionTrigger.click();
+		await expect(reset).toBeVisible({ timeout: 15_000 });
+	}
+
+	get selectionResetButton(): Locator {
+		return this.page
+			.locator('#page-container')
+			.getByRole('button', { name: 'Reset', exact: true });
+	}
+
+	async clearSelection(): Promise<void> {
+		await this.openSelectionPopover();
+		await this.selectionResetButton.click();
+		await expect(this.selectionTrigger).toHaveCount(0, { timeout: 15_000 });
+	}
+
+	/** The popover is only rendered while something is selected. */
+	async expectNothingSelected(): Promise<void> {
+		await expect(this.selectionTrigger).toHaveCount(0, { timeout: 15_000 });
+	}
 }
 
-export { RunsPage };
-export type { DiscriminatingBadge, RunsBadgeColumn, RunsMode };
+export { RUNS_URL_PARAMS, RunsPage };
+export type {
+	DiscriminatingBadge,
+	RunsBadgeColumn,
+	RunsMode,
+	RunsUrlParam
+};

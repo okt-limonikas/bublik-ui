@@ -228,3 +228,60 @@ Feature: Run details
     Given I open an imported run's page and expand the tree down to a test node
     When I open the history view of that test node
     Then the history query is scoped to that run and test path
+
+  ####################################################################
+  # URL parameters
+  ####################################################################
+
+  # Most of this page's state is lz-string compressed, so a link cannot be read
+  # and must not be asserted as a literal — reading it would pin the encoding
+  # rather than the state. What a scenario can prove is that the key is written,
+  # and that opening the same link again renders the same table. See
+  # RUN_URL_PARAMS in pages/run-page.ts.
+
+  @run @url-params
+  Scenario: Expanding the run tree records the compressed state in the URL
+    Given I open an imported run's page
+    When I expand a collapsed package of the tree
+    Then the URL carries the compressed expanded state
+    When I reload the page
+    Then the same rows are expanded
+
+  # A hand-built compressed value would test lz-string rather than the page, so
+  # this shares the link the app itself produced — which is exactly what a user
+  # who copies the address bar sends.
+  @run @url-params
+  Scenario: A shared run link restores the tree the sender had expanded
+    Given I have expanded a package of the run tree
+    When I open the link that produced in a clean session
+    Then the same rows are expanded
+
+  # Older links carry these parameters as plain JSON. They are migrated on mount
+  # rather than ignored, so the link keeps working and every later write uses
+  # the compressed form.
+  @run @url-params
+  Scenario: A plainly encoded run table state in the link is rewritten as compressed
+    Given a link whose column order is plain JSON and whose global filter is not
+    When I open that link
+    Then the run table is rendered
+    And the global filter is rewritten into the compressed form
+
+  # `targetIterationId` is one of the two parameters here that are plain rather
+  # than compressed, and the one a log's Run link emits — so it is the link most
+  # often followed into this page from somewhere else.
+  @run @url-params
+  Scenario: A run link targeting an iteration opens that result's table
+    Given a link that targets one iteration of an imported run
+    When I open that link
+    Then that iteration's result table is shown
+    And the link still carries the targeted iteration
+
+  # The unexpected-only expansion arrives as react-router location state, not as
+  # a parameter. That is deliberate — it is a one-shot intent, not a view — and
+  # this scenario is what keeps it from quietly becoming shareable.
+  @run @url-params @needs-nok
+  Scenario: Opening a run from a NOK counter does not record the unexpected filter in the URL
+    Given the dashboard lists a run with unexpected results
+    When I click the run's NOK counter
+    Then the run page for that run is open
+    And no unexpected filter is recorded in the URL

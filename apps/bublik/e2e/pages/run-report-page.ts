@@ -2,6 +2,8 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { expect, Locator, Page } from '@playwright/test';
 
+import { UrlParams, urlParams } from '../support/url-params';
+
 /** The report scrolls inside the app shell, never the window. */
 const SCROLLER_ID = 'page-container';
 const TABLE_OF_CONTENTS_ID = 'run-report-table-of-contents';
@@ -17,8 +19,57 @@ function attributeSelector(name: string, value: string): string {
 	return `[${name}="${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
 }
 
+/**
+ * The report keeps the shape of the view in the query string and the block you
+ * are looking at in the fragment, so a link restores both. Declared across
+ * `libs/bublik/features/run-report/`.
+ *
+ * The odd one is the table of contents: each collapsible block writes a
+ * parameter *named after the block id itself*, so the key set is data-driven
+ * and cannot be enumerated ahead of time. `expectBlockCollapsedInUrl` is how a
+ * scenario names one.
+ *
+ * Deliberately not listed: `enablePairGainColumns`. The key exists in
+ * `run-report-table/run-report-table.hooks.ts`, but `useEnablePairGainColumns`
+ * has no callers — the per-test-block pairing the `p` shortcut drives is React
+ * state (`pairGainColumnsByTestId` in run-report.component.tsx), so the pairing
+ * is lost on reload and is not part of this page's URL contract today.
+ */
+const RUN_REPORT_URL_PARAMS = {
+	config: {
+		codec: 'raw, required',
+		values: 'a report config id',
+		whenAbsent: 'the page reports the config as missing',
+		writtenBy: 'the reports menu'
+	},
+	isFullMode: {
+		codec: 'BooleanParam',
+		values: '1 | 0',
+		whenAbsent: 'the full run details are shown',
+		writtenBy: "the header's run details toggle"
+	},
+	'selected-records': {
+		codec: 'ArrayParam — the key is repeated once per value',
+		values: 'record block ids',
+		whenAbsent: 'nothing is selected for the stacked view',
+		writtenBy: 'the Add to stacked buttons'
+	},
+	'stacked-drawer': {
+		codec: 'BooleanParam',
+		values: '1 | 0',
+		whenAbsent: 'the drawer is closed',
+		writtenBy: 'the Stacked button'
+	}
+} as const;
+
+type RunReportUrlParam = keyof typeof RUN_REPORT_URL_PARAMS;
+
 class RunReportPage {
-	constructor(private readonly page: Page) {}
+	private readonly url: UrlParams;
+
+	constructor(private readonly page: Page) {
+		this.url = urlParams(page);
+	}
 
 	async goto(
 		runId: number,
@@ -150,18 +201,46 @@ class RunReportPage {
 	}
 
 	async expectSearchParam(key: string, value: string | null): Promise<void> {
-		await expect
-			.poll(() => this.searchParams().get(key), {
-				timeout: 15_000,
-				message: `expected "${key}" to be ${value ?? 'absent'} in the URL`
-			})
-			.toBe(value);
+		await this.url.expect({ [key]: value });
 	}
 
+	/**
+	 * Ordered, unlike the shared repeated-key helper: the stacked view renders
+	 * the records in the order the URL lists them, so here the order is part of
+	 * the contract.
+	 */
 	async expectSearchParamValues(key: string, values: string[]): Promise<void> {
 		await expect
 			.poll(() => this.searchParams().getAll(key), { timeout: 15_000 })
 			.toEqual(values);
+	}
+
+	async expectParams(expected: Record<string, string | null>): Promise<void> {
+		await this.url.expect(expected);
+	}
+
+	async expectParamsPresent(keys: readonly string[]): Promise<void> {
+		await this.url.expectPresent(keys);
+	}
+
+	/**
+	 * A collapsed table-of-contents entry is written under a key named after
+	 * the block id itself — there is no `collapsed` parameter listing them.
+	 */
+	async expectBlockCollapsedInUrl(blockId: string): Promise<void> {
+		await this.url.expect({ [blockId]: '0' });
+	}
+
+	async expectBlockNotCollapsedInUrl(blockId: string): Promise<void> {
+		await this.url.expect({ [blockId]: null });
+	}
+
+	/** "This control left the config and the selection alone." */
+	async expectParamsUnchangedWhile(
+		keys: readonly string[],
+		action: () => Promise<void>
+	): Promise<void> {
+		await this.url.expectUnchangedWhile(keys, action);
 	}
 
 	currentUrl(): string {
@@ -618,4 +697,5 @@ class RunReportPage {
 	}
 }
 
-export { RunReportPage };
+export { RUN_REPORT_URL_PARAMS, RunReportPage };
+export type { RunReportUrlParam };

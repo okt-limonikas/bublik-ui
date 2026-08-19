@@ -40,3 +40,15 @@ Feature: Run import
     Then the form offers one more URL input than before
     When I close the form without importing
     Then the import form is gone
+
+  # The task log is a drawer whose only state is the URL: `taskId` opens it and
+  # closing clears both it and the polling flag together. Leaving `poll` behind
+  # would keep a closed drawer refetching for as long as the tab stayed open.
+  @admin @url-params
+  Scenario: An import task link opens that task's log and closing it clears the URL
+    Given a link that names a recorded import task and asks to follow it
+    When I open that link
+    Then the import task log is open
+    When I close the log
+    Then the task and the polling flag are both dropped from the URL
+
