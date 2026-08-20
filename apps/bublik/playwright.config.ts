@@ -1,12 +1,25 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { defineConfig, devices } from '@playwright/test';
+import type { ReporterDescription } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 
 const baseURL = process.env['BASE_URL'] || 'http://localhost:4400/v2/';
 
+// The preset supplies the reporters (html always, blob under CI). Capture it so
+// the json reporter can be appended: setting `reporter` after the spread would
+// replace the preset's list wholesale and silently drop both.
+const preset = nxE2EPreset(__filename, { testDir: './e2e' });
+
 export default defineConfig({
-	...nxE2EPreset(__filename, { testDir: './e2e' }),
+	...preset,
+	// Machine-readable results, converted into an importable Bublik bundle by
+	// `bublik-e2e playwright` (see `task e2e:report:bundle` in bublik-docker).
+	// `outputFile` resolves against this config's directory, hence the ../../.
+	reporter: [
+		...((preset.reporter ?? []) as ReporterDescription[]),
+		['json', { outputFile: '../../dist/.playwright/apps/bublik/results.json' }]
+	],
 	timeout: 60_000,
 	expect: { timeout: 15_000 },
 	fullyParallel: false,
