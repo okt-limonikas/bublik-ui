@@ -69,4 +69,18 @@ describe('getChunks function', () => {
 		const result = [[1], 2, [1], 2, [4], [1]];
 		expect(getChunks({ data, skip: testFor(2) })).toEqual(result);
 	});
+	// Every case above skips a single value, so two adjacent skipped items are
+	// always equal and the empty-chunk path is never reached. A log tree hits it
+	// whenever a package with 100+ children ends in two differently named
+	// sub-packages: compressTests reads `chunk[0]` and throws on the empty chunk.
+	it('should not emit an empty chunk between two different skipped items', () => {
+		const data = [1, 2, 3];
+		const skip = (n: number) => n === 2 || n === 3;
+		expect(getChunks({ data, skip })).toEqual([[1], 2, 3]);
+	});
+	it('should not emit an empty chunk when skipped items lead the array', () => {
+		const data = [1, 2, 3, 3];
+		const skip = (n: number) => n === 1 || n === 2;
+		expect(getChunks({ data, skip })).toEqual([1, 2, [3, 3]]);
+	});
 });
