@@ -124,15 +124,81 @@ Feature: Log
     Then the deprecated parameter is dropped from the URL
     And the URL records the legacy renderer as off
 
-  # NOT COVERED: `page` (a page number, or 0 for every page at once).
+  # `page` selects one page of a result's log. Page one is the log's canonical
+  # file and is written as an ABSENT parameter, never as `page=1`: the publisher
+  # only suffixes pages above one, so against a published bundle `?page=1` asks
+  # for a file nobody wrote. That is why the pager deletes the key on the way
+  # back to page one, and why there is no `?page=1` scenario below — it would
+  # pin a 404 rather than a contract.
   #
-  # No fixture log paginates — the largest fixture run's result still renders a
-  # single page and no pager — so neither the write side (the All pages button)
-  # nor the read side can be exercised. Worse, on a single-page log the backend
-  # answers 404 for *any* explicit page, `page=0` included, so a read-side
-  # scenario would pin a 404 rather than the contract. Covering this needs a
-  # fixture whose log spans several pages; until then the deletion rules around
-  # `page` are pinned indirectly by the two clear-on-write scenarios above.
+  # Paging applies only to a focused result; the run log never carries a page.
+  # `page=0` is every page at once, and is also remembered in localStorage for a
+  # day, so these scenarios clear that memory first — otherwise "no page" would
+  # silently mean page zero.
+  #
+  # Which results paginate is a property of the fixture, not of a row count: rgt
+  # cuts pages on raw-log byte size per node, so the manifest records the page
+  # count (`logPages`) and these scenarios read it from there.
+
+  @log @url-params @needs-log-pagination
+  Scenario: A log with several pages opens on its first page
+    Given a fixture result whose log spans several pages
+    When I open that result's log
+    Then the pager offers every page of the log
+    And the first page is the one shown
+    And the URL carries no page
+
+  @log @url-params @needs-log-pagination
+  Scenario: A link to a later page of a log opens that page
+    Given a fixture result whose log spans several pages
+    When I open a link to its second page
+    Then the second page is the one shown
+    And the URL still carries the second page
+    And the rows shown are not the rows of the first page
+
+  @log @url-params @needs-log-pagination
+  Scenario: Paging back to the first page drops the page and the bookmarked line
+    Given I open the second page of a result's log
+    When I bookmark a log line
+    And I page back to the first page
+    Then the page is dropped from the URL
+    And the bookmarked line is dropped from the URL
+    And the first page is the one shown
+
+  @log @url-params @needs-log-pagination
+  Scenario: Asking for all pages records page zero and shows the whole log
+    Given I open a result's log that spans several pages
+    When I ask for all pages
+    Then the URL records page zero
+    And the All pages button is pressed
+    And the log shows every row of every page
+
+  # The all-pages file reports no page count of its own, so the pager's numbers
+  # are recovered from the numbered page the app loads alongside it. Showing
+  # every page is therefore not "no pagination": the pager stays, and the only
+  # thing that changes is that no single page is current any more — which is
+  # what makes the All pages button, not the pager, the signal for this state.
+  @log @needs-log-pagination
+  Scenario: A link that asks for every page keeps the pager but marks no page current
+    Given a fixture result whose log spans several pages
+    When I open a link that asks for all pages
+    Then the All pages button is pressed
+    And the pager still offers every page of the log
+    And no page is marked as the current one
+    When I go back to the first page
+    Then the first page is the one shown
+
+  # A bookmarked line is only worth restoring if it was off screen to begin
+  # with, which needs a log far taller than a screen. This one is published as a
+  # single file, so nothing here is about paging.
+  @log @url-params @needs-long-log
+  Scenario: A bookmarked line deep in a long log is scrolled back into view
+    Given I open a result with a long single-page log
+    When I bookmark a line near the end of the log
+    And I reload the page
+    Then the bookmarked line is still recorded in the URL
+    And that line is back in view
+    And the top of the log is out of view
 
   # The tree filter is deliberately not shareable: it is a reading aid, not part
   # of the view a link describes. A regression that started writing it would

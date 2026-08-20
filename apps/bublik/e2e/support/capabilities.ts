@@ -2,6 +2,9 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import type { E2EManifest } from './manifest';
 
+/** Mirrors `LOG_PAGES_MIN_ROWS` in bublik-e2e's `core/constants.py`. */
+const LONG_LOG_ROWS = 200;
+
 function requireCapability<T>(
 	value: T | null | undefined,
 	reason: string
@@ -43,6 +46,20 @@ function validateFixtureCapabilities(manifest: E2EManifest): void {
 	requireCapability(
 		samples.some((sample) => sample.measurements.length > 0),
 		'the fixture plan must contain a sampled result with measurements'
+	);
+	const logPages = expectedRuns.flatMap((run) => run.logPages);
+
+	requireCapability(
+		logPages.some((entry) => entry.pagesCount > 1),
+		'the fixture plan must contain a result whose log spans several pages'
+	);
+	// Scroll restoration is only observable on a log tall enough that a line
+	// near its end is off screen when the page loads.
+	requireCapability(
+		logPages.some(
+			(entry) => entry.pagesCount === 1 && entry.rowCount >= LONG_LOG_ROWS
+		),
+		'the fixture plan must contain a long single-page log'
 	);
 	requireCapability(
 		manifest.emptyDates.length > 0,

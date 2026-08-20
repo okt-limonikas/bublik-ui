@@ -13,6 +13,8 @@ import {
 	firstMeasurementResultNode,
 	firstResultNode,
 	importedRunId,
+	longLogNode,
+	paginatedLogNode,
 	representativeImportedRun
 } from './support/e2e-data';
 import { and, given, then, when } from './support/gherkin';
@@ -238,8 +240,9 @@ test.describe('Log Page', () => {
 			await and('the tree is shown and the info panel is not', () =>
 				logPage.expectModeLayout('treeAndlog')
 			);
-			await and('the link still carries the focused result and the layout', () =>
-				logPage.expectParams(link)
+			await and(
+				'the link still carries the focused result and the layout',
+				() => logPage.expectParams(link)
 			);
 		}
 	);
@@ -258,23 +261,27 @@ test.describe('Log Page', () => {
 			// The combination is one the UI would never write itself — `setFocusId`
 			// is what clears these — so it is built by hand to prove the clearing
 			// happens on the way in as well as on the way out.
-			await given('I open a log carrying a bookmarked line and a page', async () => {
-				await logPage.gotoWithParams(runCase.runId, {
-					mode: 'treeAndlog',
-					page: '2',
-					lineNumber: '0_5'
-				});
-				await logPage.expectLoaded();
-				await logPage.expectParams({ page: '2', lineNumber: '0_5' });
-			});
+			await given(
+				'I open a log carrying a bookmarked line and a page',
+				async () => {
+					await logPage.gotoWithParams(runCase.runId, {
+						mode: 'treeAndlog',
+						page: '2',
+						lineNumber: '0_5'
+					});
+					await logPage.expectLoaded();
+					await logPage.expectParams({ page: '2', lineNumber: '0_5' });
+				}
+			);
 			await when('I focus a result in the tree', () =>
 				logPage.focusTreeItem(result.node.id)
 			);
 			await then('the focused result is recorded in the URL', () =>
 				logPage.expectParams({ focusId: String(result.node.id) })
 			);
-			await and('the bookmarked line and the page are dropped from the URL', () =>
-				logPage.expectParams({ lineNumber: null, page: null })
+			await and(
+				'the bookmarked line and the page are dropped from the URL',
+				() => logPage.expectParams({ lineNumber: null, page: null })
 			);
 		}
 	);
@@ -290,16 +297,19 @@ test.describe('Log Page', () => {
 				'Fixture tree contains no test result node.'
 			);
 
-			await given('I open a log focused on a result with a bookmarked line', async () => {
-				await logPage.gotoWithParams(runCase.runId, {
-					mode: 'treeAndlog',
-					focusId: String(result.node.id),
-					lineNumber: `${result.node.id}_1`,
-					page: '2'
-				});
-				await logPage.expectLoaded();
-				await logPage.expectTreeVisible();
-			});
+			await given(
+				'I open a log focused on a result with a bookmarked line',
+				async () => {
+					await logPage.gotoWithParams(runCase.runId, {
+						mode: 'treeAndlog',
+						focusId: String(result.node.id),
+						lineNumber: `${result.node.id}_1`,
+						page: '2'
+					});
+					await logPage.expectLoaded();
+					await logPage.expectTreeVisible();
+				}
+			);
 			await when('I go back to the run log', () => logPage.showRunLog());
 			await then(
 				'the focused result, the bookmarked line and the page are all dropped from the URL',
@@ -324,9 +334,8 @@ test.describe('Log Page', () => {
 			const logPage = new LogPage(page);
 			const unknownMode = 'treeAndeverything';
 
-			await given(
-				'a link whose layout is not a layout the log renders',
-				() => expect(unknownMode).not.toBe('treeAndinfoAndlog')
+			await given('a link whose layout is not a layout the log renders', () =>
+				expect(unknownMode).not.toBe('treeAndinfoAndlog')
 			);
 			await when('I open that link', async () => {
 				await logPage.gotoWithParams(runCase.runId, { mode: unknownMode });
@@ -417,15 +426,18 @@ test.describe('Log Page', () => {
 			const runId = importedRunId(representative.bundle);
 			let before = 0;
 
-			await given('I open the log of a run with unexpected results', async () => {
-				await logPage.gotoWithParams(runId, { mode: 'treeAndlog' });
-				await logPage.expectLoaded();
-				await logPage.expectTreeVisible();
-				await expect
-					.poll(() => logPage.treeItems().count(), { timeout: 30_000 })
-					.toBeGreaterThan(0);
-				before = await logPage.treeItems().count();
-			});
+			await given(
+				'I open the log of a run with unexpected results',
+				async () => {
+					await logPage.gotoWithParams(runId, { mode: 'treeAndlog' });
+					await logPage.expectLoaded();
+					await logPage.expectTreeVisible();
+					await expect
+						.poll(() => logPage.treeItems().count(), { timeout: 30_000 })
+						.toBeGreaterThan(0);
+					before = await logPage.treeItems().count();
+				}
+			);
 			await when('I turn on the NOK-only tree', () => logPage.toggleOnlyNok());
 			await then('the tree lists fewer results', () =>
 				expect
@@ -444,6 +456,237 @@ test.describe('Log Page', () => {
 					page: null,
 					mode: 'treeAndlog'
 				})
+			);
+		}
+	);
+	/* ------------------------------------------------------------------ *
+	 * Pagination
+	 * ------------------------------------------------------------------ */
+
+	test(
+		'A log with several pages opens on its first page',
+		{ tag: ['@log', '@url-params', '@needs-log-pagination'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await paginatedLogNode(request, requireManifest()),
+				'Fixture manifest contains no log spanning several pages.'
+			);
+
+			await given('a fixture result whose log spans several pages', () =>
+				expect(logCase.entry.pagesCount).toBeGreaterThan(1)
+			);
+			await when("I open that result's log", async () => {
+				await logPage.forgetAllPagesMemory();
+				await logPage.goto(logCase.runCase.runId, `focusId=${logCase.node.id}`);
+				await logPage.expectJsonLogVisible();
+			});
+			await then('the pager offers every page of the log', () =>
+				logPage.expectPagesCount(logCase.entry.pagesCount)
+			);
+			await and('the first page is the one shown', () =>
+				logPage.expectCurrentPage(1)
+			);
+			// Page one is an absent key, not `page=1` — see LOG_URL_PARAMS.page.
+			await and('the URL carries no page', () =>
+				logPage.expectParams({ page: null })
+			);
+		}
+	);
+
+	test(
+		'A link to a later page of a log opens that page',
+		{ tag: ['@log', '@url-params', '@needs-log-pagination'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await paginatedLogNode(request, requireManifest()),
+				'Fixture manifest contains no log spanning several pages.'
+			);
+			let firstPageTopRow = '';
+
+			await given(
+				'a fixture result whose log spans several pages',
+				async () => {
+					await logPage.forgetAllPagesMemory();
+					await logPage.goto(
+						logCase.runCase.runId,
+						`focusId=${logCase.node.id}`
+					);
+					await logPage.expectJsonLogVisible();
+					firstPageTopRow = await logPage.firstRowId();
+				}
+			);
+			await when('I open a link to its second page', async () => {
+				await logPage.gotoWithParams(logCase.runCase.runId, {
+					focusId: String(logCase.node.id),
+					page: '2'
+				});
+				await logPage.expectJsonLogVisible();
+			});
+			await then('the second page is the one shown', () =>
+				logPage.expectCurrentPage(2)
+			);
+			await and('the URL still carries the second page', () =>
+				logPage.expectParams({ page: '2' })
+			);
+			// Line numbers run on across pages, so a different top row is proof
+			// the second page is a different slice and not a re-render.
+			await and('the rows shown are not the rows of the first page', async () =>
+				expect(await logPage.firstRowId()).not.toBe(firstPageTopRow)
+			);
+		}
+	);
+
+	test(
+		'Paging back to the first page drops the page and the bookmarked line',
+		{ tag: ['@log', '@url-params', '@needs-log-pagination'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await paginatedLogNode(request, requireManifest()),
+				'Fixture manifest contains no log spanning several pages.'
+			);
+
+			await given("I open the second page of a result's log", async () => {
+				await logPage.forgetAllPagesMemory();
+				await logPage.gotoWithParams(logCase.runCase.runId, {
+					focusId: String(logCase.node.id),
+					page: '2'
+				});
+				await logPage.expectCurrentPage(2);
+			});
+			await when('I bookmark a log line', () => logPage.bookmarkFirstLine());
+			await and('I page back to the first page', () => logPage.openPage(1));
+			await then('the page is dropped from the URL', () =>
+				logPage.expectParams({ page: null })
+			);
+			// A bookmark belongs to one page, so paging has to drop it rather
+			// than carry a line number the new page cannot resolve.
+			await and('the bookmarked line is dropped from the URL', () =>
+				logPage.expectParams({ lineNumber: null })
+			);
+			await and('the first page is the one shown', () =>
+				logPage.expectCurrentPage(1)
+			);
+		}
+	);
+
+	test(
+		'Asking for all pages records page zero and shows the whole log',
+		{ tag: ['@log', '@url-params', '@needs-log-pagination'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await paginatedLogNode(request, requireManifest()),
+				'Fixture manifest contains no log spanning several pages.'
+			);
+
+			await given(
+				"I open a result's log that spans several pages",
+				async () => {
+					await logPage.forgetAllPagesMemory();
+					await logPage.goto(
+						logCase.runCase.runId,
+						`focusId=${logCase.node.id}`
+					);
+					await logPage.expectCurrentPage(1);
+				}
+			);
+			await when('I ask for all pages', () => logPage.openAllPages());
+			await then('the URL records page zero', () =>
+				logPage.expectParams({ page: '0' })
+			);
+			// The pressed state is the only rendered signal that page zero was
+			// applied rather than merely written to the URL.
+			await and('the All pages button is pressed', () =>
+				logPage.expectAllPagesActive(true)
+			);
+			await and('the log shows every row of every page', async () =>
+				expect(await logPage.logRowCount()).toBe(logCase.entry.rowCount)
+			);
+		}
+	);
+
+	test(
+		'A link that asks for every page keeps the pager but marks no page current',
+		{ tag: ['@log', '@needs-log-pagination'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await paginatedLogNode(request, requireManifest()),
+				'Fixture manifest contains no log spanning several pages.'
+			);
+
+			await given('a fixture result whose log spans several pages', () =>
+				expect(logCase.entry.pagesCount).toBeGreaterThan(1)
+			);
+			await when('I open a link that asks for all pages', async () => {
+				await logPage.forgetAllPagesMemory();
+				await logPage.gotoWithParams(logCase.runCase.runId, {
+					focusId: String(logCase.node.id),
+					page: '0'
+				});
+				await logPage.expectJsonLogVisible();
+			});
+			await then('the All pages button is pressed', () =>
+				logPage.expectAllPagesActive(true)
+			);
+			// The all-pages file carries no page count of its own, so a pager
+			// with the right numbers is proof the count was recovered from the
+			// numbered page fetched alongside it.
+			await and('the pager still offers every page of the log', () =>
+				logPage.expectPagesCount(logCase.entry.pagesCount)
+			);
+			await and('no page is marked as the current one', () =>
+				logPage.expectNoCurrentPage()
+			);
+			await when('I go back to the first page', () => logPage.openPage(1));
+			await then('the first page is the one shown', () =>
+				logPage.expectCurrentPage(1)
+			);
+		}
+	);
+
+	test(
+		'A bookmarked line deep in a long log is scrolled back into view',
+		{ tag: ['@log', '@url-params', '@needs-long-log'] },
+		async ({ page, request }) => {
+			const logPage = new LogPage(page);
+			const logCase = requireCapability(
+				await longLogNode(request, requireManifest()),
+				'Fixture manifest contains no long single-page log.'
+			);
+			let topRow = '';
+			let bookmark = '';
+
+			test.slow();
+
+			await given('I open a result with a long single-page log', async () => {
+				await logPage.forgetAllPagesMemory();
+				await logPage.goto(logCase.runCase.runId, `focusId=${logCase.node.id}`);
+				await logPage.expectJsonLogVisible();
+				// Nothing to page: this log is published as a single file.
+				await logPage.expectNoPager();
+				topRow = await logPage.firstRowId();
+			});
+			await when('I bookmark a line near the end of the log', async () => {
+				bookmark = await logPage.bookmarkLine(logCase.entry.rowCount - 5);
+			});
+			await and('I reload the page', async () => {
+				await page.reload();
+				await logPage.expectJsonLogVisible();
+			});
+			await then('the bookmarked line is still recorded in the URL', () =>
+				logPage.expectParams({ lineNumber: bookmark })
+			);
+			// The row id and the bookmark are the same value: the app builds
+			// both from the table's own block index and line number.
+			await and('that line is back in view', () =>
+				logPage.expectRowInViewport(bookmark)
+			);
+			await and('the top of the log is out of view', () =>
+				logPage.expectRowOutOfViewport(topRow)
 			);
 		}
 	);

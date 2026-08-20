@@ -47,14 +47,17 @@ const LOG_URL_PARAMS = {
 		values: 'log | infoAndlog | treeAndinfoAndlog | treeAndlog',
 		whenAbsent:
 			'neither the tree nor the info panel — the page has no fallback, so an unknown value renders the log on its own',
-		writtenBy: 'the sidebar layout links; appended by the /log/:runId/:old redirect'
+		writtenBy:
+			'the sidebar layout links; appended by the /log/:runId/:old redirect'
 	},
 	page: {
 		codec: 'raw',
-		values: 'a page number; 0 means every page at once',
-		whenAbsent: 'the first page',
+		values:
+			'a page number above one; 0 means every page at once. Page one is written as an ABSENT key, never as `page=1` — the publisher gives page one the unsuffixed file name and only suffixes pages above it (rgt `xml2multi_common.c`), so against a published bundle `?page=1` asks for a file nobody wrote',
+		whenAbsent:
+			'the first page — unless "all pages" was remembered for this run and result, which `useAllPagesMemory` keeps in localStorage for a day and which is on by default, in which case an absent key silently means page zero',
 		writtenBy:
-			'the pager (`setPage`), which deletes the key outright when it goes back to 1, and always deletes lineNumber'
+			'the pager (`setPage`), which deletes the key outright when it goes back to 1, and always deletes lineNumber — a bookmark belongs to one page'
 	},
 	lineNumber: {
 		codec: 'raw',
@@ -189,7 +192,6 @@ class LogPage {
 		});
 	}
 
-
 	/**
 	 * Deep-links a log, so a scenario can open a link the way a user who
 	 * bookmarked one does — including combinations the UI would never write
@@ -273,21 +275,126 @@ class LogPage {
 		return this.page.getByTestId('log-all-pages').first();
 	}
 
-	get firstPageButton(): Locator {
-		return this.page.getByRole('button', { name: 'Page 1', exact: true });
+	/**
+	 * The numbered pager. Scoped to the log table because `tw-pagination` is a
+	 * shared testid, and `.first()` because the pager is rendered both above and
+	 * below the rows.
+	 */
+	get pager(): Locator {
+		return this.logTable.getByTestId('tw-pagination').first();
 	}
 
-	/** True when the log paginates at all — a short log renders no pager. */
-	async isPaginated(): Promise<boolean> {
-		return this.allPagesButton.isVisible();
+	pagerButton(pageNumber: number): Locator {
+		return this.pager.getByRole('button', {
+			name: String(pageNumber),
+			exact: true
+		});
+	}
+
+	logRows(): Locator {
+		return this.logTable.getByTestId('log-table-row');
+	}
+
+	logRow(rowId: string): Locator {
+		return this.logTable.locator(`[data-log-row-id="${rowId}"]`);
+	}
+
+	async logRowCount(): Promise<number> {
+		await expect(this.logRows().first()).toBeVisible({ timeout: 30_000 });
+
+		return this.logRows().count();
+	}
+
+	/**
+	 * The row id of the first rendered row. Row ids are `<blockIndex>_<line>`,
+	 * built by the table itself — never assemble one from a focus id.
+	 */
+	async firstRowId(): Promise<string> {
+		const first = this.logRows().first();
+		await expect(first).toBeVisible({ timeout: 30_000 });
+
+		return (await first.getAttribute('data-log-row-id')) ?? '';
 	}
 
 	async openAllPages(): Promise<void> {
 		await this.allPagesButton.click();
+		await expect(this.page).toHaveURL(/page=0/, { timeout: 15_000 });
 	}
 
-	async openFirstPage(): Promise<void> {
-		await this.firstPageButton.click();
+	/** Pages through the numbered pager, which is the only way the UI writes `page`. */
+	async openPage(pageNumber: number): Promise<void> {
+		const button = this.pagerButton(pageNumber);
+
+		await button.click();
+		await this.expectCurrentPage(pageNumber);
+	}
+
+	/**
+	 * The pager marks the page in view with `aria-current`. It does not do so
+	 * while every page is shown at once — that state is read off the All pages
+	 * button instead.
+	 */
+	async expectCurrentPage(pageNumber: number): Promise<void> {
+		await expect(this.pager.locator('[aria-current="page"]')).toHaveText(
+			String(pageNumber),
+			{ timeout: 15_000 }
+		);
+	}
+
+	/**
+	 * No page is current while every page is shown at once — the pager hides the
+	 * marker rather than picking one, so the All pages button is the only thing
+	 * that says which view is in force.
+	 */
+	async expectNoCurrentPage(): Promise<void> {
+		await expect(this.pager.locator('[aria-current="page"]')).toHaveCount(0);
+	}
+
+	async expectPagesCount(pages: number): Promise<void> {
+		await expect(this.pagerButton(pages)).toBeVisible({ timeout: 30_000 });
+		await expect(this.pagerButton(pages + 1)).toHaveCount(0);
+	}
+
+	/** A log published as a single file renders no pager at all — not even All pages. */
+	async expectNoPager(): Promise<void> {
+		await expect(this.page.getByTestId('log-all-pages')).toHaveCount(0);
+	}
+
+	async expectRowInViewport(rowId: string): Promise<void> {
+		await expect(this.logRow(rowId)).toBeInViewport({ timeout: 15_000 });
+	}
+
+	async expectRowOutOfViewport(rowId: string): Promise<void> {
+		await expect(this.logRow(rowId)).not.toBeInViewport({ timeout: 15_000 });
+	}
+
+	/**
+	 * Bookmarks one line and returns the value the app wrote, which is the row
+	 * id (`<blockIndex>_<line>`) and not `<focusId>_<line>` — the block index is
+	 * the position of the table in the log's content, so it cannot be predicted
+	 * from the URL.
+	 */
+	async bookmarkLine(line: number): Promise<string> {
+		const button = this.logTable.locator(
+			`[data-testid="log-line-number"][data-log-line-number="${line}"]`
+		);
+		await expect(button).toBeVisible({ timeout: 30_000 });
+		await button.click();
+		await expect(this.page).toHaveURL(/lineNumber=/, { timeout: 15_000 });
+
+		return new URL(this.page.url()).searchParams.get('lineNumber') ?? '';
+	}
+
+	/**
+	 * Drops the remembered "all pages" choice before the first navigation.
+	 * `log.rememberAllPages` is on by default, so without this an absent `page`
+	 * can silently mean page zero and the pagination scenarios stop being about
+	 * what the URL says.
+	 */
+	async forgetAllPagesMemory(): Promise<void> {
+		await this.page.addInitScript(() =>
+			window.localStorage.removeItem('log-all-pages-memory')
+		);
 	}
 
 	/**
@@ -316,14 +423,6 @@ class LogPage {
 		const expandButton = this.page.getByTestId('log-row-expand').first();
 		if (await expandButton.isVisible()) {
 			await expandButton.click();
-		}
-	}
-
-	async clickAllPagesIfAvailable(): Promise<void> {
-		const button = this.page.getByTestId('log-all-pages').first();
-		if (await button.isVisible()) {
-			await button.click();
-			await expect(this.page).toHaveURL(/page=0/, { timeout: 15_000 });
 		}
 	}
 }

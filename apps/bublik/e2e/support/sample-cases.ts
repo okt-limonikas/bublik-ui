@@ -5,7 +5,8 @@ import type {
 	Bundle,
 	E2EManifest,
 	ExpectedRun,
-	IterationEntry
+	IterationEntry,
+	LogPagesEntry
 } from './manifest';
 
 interface ProjectRun {
@@ -155,43 +156,72 @@ function runPairOnDifferentProjects(manifest: E2EManifest): {
  * project's latest day — and only its runs.
  */
 /**
- * The imported run with the most iterations, for scenarios that need a log long
- * enough to paginate. The manifest does not record how many log lines a run
- * produced, so the iteration count is the closest proxy the fixture plan offers.
- *
- * Currently unused: no fixture run produces a paginating log, so the log page's
- * `page` parameter has no coverage — see the note in features/log.feature. This
- * is kept as the lookup such a scenario would need once the fixture plan grows
- * a longer log; a caller must still check the pager actually rendered, since a
- * run with many short iterations may fit on one page.
+ * A leaf whose log the manifest recorded as worth navigating, resolved back to
+ * the run it lives in.
  */
-function largestImportedRun(manifest: E2EManifest): {
+interface LogPagesCase {
 	bundle: Bundle;
 	expectedRun: ExpectedRun;
 	runId: number;
-	iterationCount: number;
-} | null {
-	let best: {
-		bundle: Bundle;
-		expectedRun: ExpectedRun;
-		runId: number;
-		iterationCount: number;
-	} | null = null;
+	entry: LogPagesEntry;
+}
+
+function logPagesCases(manifest: E2EManifest): LogPagesCase[] {
+	const cases: LogPagesCase[] = [];
 
 	for (const bundle of manifest.bundles) {
 		if (!bundle.runId) continue;
 
 		for (const expectedRun of bundle.expectedRuns) {
-			const iterationCount = expectedRun.iterationCount ?? 0;
-			if (best && iterationCount <= best.iterationCount) continue;
-
-			best = {
-				bundle,
-				expectedRun,
-				runId: bundle.runId,
-				iterationCount
-			};
+			for (const entry of expectedRun.logPages) {
+				cases.push({ bundle, expectedRun, runId: bundle.runId, entry });
+			}
 		}
+	}
+
+	return cases;
+}
+
+/**
+ * The imported leaf whose log is published across the most pages.
+ *
+ * The manifest records the page count because nothing reachable from the UI or
+ * the API predicts it: how a log is split is decided when it is published (rgt
+ * cuts pages on raw-log byte size per node), so a run with thousands of short
+ * iterations can page while a long single log does not.
+ */
+function paginatedLogCase(manifest: E2EManifest): LogPagesCase | null {
+	let best: LogPagesCase | null = null;
+
+	for (const candidate of logPagesCases(manifest)) {
+		if (candidate.entry.pagesCount < 2) continue;
+		if (
+			best &&
+			candidate.entry.pagesCount <= best.entry.pagesCount &&
+			candidate.entry.rowCount <= best.entry.rowCount
+		) {
+			continue;
+		}
+
+		best = candidate;
+	}
+
+	return best;
+}
+
+/**
+ * The longest imported leaf published as a *single* page — what scroll
+ * restoration needs: a log tall enough that a line near its end is off screen
+ * when the page loads, so scrolling back to it is observable.
+ */
+function longLogCase(manifest: E2EManifest): LogPagesCase | null {
+	let best: LogPagesCase | null = null;
+
+	for (const candidate of logPagesCases(manifest)) {
+		if (candidate.entry.pagesCount !== 1) continue;
+		if (best && candidate.entry.rowCount <= best.entry.rowCount) continue;
+
+		best = candidate;
 	}
 
 	return best;
@@ -725,8 +755,9 @@ export {
 	historyProjects,
 	historyTestPathForProject,
 	durationCoveringFixtures,
-	largestImportedRun,
+	longLogCase,
 	mutableRun,
+	paginatedLogCase,
 	projectSpanningDays,
 	representativeNokRun,
 	representativeRun,
@@ -737,4 +768,10 @@ export {
 	sampleCases,
 	shiftDate
 };
-export type { HistoryProject, ProjectRun, ResultTableCase, SampleCase };
+export type {
+	HistoryProject,
+	LogPagesCase,
+	ProjectRun,
+	ResultTableCase,
+	SampleCase
+};

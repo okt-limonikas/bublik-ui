@@ -104,6 +104,7 @@ export type {
 	ExpectedMatrix,
 	ExpectedRun,
 	IterationEntry,
+	LogPagesEntry,
 	MeasurementSummary,
 	PackageSummary,
 	ReportConfig,

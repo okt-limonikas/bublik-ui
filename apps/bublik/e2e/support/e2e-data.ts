@@ -7,9 +7,14 @@ import type {
 	Bundle,
 	E2EManifest,
 	ExpectedRun,
-	IterationEntry
+	IterationEntry,
+	LogPagesEntry
 } from './manifest';
-import { representativeRun } from './sample-cases';
+import {
+	longLogCase,
+	paginatedLogCase,
+	representativeRun
+} from './sample-cases';
 
 interface TreeNode {
 	id: string;
@@ -36,6 +41,12 @@ interface ResultNodeCase {
 	node: TreeNode;
 	/** Set when the node was located from a manifest sample (measurements). */
 	sample?: IterationEntry;
+}
+
+interface LogPagesNodeCase {
+	runCase: ImportedRunCase;
+	node: TreeNode;
+	entry: LogPagesEntry;
 }
 
 interface ReportConfig {
@@ -151,9 +162,19 @@ function findFirstErrorTestNode(tree: TreeResponse): TreeNode | null {
 	);
 }
 
+/** The fields `findSampleNode` matches on — shared by the manifest's samples
+ * and its log-pages entries. */
+type TreeNodeLookup = Pick<IterationEntry, 'name' | 'path' | 'pathStr'>;
+
+/**
+ * `/api/v2/tree/` returns no `path` (the UI derives it in `transformLogTree`),
+ * so in practice this matches on `name` and the first iteration of a test wins.
+ * That is why the fixture gives every iteration of a test the same log shape:
+ * whichever one this lands on has to match the manifest entry.
+ */
 function findSampleNode(
 	tree: TreeResponse,
-	sample: IterationEntry
+	sample: TreeNodeLookup
 ): TreeNode | null {
 	const path = sample.pathStr || sample.path.join('/');
 
@@ -216,6 +237,45 @@ async function firstMeasurementResultNode(
 	}
 
 	return null;
+}
+
+async function logPagesNode(
+	request: APIRequestContext,
+	manifest: E2EManifest,
+	pick: typeof paginatedLogCase
+): Promise<LogPagesNodeCase | null> {
+	const logCase = pick(manifest);
+	if (!logCase) return null;
+
+	const tree = await getTree(request, logCase.runId);
+	const node = findSampleNode(tree, logCase.entry);
+	if (!node) return null;
+
+	return {
+		runCase: {
+			bundle: logCase.bundle,
+			expectedRun: logCase.expectedRun,
+			runId: logCase.runId
+		},
+		node,
+		entry: logCase.entry
+	};
+}
+
+/** The imported result whose log spans the most pages, resolved to its tree node. */
+async function paginatedLogNode(
+	request: APIRequestContext,
+	manifest: E2EManifest
+): Promise<LogPagesNodeCase | null> {
+	return logPagesNode(request, manifest, paginatedLogCase);
+}
+
+/** The longest imported result published on a single page, resolved to its tree node. */
+async function longLogNode(
+	request: APIRequestContext,
+	manifest: E2EManifest
+): Promise<LogPagesNodeCase | null> {
+	return logPagesNode(request, manifest, longLogCase);
 }
 
 /**
@@ -428,6 +488,8 @@ export {
 	firstResultNode,
 	getTree,
 	importedRunId,
+	longLogNode,
+	paginatedLogNode,
 	projectIdByName,
 	reportConfiguredImportedRun,
 	reportFixture,
@@ -436,6 +498,7 @@ export {
 
 export type {
 	ImportedRunCase,
+	LogPagesNodeCase,
 	ReportCell,
 	ReportFixture,
 	ReportItem,

@@ -69,7 +69,7 @@ test(
   a silently skipped scenario is worse than no scenario.
 - **Assertions live in the page object.** Specs that delegate every assertion keep the
   `// eslint-disable-next-line playwright/expect-expect` comment, as the older specs do.
-- Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`.
+- Capability tags in use: `@smoke`, `@admin`, `@needs-nok`, `@needs-measurements`, `@needs-report`, `@needs-log-pagination`, `@needs-long-log`.
 - `@url-params` marks the scenarios that pin a page's query-string contract, so the
   parameter surface can be checked on its own (`playwright test --grep @url-params`).
   Each page's inventory of parameters lives beside its page object as a
