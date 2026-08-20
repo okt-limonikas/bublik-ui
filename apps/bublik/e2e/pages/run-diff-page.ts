@@ -54,7 +54,6 @@ class RunDiffPage {
 		await expect(this.page).toHaveURL(/\/compare(?:$|\?)/);
 	}
 
-
 	async gotoWithParams(params: Record<string, string>): Promise<void> {
 		const searchParams = new URLSearchParams(params);
 		const search = searchParams.size ? `?${searchParams.toString()}` : '';
@@ -92,7 +91,14 @@ class RunDiffPage {
 		await this.url.expectWritten('expanded');
 	}
 
+	/**
+	 * Waits for the diff to arrive before counting. `expectLoaded` only waits
+	 * for the page shell, which is on screen well before the comparison request
+	 * comes back, so counting straight after it races the empty table.
+	 */
 	async rowCount(): Promise<number> {
+		await expect(this.rows().first()).toBeVisible({ timeout: 30_000 });
+
 		return this.rows().count();
 	}
 

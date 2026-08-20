@@ -13,24 +13,24 @@ import { requireManifest } from './support/manifest';
 import { requireCapability } from './support/capabilities';
 import { importedRunId } from './support/e2e-data';
 import { and, given, then, when } from './support/gherkin';
-import { representativeNokRun } from './support/sample-cases';
+import {
+	representativeNokRun,
+	runPairOnSameDate
+} from './support/sample-cases';
 
-function firstTwoRunIds(): [number, number] {
-	const manifest = requireManifest();
-	const ids = [
-		...new Set(
-			manifest.bundles
-				.map((bundle) => bundle.runId)
-				.filter((runId): runId is number => Number(runId) > 0)
-		)
-	];
-	if (ids.length < 2) {
-		throw new Error(
-			'Required E2E capability is missing: compare coverage requires two distinct imported run IDs.'
-		);
-	}
+/**
+ * Two runs that are actually comparable: same project, same dashboard date, and
+ * so the same test suite. Any two imported runs would satisfy /compare's URL,
+ * but runs from different suites share no iterations, so the diff renders an
+ * empty table and every scenario about its rows has nothing to assert against.
+ */
+function comparableRunIds(): [number, number] {
+	const pair = requireCapability(
+		runPairOnSameDate(requireManifest()),
+		'Fixture manifest contains no two runs sharing a project and a date.'
+	);
 
-	return [ids[0], ids[1]];
+	return [importedRunId(pair.bundles[0]), importedRunId(pair.bundles[1])];
 }
 
 test.describe('Compare Page', () => {
@@ -52,7 +52,7 @@ test.describe('Compare Page', () => {
 	}) => {
 		const comparePage = new RunDiffPage(page);
 		const logPage = new LogPage(page);
-		const [leftRunId, rightRunId] = firstTwoRunIds();
+		const [leftRunId, rightRunId] = comparableRunIds();
 
 		await given('the fixture manifest describes two imported runs', () =>
 			expect(leftRunId).not.toBe(rightRunId)
@@ -76,7 +76,7 @@ test.describe('Compare Page', () => {
 		{ tag: ['@runs', '@url-params'] },
 		async ({ page }) => {
 			const comparePage = new RunDiffPage(page);
-			const [leftRunId, rightRunId] = firstTwoRunIds();
+			const [leftRunId, rightRunId] = comparableRunIds();
 			let before = 0;
 			let after = 0;
 
@@ -118,19 +118,20 @@ test.describe('Compare Page', () => {
 		'A compare link restores both sides it names',
 		{ tag: ['@runs', '@url-params'] },
 		async ({ page }) => {
-		const comparePage = new RunDiffPage(page);
-		const [leftRunId, rightRunId] = firstTwoRunIds();
-		const link = { left: String(leftRunId), right: String(rightRunId) };
+			const comparePage = new RunDiffPage(page);
+			const [leftRunId, rightRunId] = comparableRunIds();
+			const link = { left: String(leftRunId), right: String(rightRunId) };
 
-		await given('a link that pins two runs to compare', () =>
-			expect(leftRunId).not.toBe(rightRunId)
-		);
-		await when('I open that link', () => comparePage.gotoWithParams(link));
-		await then('the diff is rendered', () => comparePage.expectLoaded());
-		await and('the link still carries both sides', () =>
-			comparePage.expectParams(link)
-		);
-	});
+			await given('a link that pins two runs to compare', () =>
+				expect(leftRunId).not.toBe(rightRunId)
+			);
+			await when('I open that link', () => comparePage.gotoWithParams(link));
+			await then('the diff is rendered', () => comparePage.expectLoaded());
+			await and('the link still carries both sides', () =>
+				comparePage.expectParams(link)
+			);
+		}
+	);
 });
 
 test.describe('Multiple Runs Page', () => {
@@ -150,7 +151,7 @@ test.describe('Multiple Runs Page', () => {
 	test('The multiple view switches which run is selected', async ({ page }) => {
 		const multiplePage = new RunMultiplePage(page);
 		const logPage = new LogPage(page);
-		const [firstRunId, secondRunId] = firstTwoRunIds();
+		const [firstRunId, secondRunId] = comparableRunIds();
 
 		await given('the fixture manifest describes two imported runs', () =>
 			expect(firstRunId).not.toBe(secondRunId)
@@ -182,7 +183,7 @@ test.describe('Multiple Runs Page', () => {
 				'Fixture manifest contains no NOK samples.'
 			);
 			const nokRunId = importedRunId(representative.bundle);
-			const otherRunId = firstTwoRunIds().find((id) => id !== nokRunId);
+			const otherRunId = comparableRunIds().find((id) => id !== nokRunId);
 
 			await given(
 				'I open the multiple page for a run with unexpected results',
@@ -211,66 +212,68 @@ test.describe('Multiple Runs Page', () => {
 		'A multiple-runs link restores every run it pins and the one it selected',
 		{ tag: ['@runs', '@url-params'] },
 		async ({ page }) => {
-		const multiplePage = new RunMultiplePage(page);
-		const [firstRunId, secondRunId] = firstTwoRunIds();
+			const multiplePage = new RunMultiplePage(page);
+			const [firstRunId, secondRunId] = comparableRunIds();
 
-		await given('a link that pins two runs and selects the second', () =>
-			expect(firstRunId).not.toBe(secondRunId)
-		);
-		await when('I open that link', async () => {
-			await multiplePage.gotoWithParams({
-				runIds: [String(firstRunId), String(secondRunId)],
-				selected: String(secondRunId)
+			await given('a link that pins two runs and selects the second', () =>
+				expect(firstRunId).not.toBe(secondRunId)
+			);
+			await when('I open that link', async () => {
+				await multiplePage.gotoWithParams({
+					runIds: [String(firstRunId), String(secondRunId)],
+					selected: String(secondRunId)
+				});
+				await multiplePage.expectLoaded();
 			});
-			await multiplePage.expectLoaded();
-		});
-		await then('the merged tree of both runs is shown', () =>
-			multiplePage.expectLoaded()
-		);
-		// `runIds` repeats its key rather than joining the ids — a scenario that
-		// expected a joined list would pin a link the page cannot read.
-		await and(
-			'the link still repeats both run ids and names the selection',
-			async () => {
-				await multiplePage.expectRunIdsPinned([firstRunId, secondRunId]);
-				await multiplePage.expectParams({ selected: String(secondRunId) });
-			}
-		);
-	});
+			await then('the merged tree of both runs is shown', () =>
+				multiplePage.expectLoaded()
+			);
+			// `runIds` repeats its key rather than joining the ids — a scenario that
+			// expected a joined list would pin a link the page cannot read.
+			await and(
+				'the link still repeats both run ids and names the selection',
+				async () => {
+					await multiplePage.expectRunIdsPinned([firstRunId, secondRunId]);
+					await multiplePage.expectParams({ selected: String(secondRunId) });
+				}
+			);
+		}
+	);
 
 	test(
 		'The multiple view falls back to the first run when the link names no selection',
 		{ tag: ['@runs', '@url-params'] },
 		async ({ page }) => {
-		const multiplePage = new RunMultiplePage(page);
-		const [firstRunId, secondRunId] = firstTwoRunIds();
+			const multiplePage = new RunMultiplePage(page);
+			const [firstRunId, secondRunId] = comparableRunIds();
 
-		await given('a link that pins two runs without naming a selection', () =>
-			expect(firstRunId).not.toBe(secondRunId)
-		);
-		await when('I open that link', async () => {
-			await multiplePage.gotoWithParams({
-				runIds: [String(firstRunId), String(secondRunId)]
+			await given('a link that pins two runs without naming a selection', () =>
+				expect(firstRunId).not.toBe(secondRunId)
+			);
+			await when('I open that link', async () => {
+				await multiplePage.gotoWithParams({
+					runIds: [String(firstRunId), String(secondRunId)]
+				});
+				await multiplePage.expectLoaded();
 			});
-			await multiplePage.expectLoaded();
-		});
-		await then('the merged tree of both runs is shown', () =>
-			multiplePage.expectLoaded()
-		);
-		// The fallback to `runIds[0]` is resolved on read and never written back,
-		// so the rendered state and the URL disagree on purpose. Writing it here
-		// would make every such link longer than it needs to be.
-		await and('no selection is written to the URL', () =>
-			multiplePage.expectParams({ selected: null })
-		);
-		await when('I select the second run', () =>
-			multiplePage.selectRun(secondRunId)
-		);
-		await then('the selection is recorded in the URL', () =>
-			multiplePage.expectParams({ selected: String(secondRunId) })
-		);
-		await and('both run ids are still pinned', () =>
-			multiplePage.expectRunIdsPinned([firstRunId, secondRunId])
-		);
-	});
+			await then('the merged tree of both runs is shown', () =>
+				multiplePage.expectLoaded()
+			);
+			// The fallback to `runIds[0]` is resolved on read and never written back,
+			// so the rendered state and the URL disagree on purpose. Writing it here
+			// would make every such link longer than it needs to be.
+			await and('no selection is written to the URL', () =>
+				multiplePage.expectParams({ selected: null })
+			);
+			await when('I select the second run', () =>
+				multiplePage.selectRun(secondRunId)
+			);
+			await then('the selection is recorded in the URL', () =>
+				multiplePage.expectParams({ selected: String(secondRunId) })
+			);
+			await and('both run ids are still pinned', () =>
+				multiplePage.expectRunIdsPinned([firstRunId, secondRunId])
+			);
+		}
+	);
 });
