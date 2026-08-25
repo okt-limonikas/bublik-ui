@@ -164,9 +164,7 @@ test.describe('Import Page', () => {
 			// drawer this link opens covers them, so `toBeVisible` on the Import
 			// button would fail on a page that worked exactly as intended.
 			await when('I open that link', () =>
-				page.goto(
-					`admin/import?${new URLSearchParams({ taskId, poll: '1' })}`
-				)
+				page.goto(`admin/import?${new URLSearchParams({ taskId, poll: '1' })}`)
 			);
 			// The drawer's open state is derived from `taskId` alone, so the link
 			// is the whole of what opens it.
@@ -181,8 +179,9 @@ test.describe('Import Page', () => {
 			});
 			// Both, not just `taskId`: a leftover `poll` would keep a closed
 			// drawer refetching for as long as the tab stayed open.
-			await then('the task and the polling flag are both dropped from the URL', () =>
-				url.expect({ taskId: null, poll: null })
+			await then(
+				'the task and the polling flag are both dropped from the URL',
+				() => url.expect({ taskId: null, poll: null })
 			);
 		}
 	);

@@ -631,8 +631,7 @@ test.describe('History Page', () => {
 			);
 			await when(
 				'I click a parameter badge that only some of the listed results carry',
-				() =>
-					historyPage.clickBadge('parameters', badge.rowIndex, badge.text)
+				() => historyPage.clickBadge('parameters', badge.rowIndex, badge.text)
 			);
 			await then('only the results carrying that parameter are listed', () =>
 				historyPage.expectRowsNarrowedTo('parameters', badge.text, before)
@@ -770,16 +769,19 @@ test.describe('History Page', () => {
 			await when('I click a parameter badge of the first group', () =>
 				historyPage.clickBadge('results-log', badge.rowIndex, badge.text)
 			);
-			await then('only the groups carrying that parameter are listed', async () => {
-				await historyPage.expectRowsNarrowedTo(
-					'results-log',
-					badge.text,
-					before
-				);
-				await expect
-					.poll(() => historyPage.rows().count(), { timeout: 30_000 })
-					.toBe(badge.matchingRows);
-			});
+			await then(
+				'only the groups carrying that parameter are listed',
+				async () => {
+					await historyPage.expectRowsNarrowedTo(
+						'results-log',
+						badge.text,
+						before
+					);
+					await expect
+						.poll(() => historyPage.rows().count(), { timeout: 30_000 })
+						.toBe(badge.matchingRows);
+				}
+			);
 		}
 	);
 
@@ -873,19 +875,22 @@ test.describe('History Page', () => {
 			await and('the URL is back on the first page', () =>
 				historyPage.expectParams({ page: '1' })
 			);
-			await and('the history request carries the parameters as test args', () => {
-				// The last request is the one the applied filter produced; earlier
-				// ones may still belong to the query it replaced.
-				const sent = (
-					new URL(requests[requests.length - 1].url()).searchParams.get(
-						'test_args'
-					) ?? ''
-				).split(';');
+			await and(
+				'the history request carries the parameters as test args',
+				() => {
+					// The last request is the one the applied filter produced; earlier
+					// ones may still belong to the query it replaced.
+					const sent = (
+						new URL(requests[requests.length - 1].url()).searchParams.get(
+							'test_args'
+						) ?? ''
+					).split(';');
 
-				for (const parameter of parameters) {
-					expect(sent).toContain(parameter);
+					for (const parameter of parameters) {
+						expect(sent).toContain(parameter);
+					}
 				}
-			});
+			);
 		}
 	);
 
@@ -906,8 +911,7 @@ test.describe('History Page', () => {
 					await openBadgeCase(historyPage, 'linear');
 					before = await historyPage.rows().count();
 
-					const badge =
-						await historyPage.pickDiscriminatingBadge('parameters');
+					const badge = await historyPage.pickDiscriminatingBadge('parameters');
 					await historyPage.clickBadge(
 						'parameters',
 						badge.rowIndex,
@@ -1715,16 +1719,18 @@ test.describe('History Page', () => {
 			});
 			// `;`-joined, unlike the series filters on the same page, which repeat
 			// their key — the two encodings must not be confused.
-			await then('both chart ids are recorded in the URL as combined plots', () =>
-				expect
-					.poll(
-						() =>
-							(historyPage.paramValue('combinedPlots') ?? '')
-								.split(';')
-								.filter(Boolean).length,
-						{ timeout: 15_000, message: 'chart ids in combinedPlots' }
-					)
-					.toBe(2)
+			await then(
+				'both chart ids are recorded in the URL as combined plots',
+				() =>
+					expect
+						.poll(
+							() =>
+								(historyPage.paramValue('combinedPlots') ?? '')
+									.split(';')
+									.filter(Boolean).length,
+							{ timeout: 15_000, message: 'chart ids in combinedPlots' }
+						)
+						.toBe(2)
 			);
 			await and('the chart group is recorded in the URL', () =>
 				historyPage.expectParamsPresent(['chart-group'])
@@ -1805,10 +1811,13 @@ test.describe('History Page', () => {
 			});
 			// The sidebar writes through its own state writer rather than the
 			// search form, so this is the path most likely to drop the query.
-			await when('I switch to the grouped results from the sidebar', async () => {
-				await page.getByRole('link', { name: 'Groups Of Results' }).click();
-				await historyPage.expectModeReady('aggregation');
-			});
+			await when(
+				'I switch to the grouped results from the sidebar',
+				async () => {
+					await page.getByRole('link', { name: 'Groups Of Results' }).click();
+					await historyPage.expectModeReady('aggregation');
+				}
+			);
 			await then('the mode is recorded in the URL', () =>
 				historyPage.expectParams({ mode: 'aggregation' })
 			);
@@ -1851,13 +1860,18 @@ test.describe('History Page', () => {
 			// An ArrayParam, so one key per value — the sibling list parameters on
 			// this page join with `;` instead, and a test that checked for a joined
 			// string here would pass against a filter matching nothing.
-			await then('the parameter filter is recorded in the URL as a repeated key', () =>
-				expect
-					.poll(() => historyPage.paramValues('parametersByResultFilter').length, {
-						timeout: 15_000,
-						message: 'repeated parametersByResultFilter keys'
-					})
-					.toBeGreaterThan(0)
+			await then(
+				'the parameter filter is recorded in the URL as a repeated key',
+				() =>
+					expect
+						.poll(
+							() => historyPage.paramValues('parametersByResultFilter').length,
+							{
+								timeout: 15_000,
+								message: 'repeated parametersByResultFilter keys'
+							}
+						)
+						.toBeGreaterThan(0)
 			);
 			await when('I reload the page', () => page.reload());
 			await then('the parameter filter is still recorded in the URL', () =>
@@ -1887,8 +1901,9 @@ test.describe('History Page', () => {
 				runProperties: 'notcompromised'
 			};
 
-			await given('a link that pins every expression filter the form offers', () =>
-				expect(Object.values(link).every(Boolean)).toBe(true)
+			await given(
+				'a link that pins every expression filter the form offers',
+				() => expect(Object.values(link).every(Boolean)).toBe(true)
 			);
 
 			// Armed before navigating, and matched on the endpoint alone — a broken
@@ -1918,39 +1933,42 @@ test.describe('History Page', () => {
 
 	// Assertions are encapsulated by HistoryPage.
 	// eslint-disable-next-line playwright/expect-expect
-	test('A history link is read back into the search form', HISTORY_URL, async ({
-		page
-	}) => {
-		const historyPage = new HistoryPage(page);
-		const form = historyPage.globalSearchForm;
-		const range = dateRange();
-		const link = {
-			testName: firstHistoryTestPath(),
-			startDate: range.startDate,
-			finishDate: range.finishDate,
-			hash: 'abc123',
-			tagExpr: 'medford'
-		};
+	test(
+		'A history link is read back into the search form',
+		HISTORY_URL,
+		async ({ page }) => {
+			const historyPage = new HistoryPage(page);
+			const form = historyPage.globalSearchForm;
+			const range = dateRange();
+			const link = {
+				testName: firstHistoryTestPath(),
+				startDate: range.startDate,
+				finishDate: range.finishDate,
+				hash: 'abc123',
+				tagExpr: 'medford'
+			};
 
-		await given('a link that pins a test path, a hash and a tag expression', () =>
-			expect(link.hash).toBe('abc123')
-		);
-		await when('I open that link and edit the search', async () => {
-			await historyPage.gotoWithParams(link);
-			await historyPage.expectReady();
-			await historyPage.openGlobalSearchForm();
-		});
-		// The recipient of a shared link has to be able to edit the query without
-		// retyping it, which only works if the URL hydrates the form on mount.
-		await then(
-			'the form shows the test path, the hash and the tag expression the link pinned',
-			async () => {
-				await expect(form.testPathInput).toHaveValue(link.testName, {
-					timeout: 15_000
-				});
-				await expect(form.hashInput).toHaveValue(link.hash);
-				await expect(form.tagExpressionInput).toHaveValue(link.tagExpr);
-			}
-		);
-	});
+			await given(
+				'a link that pins a test path, a hash and a tag expression',
+				() => expect(link.hash).toBe('abc123')
+			);
+			await when('I open that link and edit the search', async () => {
+				await historyPage.gotoWithParams(link);
+				await historyPage.expectReady();
+				await historyPage.openGlobalSearchForm();
+			});
+			// The recipient of a shared link has to be able to edit the query without
+			// retyping it, which only works if the URL hydrates the form on mount.
+			await then(
+				'the form shows the test path, the hash and the tag expression the link pinned',
+				async () => {
+					await expect(form.testPathInput).toHaveValue(link.testName, {
+						timeout: 15_000
+					});
+					await expect(form.hashInput).toHaveValue(link.hash);
+					await expect(form.tagExpressionInput).toHaveValue(link.tagExpr);
+				}
+			);
+		}
+	);
 });

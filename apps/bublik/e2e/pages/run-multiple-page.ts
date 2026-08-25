@@ -48,7 +48,6 @@ class RunMultiplePage {
 		await expect(this.page).toHaveURL(/\/multiple(?:$|\?)/);
 	}
 
-
 	async gotoWithParams(
 		params: Record<string, string | string[]>
 	): Promise<void> {
@@ -78,7 +77,6 @@ class RunMultiplePage {
 	): Promise<void> {
 		await this.url.expectUnchangedWhile(keys, action);
 	}
-
 
 	async expectLoaded(): Promise<void> {
 		await expect(this.page.getByTestId('run-multiple-page')).toBeVisible({

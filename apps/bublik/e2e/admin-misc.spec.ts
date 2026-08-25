@@ -50,8 +50,9 @@ test.describe('Admin Tools', () => {
 				page_size: '200'
 			};
 
-			await given('a link that pins an event type, a path and a page size', () =>
-				expect(link.page_size).toBe('200')
+			await given(
+				'a link that pins an event type, a path and a page size',
+				() => expect(link.page_size).toBe('200')
 			);
 			await when('I open that link', () =>
 				page.goto(`admin/analytics?${new URLSearchParams(link)}`)
@@ -64,8 +65,9 @@ test.describe('Admin Tools', () => {
 			// This page names its parameters after the API rather than after the
 			// rest of the app, so a rename applied on one side only shows up here
 			// as a link the page no longer round-trips.
-			await and('the link still carries every parameter it was opened with', () =>
-				urlParams(page).expect(link)
+			await and(
+				'the link still carries every parameter it was opened with',
+				() => urlParams(page).expect(link)
 			);
 		}
 	);

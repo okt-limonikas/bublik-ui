@@ -376,9 +376,7 @@ class RunsPage {
 	): Promise<DiscriminatingBadge> {
 		const inColumn = await this.badgeTextsByRun(columnId);
 		const everywhere = await this.allBadgeTextsByRun();
-		const candidates = new Set(
-			[...inColumn.values()].flat().filter(Boolean)
-		);
+		const candidates = new Set([...inColumn.values()].flat().filter(Boolean));
 
 		for (const text of candidates) {
 			const withIt = [...everywhere]
@@ -444,7 +442,9 @@ class RunsPage {
 		text: string
 	): Promise<void> {
 		await expect(
-			this.badges(runId, columnId).filter({ hasText: exactText(text) }).first()
+			this.badges(runId, columnId)
+				.filter({ hasText: exactText(text) })
+				.first()
 		).toHaveAttribute('data-badge-selected', '', { timeout: 15_000 });
 	}
 
@@ -457,9 +457,9 @@ class RunsPage {
 			await expect
 				.poll(
 					() =>
-						(
-							new URL(this.page.url()).searchParams.get('runData') ?? ''
-						).split(';'),
+						(new URL(this.page.url()).searchParams.get('runData') ?? '').split(
+							';'
+						),
 					{ timeout: 15_000, message: `runData should carry "${payload}"` }
 				)
 				.toContain(payload);
@@ -715,9 +715,4 @@ class RunsPage {
 }
 
 export { RUNS_URL_PARAMS, RunsPage };
-export type {
-	DiscriminatingBadge,
-	RunsBadgeColumn,
-	RunsMode,
-	RunsUrlParam
-};
+export type { DiscriminatingBadge, RunsBadgeColumn, RunsMode, RunsUrlParam };

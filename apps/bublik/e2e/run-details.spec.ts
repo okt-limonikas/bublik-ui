@@ -1189,16 +1189,19 @@ test.describe('Run Details Page', () => {
 			});
 			// A clean context, so the restored tree cannot be coming from the
 			// localStorage fallbacks the same session would still have.
-			await when('I open the link that produced in a clean session', async () => {
-				const context = await browser.newContext();
-				const fresh = await context.newPage();
-				const freshRun = new RunPage(fresh);
+			await when(
+				'I open the link that produced in a clean session',
+				async () => {
+					const context = await browser.newContext();
+					const fresh = await context.newPage();
+					const freshRun = new RunPage(fresh);
 
-				await fresh.goto(link);
-				await freshRun.expectLoaded(expectedRun.name);
-				await freshRun.expectExpandedRowNames(expandedBefore);
-				await context.close();
-			});
+					await fresh.goto(link);
+					await freshRun.expectLoaded(expectedRun.name);
+					await freshRun.expectExpandedRowNames(expandedBefore);
+					await context.close();
+				}
+			);
 			await then('the same rows are expanded', () =>
 				expect(expandedBefore.length).toBeGreaterThan(0)
 			);
@@ -1286,10 +1289,13 @@ test.describe('Run Details Page', () => {
 			const runPage = new RunPage(page);
 			const { expectedRun, runId } = nokRun();
 
-			await given('the dashboard lists a run with unexpected results', async () => {
-				await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
-				await dashboard.expectRunIdVisible(runId);
-			});
+			await given(
+				'the dashboard lists a run with unexpected results',
+				async () => {
+					await dashboard.goto(expectedRun.dashboardDate, { mode: 'rows' });
+					await dashboard.expectRunIdVisible(runId);
+				}
+			);
 			await when("I click the run's NOK counter", () =>
 				dashboard.openUnexpected(runId)
 			);

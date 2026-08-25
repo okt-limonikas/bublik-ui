@@ -616,8 +616,9 @@ test.describe('Runs Page', () => {
 			await and('the form shows the tag expression the link pinned', () =>
 				runsPage.expectTagExprInput(link.tagExpr)
 			);
-			await and('the link still carries every parameter it was opened with', () =>
-				runsPage.expectParams(link)
+			await and(
+				'the link still carries every parameter it was opened with',
+				() => runsPage.expectParams(link)
 			);
 		}
 	);
@@ -655,8 +656,9 @@ test.describe('Runs Page', () => {
 				runsPage.expectParams({ page: '2', pageSize: '1' })
 			);
 			await when('I reload the page', () => page.reload());
-			await then('the page and the page size are still recorded in the URL', () =>
-				runsPage.expectParams({ page: '2', pageSize: '1' })
+			await then(
+				'the page and the page size are still recorded in the URL',
+				() => runsPage.expectParams({ page: '2', pageSize: '1' })
 			);
 			await and('the runs table is listing results again', () =>
 				runsPage.expectTableLoaded()
@@ -713,14 +715,17 @@ test.describe('Runs Page', () => {
 			// A short window that reaches no fixture run is fine here: this
 			// scenario is about which keys survive a reset, and waiting for rows
 			// would make it fail as an empty table instead.
-			await given('I open the runs page with a duration window applied', async () => {
-				await runsPage.gotoWithParams({
-					calendarMode: 'duration',
-					duration: 'P7D',
-					mode: 'table'
-				});
-				await runsPage.expectReady();
-			});
+			await given(
+				'I open the runs page with a duration window applied',
+				async () => {
+					await runsPage.gotoWithParams({
+						calendarMode: 'duration',
+						duration: 'P7D',
+						mode: 'table'
+					});
+					await runsPage.expectReady();
+				}
+			);
 			// Reset deletes the key rather than emptying it, so `null` and not ''.
 			await when('I reset the form', () => runsPage.resetForm());
 			await then('the duration is dropped from the URL', () =>
@@ -748,8 +753,9 @@ test.describe('Runs Page', () => {
 				mode: 'table'
 			};
 
-			await given('a link that pins a duration alongside a stale date range', () =>
-				expect(link.duration).toMatch(/^P\d+D$/)
+			await given(
+				'a link that pins a duration alongside a stale date range',
+				() => expect(link.duration).toMatch(/^P\d+D$/)
 			);
 			await when('I open that link', () => runsPage.gotoWithParams(link));
 			await then('the runs table is listing results again', () =>
@@ -773,12 +779,15 @@ test.describe('Runs Page', () => {
 			const runsPage = new RunsPage(page);
 			let runIds: [number, number];
 
-			await given('the runs table lists two runs imported on a fixture date', async () => {
-				const pair = runPair();
-				runIds = pair.runIds;
-				await runsPage.gotoForDate(pair.date);
-				await runsPage.expectTableLoaded();
-			});
+			await given(
+				'the runs table lists two runs imported on a fixture date',
+				async () => {
+					const pair = runPair();
+					runIds = pair.runIds;
+					await runsPage.gotoForDate(pair.date);
+					await runsPage.expectTableLoaded();
+				}
+			);
 			await when('I select both rows', async () => {
 				for (const runId of runIds) {
 					await runsPage.expectRowVisible(runId);

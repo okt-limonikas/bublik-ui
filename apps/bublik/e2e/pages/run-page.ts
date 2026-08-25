@@ -388,9 +388,9 @@ class RunPage {
 	}
 
 	artifactBadges(table: Locator, index = 0): Locator {
-		return this.resultCells(table, 'artifacts').nth(index).getByTestId(
-			'tw-badge'
-		);
+		return this.resultCells(table, 'artifacts')
+			.nth(index)
+			.getByTestId('tw-badge');
 	}
 
 	/** Parameters are bare buttons, not Badges — they carry the diff highlight. */
@@ -534,7 +534,11 @@ class RunPage {
 			})
 			.toBeLessThan(before);
 
-		const byRow = await this.resultValuesByRow(table, 'obtained-result', 'result');
+		const byRow = await this.resultValuesByRow(
+			table,
+			'obtained-result',
+			'result'
+		);
 
 		expect(byRow.length).toBeGreaterThan(0);
 		for (const values of byRow) {
@@ -555,9 +559,7 @@ class RunPage {
 	 * reflection of the result table's filter state.
 	 */
 	facetedFilter(table: Locator, title: ResultFilterTitle): Locator {
-		return table
-			.getByRole('button', { name: new RegExp(`^${title}`) })
-			.first();
+		return table.getByRole('button', { name: new RegExp(`^${title}`) }).first();
 	}
 
 	async expectToolbarVisible(table: Locator): Promise<void> {
@@ -613,7 +615,6 @@ class RunPage {
 		await this.url.expectWritten('columnFilters');
 	}
 
-
 	/**
 	 * Deep-links a run with an arbitrary query string, so a scenario can open a
 	 * link the way a user who was sent one does. Values for the compressed
@@ -652,7 +653,6 @@ class RunPage {
 	paramValue(key: string): string | null {
 		return this.url.get(key);
 	}
-
 
 	/** `globalRequirements` repeats its key rather than joining the values. */
 	async expectRepeatedParam(

@@ -79,7 +79,6 @@ class MeasurementsPage {
 		).toBeVisible();
 	}
 
-
 	async gotoWithParams(
 		runId: number,
 		resultId: string | number,

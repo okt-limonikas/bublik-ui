@@ -561,7 +561,10 @@ class HistoryPage {
 	}
 
 	/** The first badge of a result block is the result type; the rest verdicts. */
-	obtainedResultBadge(rowIndex = 0, columnId: HistoryColumn = 'obtained-results'): Locator {
+	obtainedResultBadge(
+		rowIndex = 0,
+		columnId: HistoryColumn = 'obtained-results'
+	): Locator {
 		return this.badges(columnId, rowIndex).first();
 	}
 

@@ -805,18 +805,21 @@ test.describe('Run Report Page', () => {
 			await and('the page reports two charts selected', () =>
 				reportPage.expectSelectedChartCount(2)
 			);
-			await and('the link still carries every parameter it was opened with', async () => {
-				await reportPage.expectParams({
-					config: String(fixture.configId),
-					isFullMode: '0'
-				});
-				// An ArrayParam: one key per record, in the order the stacked view
-				// draws them.
-				await reportPage.expectSearchParamValues('selected-records', [
-					first.id,
-					second.id
-				]);
-			});
+			await and(
+				'the link still carries every parameter it was opened with',
+				async () => {
+					await reportPage.expectParams({
+						config: String(fixture.configId),
+						isFullMode: '0'
+					});
+					// An ArrayParam: one key per record, in the order the stacked view
+					// draws them.
+					await reportPage.expectSearchParamValues('selected-records', [
+						first.id,
+						second.id
+					]);
+				}
+			);
 		}
 	);
 
@@ -842,11 +845,14 @@ test.describe('Run Report Page', () => {
 			// whole-query comparison would fail on a parameter this is not about.
 			const pinned = ['config', 'selected-records'];
 
-			await given('I have added two records to the stacked selection', async () => {
-				await reportPage.addRecordToStacked(first.id);
-				await reportPage.addRecordToStacked(second.id);
-				await reportPage.expectSelectedChartCount(2);
-			});
+			await given(
+				'I have added two records to the stacked selection',
+				async () => {
+					await reportPage.addRecordToStacked(first.id);
+					await reportPage.addRecordToStacked(second.id);
+					await reportPage.expectSelectedChartCount(2);
+				}
+			);
 			await when('I toggle the run details mode', () =>
 				reportPage.expectParamsUnchangedWhile(pinned, async () => {
 					await reportPage.toggleRunDetailsMode();

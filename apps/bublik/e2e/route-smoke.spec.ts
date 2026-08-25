@@ -141,12 +141,17 @@ test.describe('Navigation', () => {
 			// The scope is re-injected by navigateWithProject on every
 			// programmatic navigation, so it is the parameter most easily lost by
 			// a change to any one page — and least likely to be noticed there.
-			await when('I move to the runs page and then to the history page', async () => {
-				await page.getByRole('link', { name: 'Runs', exact: true }).click();
-				await runsPage.expectParams({ project: projectId });
-				await page.getByRole('link', { name: 'History', exact: true }).click();
-				await historyPage.expectReady();
-			});
+			await when(
+				'I move to the runs page and then to the history page',
+				async () => {
+					await page.getByRole('link', { name: 'Runs', exact: true }).click();
+					await runsPage.expectParams({ project: projectId });
+					await page
+						.getByRole('link', { name: 'History', exact: true })
+						.click();
+					await historyPage.expectReady();
+				}
+			);
 			await then('each page is still scoped to that project', () =>
 				historyPage.expectParams({ project: projectId })
 			);
@@ -175,10 +180,7 @@ test.describe('Navigation', () => {
 			// entries the encoder drops when the payload runs out of budget —
 			// which is what makes it safe to assert after a navigation.
 			await then('the compressed sidebar state names that run', () =>
-				sidebar.expectAlias(
-					SIDEBAR_ALIASES.currentRunId,
-					String(runCase.runId)
-				)
+				sidebar.expectAlias(SIDEBAR_ALIASES.currentRunId, String(runCase.runId))
 			);
 			await and('it decodes at the version the app writes', () =>
 				sidebar.expectVersion()

@@ -202,7 +202,11 @@ test.describe('Measurements Page', () => {
 		{ tag: ['@measurements', '@url-params', '@needs-measurements'] },
 		async ({ page, request }) => {
 			const measurementsPage = new MeasurementsPage(page);
-			let link: { runId: number; resultId: string | number; chartIds: string[] };
+			let link: {
+				runId: number;
+				resultId: string | number;
+				chartIds: string[];
+			};
 
 			await given(
 				'a link that pins the overlay layout and two selected charts',
@@ -236,15 +240,19 @@ test.describe('Measurements Page', () => {
 			const measurementsPage = new MeasurementsPage(page);
 			let chartIds: string[] = [];
 
-			await given('I open the measurements page in the charts layout', async () => {
-				const selection = await selectTwoCharts(page, request);
-				chartIds = selection.chartIds;
-			});
+			await given(
+				'I open the measurements page in the charts layout',
+				async () => {
+					const selection = await selectTwoCharts(page, request);
+					chartIds = selection.chartIds;
+				}
+			);
 			await when('I select two charts', () =>
 				expect(new Set(chartIds).size).toBe(2)
 			);
-			await then('each chart id is written as its own repeated key in the URL', () =>
-				measurementsPage.expectSelectedCharts(chartIds)
+			await then(
+				'each chart id is written as its own repeated key in the URL',
+				() => measurementsPage.expectSelectedCharts(chartIds)
 			);
 			await when('I reload the page', async () => {
 				await page.reload();
