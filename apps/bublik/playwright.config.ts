@@ -1,36 +1,67 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { defineConfig, devices } from '@playwright/test';
+import type { ReporterDescription } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { workspaceRoot } from '@nx/devkit';
-// For CI, you may want to set BASE_URL to the deployed application.
-const baseURL = process.env['BASE_URL'] || 'http://localhost:3000';
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// require('dotenv').config();
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+
+const baseURL = process.env['BASE_URL'] || 'http://localhost:4400/v2/';
+
+// The preset supplies the reporters (html always, blob under CI). Capture it so
+// the json reporter can be appended: setting `reporter` after the spread would
+// replace the preset's list wholesale and silently drop both.
+const preset = nxE2EPreset(__filename, { testDir: './e2e' });
+
 export default defineConfig({
-	...nxE2EPreset(__filename, { testDir: './e2e' }),
-	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+	...preset,
+	// Machine-readable results, converted into an importable Bublik bundle by
+	// `bublik-e2e playwright --report <this file> --publish-dir <results dir>`.
+	// `outputFile` resolves against this config's directory, hence the ../../.
+	reporter: [
+		...((preset.reporter ?? []) as ReporterDescription[]),
+		['json', { outputFile: '../../dist/.playwright/apps/bublik/results.json' }]
+	],
+	timeout: 60_000,
+	expect: { timeout: 15_000 },
+	fullyParallel: false,
 	use: {
 		baseURL,
-		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-		trace: 'on-first-retry'
+		actionTimeout: 15_000,
+		navigationTimeout: 30_000,
+		screenshot: 'only-on-failure',
+		trace: 'retain-on-failure',
+		video: 'retain-on-failure'
 	},
-	/* Run your local dev server before starting the tests */ // webServer: {
-	//   command: 'npm run start',
-	//   url: 'http://127.0.0.1:3000',
-	//   reuseExistingServer: !process.env.CI,
-	//   cwd: workspaceRoot,
-	// },
 	projects: [
-		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-		{ name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-		{ name: 'webkit', use: { ...devices['Desktop Safari'] } }
+		{ name: 'auth', testMatch: 'auth.setup.ts' },
+		{
+			name: 'import',
+			testMatch: 'import.setup.ts',
+			use: { storageState: 'e2e/.auth/state.json' },
+			dependencies: ['auth']
+		},
+		{
+			name: 'chromium',
+			use: {
+				...devices['Desktop Chrome'],
+				storageState: 'e2e/.auth/state.json'
+			},
+			dependencies: ['auth', 'import']
+		},
+		{
+			name: 'firefox',
+			use: {
+				...devices['Desktop Firefox'],
+				storageState: 'e2e/.auth/state.json'
+			},
+			dependencies: ['auth', 'import']
+		},
+		{
+			name: 'webkit',
+			use: {
+				...devices['Desktop Safari'],
+				storageState: 'e2e/.auth/state.json'
+			},
+			dependencies: ['auth', 'import']
+		}
 	]
 });

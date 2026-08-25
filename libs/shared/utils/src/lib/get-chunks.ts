@@ -23,7 +23,11 @@ export const getChunks = <T>({
 		const current = data[i];
 
 		if (skip?.(current)) {
-			if (!equality(last, current) && last && current) {
+			// `lastUniqueIdx < i` matters when the previous item was skipped too:
+			// it left `lastUniqueIdx` at `i`, so the slice below would be empty.
+			// Callers index into a chunk (compressTests reads `chunk[0]`), so an
+			// empty one is not a harmless extra — it throws.
+			if (!equality(last, current) && last && current && lastUniqueIdx < i) {
 				result.push(data.slice(lastUniqueIdx, i));
 			}
 
