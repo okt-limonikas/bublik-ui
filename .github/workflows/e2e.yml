@@ -49,7 +49,7 @@ on:
       bublik_e2e_ref:
         description: 'bublik-e2e CLI branch, tag, or SHA'
         required: false
-        default: '50e427a'
+        default: 'ff8c170'
         type: string
 
   workflow_call:
@@ -84,7 +84,7 @@ on:
         type: string
       bublik_e2e_ref:
         required: false
-        default: '50e427a'
+        default: 'ff8c170'
         type: string
 
 permissions:
@@ -209,7 +209,7 @@ jobs:
                   f"{owner}/bublik-e2e",
               ),
               "bublik_e2e_ref": select(
-                  "INPUT_BUBLIK_E2E_REF", "bublik_e2e_ref", "50e427a"
+                  "INPUT_BUBLIK_E2E_REF", "bublik_e2e_ref", "ff8c170"
               ),
           }
 
