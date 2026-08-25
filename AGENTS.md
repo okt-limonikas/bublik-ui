@@ -96,9 +96,9 @@ Centralized error handling via `getErrorMessage` from `@/services/bublik-api`:
 - Test data comes from the fixture manifest (`requireManifest()`), never from
   hardcoded run ids; missing fixture data must fail via `requireCapability`
   rather than skip
-- The stack is dockerized: `task e2e:up && task e2e:seed && task e2e` from
-  `bublik-docker`. App source changes only reach the suite after `task build`,
-  since the served UI is baked into the image
+- The stack is dockerized: `task e2e:up && task e2e:seed && task e2e:test` from
+  `bublik-docker`. App source changes only reach the suite after a rebuild
+  (`task e2e:up` does one), since the served UI is baked into the image
 
 ### UI Styling
 - **Tailwind CSS** with `@/shared/tailwind-ui` components

@@ -14,7 +14,7 @@ const preset = nxE2EPreset(__filename, { testDir: './e2e' });
 export default defineConfig({
 	...preset,
 	// Machine-readable results, converted into an importable Bublik bundle by
-	// `bublik-e2e playwright` (see `task e2e:report:bundle` in bublik-docker).
+	// `bublik-e2e playwright --report <this file> --publish-dir <results dir>`.
 	// `outputFile` resolves against this config's directory, hence the ../../.
 	reporter: [
 		...((preset.reporter ?? []) as ReporterDescription[]),

@@ -136,11 +136,14 @@ jobs:
               "bublik_e2e_ref",
           }
           body = os.environ.get("PR_BODY", "")
+          # A fenced block with a `bublik-e2e` info string, not an HTML comment:
+          # GitHub renders an unknown info string as a plain code block, so the
+          # pins a run used are visible to anyone reading the PR.
           block_pattern = re.compile(
-              r"<!--\s*bublik-e2e[ \t]*\r?\n(.*?)\r?\n[ \t]*-->",
-              re.DOTALL,
+              r"^[ \t]*```[ \t]*bublik-e2e[ \t]*\r?$\r?\n(.*?)^[ \t]*```[ \t]*\r?$",
+              re.DOTALL | re.MULTILINE,
           )
-          markers = re.findall(r"<!--[ \t]*bublik-e2e\b", body)
+          markers = re.findall(r"^[ \t]*```[ \t]*bublik-e2e\b", body, re.MULTILINE)
           blocks = block_pattern.findall(body)
 
           if len(markers) != len(blocks):
@@ -344,8 +347,8 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: bublik-docker/bublik-ui/pnpm-lock.yaml
 
-      # The app is built inside Docker; these node_modules are mounted into the
-      # official Playwright container that runs the suite (no host browsers).
+      # The app itself is built inside Docker; these node_modules are what the
+      # Playwright suite runs from, on the host.
       - name: Install frontend node_modules
         working-directory: bublik-docker/bublik-ui
         run: pnpm install --frozen-lockfile
@@ -357,6 +360,20 @@ jobs:
           VERSION="$(node -e "console.log(require('@playwright/test/package.json').version)")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Playwright version: $VERSION"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Browsers matching the pnpm-pinned @playwright/test, rather than the
+      # official container image (whose tag has to exist for every version we
+      # bump to). --with-deps runs even on a cache hit: the binaries are cached
+      # but their apt libraries are not, and webkit will not start without them.
+      - name: Install Playwright browsers
+        working-directory: bublik-docker/bublik-ui
+        run: pnpm exec playwright install --with-deps
 
       # The Playwright suite's manifest types are generated from the CLI's
       # Pydantic schema; fail fast (before the docker build) when they drifted.
@@ -381,13 +398,12 @@ jobs:
           } >> .env
           mkdir -p data/logs/logs
 
-      - name: Build stack from source
-        working-directory: bublik-docker
-        run: task build
-
+      # Builds the images and waits until the API, UI, logs and Celery answer.
+      # Seeding is a separate task on purpose — the chmod below has to land
+      # between the two.
       - name: Start services
         working-directory: bublik-docker
-        run: task e2e:up:fresh
+        run: task e2e:up
 
       # The containers chown data/logs to www-data; the host bublik-e2e tool runs
       # as the runner user (not in that group) and must write the fixture bundles
@@ -404,24 +420,11 @@ jobs:
         working-directory: bublik-docker
         run: task e2e:seed
 
-      # Run Playwright from the official image (browsers preinstalled) instead
-      # of downloading them on the host. --network host lets the container reach
-      # the compose stack (network_mode: host) on 127.0.0.1; the workspace is
-      # mounted so it reuses the node_modules installed above.
+      # BASE_URL and BUBLIK_E2E_RUN_OVERVIEW come from the task's environment,
+      # so they are defined in exactly one place for CI and local runs alike.
       - name: Run e2e tests (Playwright)
-        run: |
-          docker run --rm --network host \
-            --user "$(id -u):$(id -g)" \
-            -e HOME=/work/bublik-ui \
-            -e CI=1 \
-            -e BASE_URL=http://127.0.0.1/v2/ \
-            -e BUBLIK_E2E_RUN_OVERVIEW=../.e2e/e2e-manifest.json \
-            -e BUBLIK_E2E_EMAIL="$BUBLIK_E2E_EMAIL" \
-            -e BUBLIK_E2E_PASSWORD="$BUBLIK_E2E_PASSWORD" \
-            -v "${{ github.workspace }}/bublik-docker:/work" \
-            -w /work/bublik-ui \
-            mcr.microsoft.com/playwright:v${{ steps.playwright.outputs.version }}-noble \
-            ./node_modules/.bin/playwright test --config apps/bublik/playwright.config.ts
+        working-directory: bublik-docker
+        run: task e2e:test
 
       - name: Dump service logs on failure
         if: ${{ failure() }}
@@ -440,7 +443,7 @@ jobs:
             bublik-docker/.e2e/e2e-manifest.json
           if-no-files-found: ignore
 
-      - name: Tear down fresh e2e stack
+      - name: Tear down the e2e stack
         if: ${{ always() }}
         working-directory: bublik-docker
-        run: task e2e:down:fresh
+        run: task e2e:down
