@@ -201,5 +201,11 @@ export const {
 	useGetRunIssuesQuery,
 	useGetRunIssueResultsQuery,
 	useGetIssueResultsQuery,
-	useGetIssuesFacetsQuery
+	useGetIssuesFacetsQuery,
+	useCreateIssueMutation,
+	useUpdateIssueMutation,
+	useDeleteIssueMutation,
+	useCreateRuleMutation,
+	useUpdateRuleMutation,
+	useDeleteRuleMutation
 } = bublikAPI;
