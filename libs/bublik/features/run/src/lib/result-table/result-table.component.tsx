@@ -600,7 +600,8 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 			// passing result with no stamps has none, and matches no selection.
 			const rowClassification = resultClassification({
 				issues: row.issues,
-				hasError: row.has_error
+				hasError: row.has_error,
+				effectiveExpected: row.effective_expected
 			});
 			const hasClassification =
 				exclude === 'classifications' ||
@@ -720,7 +721,11 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 		const present = new Map(
 			filteredDataWithoutClassifications
 				.map((row) =>
-					resultClassification({ issues: row.issues, hasError: row.has_error })
+					resultClassification({
+						issues: row.issues,
+						hasError: row.has_error,
+						effectiveExpected: row.effective_expected
+					})
 				)
 				.filter((meta) => meta !== null)
 				.map((meta) => [meta.value, meta] as const)

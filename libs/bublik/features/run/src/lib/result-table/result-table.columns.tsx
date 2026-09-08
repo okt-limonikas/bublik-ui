@@ -100,6 +100,9 @@ export const getColumns = ({
 		helper.accessor(
 			(data) => ({
 				isNotExpected: data.has_error,
+				// `has_error` is already suppressed server-side, so it cannot tell a
+				// held-back failure from a pass. This can.
+				effectiveExpected: data.effective_expected,
 				verdicts: data.obtained_result.verdicts,
 				result: data.obtained_result.result_type,
 				issues: data.issues,
@@ -156,6 +159,7 @@ export const getColumns = ({
 								<ClassificationVerdict
 									issues={obtainedResult.issues}
 									hasError={obtainedResult.isNotExpected}
+									effectiveExpected={obtainedResult.effectiveExpected}
 									resultId={obtainedResult.resultId}
 									projectId={obtainedResult.projectId}
 									withLeadingSeparator={false}
@@ -227,6 +231,7 @@ export const getColumns = ({
 									<ClassificationVerdict
 										issues={obtainedResult.issues}
 										hasError={obtainedResult.isNotExpected}
+										effectiveExpected={obtainedResult.effectiveExpected}
 										resultId={obtainedResult.resultId}
 										projectId={obtainedResult.projectId}
 									/>
@@ -254,6 +259,7 @@ export const getColumns = ({
 				) => {
 					const value = row.getValue(column) as {
 						isNotExpected?: boolean;
+						effectiveExpected?: boolean;
 						result?: RESULT_TYPE;
 						verdicts?: string[];
 						issues?: ResultIssueRef[];
@@ -300,7 +306,8 @@ export const getColumns = ({
 					// it shows no chip, so no chip's filter should claim it.
 					const classification = resultClassification({
 						issues: value.issues,
-						hasError: Boolean(value.isNotExpected)
+						hasError: Boolean(value.isNotExpected),
+						effectiveExpected: value.effectiveExpected
 					});
 					const matchesClassifications =
 						!filterValue.classifications?.length ||
