@@ -9,6 +9,7 @@ import {
 } from 'use-query-params';
 import type {
 	ColumnFiltersState,
+	ExpandedState,
 	OnChangeFn,
 	PaginationState,
 	SortingState,
@@ -24,6 +25,7 @@ import {
 } from './classification-table.constants';
 import {
 	ColumnsParam,
+	ExpandedParam,
 	FacetParam,
 	PageParam,
 	SearchParam,
@@ -38,6 +40,7 @@ import type {
 } from './classification-table.types';
 
 const EMPTY_SORTING: SortingState = [];
+const EMPTY_EXPANDED: ExpandedState = {};
 
 export function useClassificationTableState<F extends string>({
 	filterKeys,
@@ -54,7 +57,8 @@ export function useClassificationTableState<F extends string>({
 			[KEY.PAGE]: PageParam,
 			[KEY.PAGE_SIZE]: createPageSizeParam(defaultPageSize),
 			[KEY.SEARCH]: SearchParam,
-			[KEY.SORT]: createSortingParam(defaultSorting)
+			[KEY.SORT]: createSortingParam(defaultSorting),
+			[KEY.EXPANDED]: ExpandedParam
 		};
 
 		for (const key of filterKeys) params[key] = FacetParam;
@@ -123,6 +127,20 @@ export function useClassificationTableState<F extends string>({
 	const setSearch = useCallback(
 		(value: string) => update({ [KEY.SEARCH]: value, [KEY.PAGE]: 1 }),
 		[update]
+	);
+
+	const expanded = (params[KEY.EXPANDED] as ExpandedState) ?? EMPTY_EXPANDED;
+
+	const onExpandedChange = useCallback<OnChangeFn<ExpandedState>>(
+		(updaterOrValue) => {
+			const next =
+				typeof updaterOrValue === 'function'
+					? updaterOrValue(expanded)
+					: updaterOrValue;
+
+			update({ [KEY.EXPANDED]: next });
+		},
+		[expanded, update]
 	);
 
 	const onSortingChange = useCallback<OnChangeFn<SortingState>>(
@@ -220,7 +238,9 @@ export function useClassificationTableState<F extends string>({
 		hasFilters: columnFilters.length > 0,
 		resetFilters,
 		clampPage,
-		queryArgs
+		queryArgs,
+		expanded,
+		onExpandedChange
 	};
 }
 

@@ -10,7 +10,9 @@ export const KEY = {
 	PAGE: 'page',
 	PAGE_SIZE: 'pageSize',
 	SEARCH: 'q',
-	SORT: 'sort'
+	SORT: 'sort',
+	/** Row ids whose sub-row is open. See `ExpandedParam`. */
+	EXPANDED: 'open'
 } as const;
 
 export const SORT_NONE = 'none';

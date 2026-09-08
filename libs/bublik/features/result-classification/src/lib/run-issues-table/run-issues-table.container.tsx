@@ -64,7 +64,9 @@ export function RunIssuesTable({
 		setSearch,
 		hasFilters,
 		resetFilters,
-		clampPage
+		clampPage,
+		expanded,
+		onExpandedChange
 	} = useClassificationTableState({
 		filterKeys: FILTER_KEYS,
 		searchColumnId: COLUMN_ID.ISSUE,
@@ -83,12 +85,16 @@ export function RunIssuesTable({
 			columnFilters,
 			sorting,
 			pagination,
-			columnVisibility
+			columnVisibility,
+			expanded
 		},
 		onColumnVisibilityChange: setColumnVisibility,
 		onColumnFiltersChange,
 		onSortingChange,
 		onPaginationChange,
+		onExpandedChange,
+		// The row id is the issue id, so the open sub-rows survive in the URL as
+		// the issues they name rather than as positions on a page.
 		getRowId: (row) => String(row.issue_id),
 		getRowCanExpand: () => true,
 		getCoreRowModel: getCoreRowModel(),

@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import type {
 	ColumnFiltersState,
+	ExpandedState,
 	OnChangeFn,
 	PaginationState,
 	SortingState
@@ -42,4 +43,12 @@ export interface ClassificationTableState {
 	resetFilters: () => void;
 	clampPage: (pageCount: number) => void;
 	queryArgs: ClassificationQueryArgs;
+	/**
+	 * Which sub-rows are open, in the URL — so a link to "this issue's results"
+	 * is a link, and a reload does not collapse what you had opened.
+	 *
+	 * Only meaningful for the tables that expand; the rest can ignore both.
+	 */
+	expanded: ExpandedState;
+	onExpandedChange: OnChangeFn<ExpandedState>;
 }

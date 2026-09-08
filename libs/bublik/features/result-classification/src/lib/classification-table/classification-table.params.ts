@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import type { QueryParamConfig } from 'use-query-params';
-import type { SortingState, VisibilityState } from '@tanstack/react-table';
+import type {
+	ExpandedState,
+	SortingState,
+	VisibilityState
+} from '@tanstack/react-table';
 
 import {
 	DELIMITER,
@@ -52,6 +56,32 @@ export const FacetParam: QueryParamConfig<string[], string[]> = {
 			.split(DELIMITER)
 			.map((entry) => entry.trim())
 			.filter(Boolean)
+};
+
+/**
+ * The ids of the rows whose sub-row is open, `;`-joined like every other list
+ * in this URL state.
+ *
+ * TanStack's `ExpandedState` is `true` (everything) or a `Record<id, boolean>`.
+ * Only the record round-trips through a URL — "everything" would name rows that
+ * a later page or filter no longer contains — so `true` encodes to nothing.
+ */
+export const ExpandedParam: QueryParamConfig<ExpandedState, ExpandedState> = {
+	encode: (expanded) => {
+		if (!expanded || expanded === true) return undefined;
+
+		const open = Object.keys(expanded).filter((id) => expanded[id]);
+
+		return open.length ? open.join(DELIMITER) : undefined;
+	},
+	decode: (value) => {
+		const ids = (first(value) ?? '')
+			.split(DELIMITER)
+			.map((entry) => entry.trim())
+			.filter(Boolean);
+
+		return Object.fromEntries(ids.map((id) => [id, true]));
+	}
 };
 
 export function serializeSorting(sorting: SortingState): string {
