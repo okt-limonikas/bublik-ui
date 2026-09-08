@@ -80,6 +80,54 @@ function normalizeList<T>(
 	};
 }
 
+/**
+ * A filter the server compares with `=` against one raw value.
+ *
+ * `IssueViewSet` and `IssueRuleViewSet` read `category` (and `expected`) that
+ * way, so a `;`-joined multi-select matches no row and returns an empty page —
+ * a table reporting "no matching issues" for a selection that has plenty. One
+ * value is safe to send; more than one has to fall through to the client-side
+ * pass over the loaded page.
+ *
+ * TODO(api): accept a list, as `state` and `active` already do.
+ */
+export function singleValued(values?: string[]): string | undefined {
+	return values?.length === 1 ? values[0] : undefined;
+}
+
+/** A filter the server splits on `QUERY_DELIMITER` — the same `;` the URL uses. */
+function listValued(values?: string[]): string | undefined {
+	return values?.length ? values.join(config.queryDelimiter) : undefined;
+}
+
+export function issuesParams(args: GetIssuesArgs) {
+	return {
+		project: args.projectId,
+		page: args.page,
+		page_size: args.pageSize,
+		search: args.search || undefined,
+		ordering: args.ordering,
+		state: listValued(args.state),
+		category: singleValued(args.category),
+		// Derived from the two rule counts; the server has no equivalent at all.
+		rules: listValued(args.rules)
+	};
+}
+
+export function issueRulesParams(args: GetIssueRulesArgs) {
+	return {
+		project: args.projectId,
+		issue: args.issue,
+		page: args.page,
+		page_size: args.pageSize,
+		search: args.search || undefined,
+		ordering: args.ordering,
+		active: listValued(args.active),
+		category: singleValued(args.category),
+		expected: singleValued(args.expected)
+	};
+}
+
 export const classificationEndpoints = {
 	endpoints: (
 		build: EndpointBuilder<
@@ -91,25 +139,7 @@ export const classificationEndpoints = {
 		getIssues: build.query<PaginatedResponse<Issue>, GetIssuesArgs>({
 			query: (args) => ({
 				url: withApiV2('/issues'),
-				params: {
-					project: args.projectId,
-					page: args.page,
-					page_size: args.pageSize,
-					search: args.search || undefined,
-					ordering: args.ordering,
-					// `state` takes a list: `IssueViewSet` splits it on
-					// `QUERY_DELIMITER`, the same `;` the URL state uses, so a facet
-					// selection round-trips from the address bar unchanged.
-					state: args.state?.join(config.queryDelimiter),
-					// `category` does not. It is compared with `=` against one raw
-					// value, so a multi-select falls back to the client-side pass
-					// rather than asking for a page the server cannot produce.
-					// TODO(api): accept a list here too.
-					category: args.category?.length === 1 ? args.category[0] : undefined,
-					// `rules` is derived from the two rule counts and has no
-					// server-side equivalent at all — always client-side.
-					rules: args.rules?.join(config.queryDelimiter)
-				},
+				params: issuesParams(args),
 				cache: 'no-cache'
 			}),
 			// The count is the point: dropping it is what made a 45-row list
@@ -174,23 +204,7 @@ export const classificationEndpoints = {
 			{
 				query: (args) => ({
 					url: withApiV2('/issue_rules'),
-					params: {
-						project: args.projectId,
-						issue: args.issue,
-						page: args.page,
-						page_size: args.pageSize,
-							search: args.search || undefined,
-						ordering: args.ordering,
-						// Only `active` takes a list. `category` is an `=` compare and
-						// `expected` a three-way choice, so a multi-select on either
-						// falls through to the client-side pass instead.
-						// TODO(api): accept lists for those two as well.
-						active: args.active?.join(config.queryDelimiter),
-						category:
-							args.category?.length === 1 ? args.category[0] : undefined,
-						expected:
-							args.expected?.length === 1 ? args.expected[0] : undefined
-					},
+					params: issueRulesParams(args),
 					cache: 'no-cache'
 				}),
 				transformResponse: (response: PaginatedResponse<IssueRule>) =>
