@@ -34,10 +34,14 @@ const CATEGORY_OPTIONS = CATEGORY_ORDER.map((category) => ({
  * link — and a deep link the user cannot see, change or clear is a dead end.
  */
 const IssueField = () => {
-	const { control } = useFormContext<HistoryGlobalSearchFormValues>();
+	const { control, watch } = useFormContext<HistoryGlobalSearchFormValues>();
 	const { projectIds } = useProjectSearch();
 	const { field } = useController({ name: 'issue', control });
 	const portalRef = useRef<HTMLDivElement>(null);
+	// Scoped to the test the form is already about, so the options are the
+	// issues that can actually narrow *this* history rather than every issue in
+	// the project. Falls back to the project-wide picker before a test is named.
+	const testName = watch('testName');
 
 	// The picker shows and clears its own selection now, so the "Filtering by
 	// issue #42" line and its Clear button that used to sit under it are gone —
@@ -52,6 +56,7 @@ const IssueField = () => {
 			<IssuePicker
 				label="Issue"
 				projectId={projectIds[0]}
+				testName={testName || null}
 				value={field.value}
 				onChange={(id) => field.onChange(id)}
 				container={portalRef}
