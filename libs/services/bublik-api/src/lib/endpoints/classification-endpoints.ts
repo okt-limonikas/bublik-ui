@@ -99,6 +99,20 @@ function listValued(values?: string[]): string | undefined {
 	return values?.length ? values.join(config.queryDelimiter) : undefined;
 }
 
+/**
+ * Both classified-result listings answer with `{ results: [...] }`, the shape
+ * every `generate_results_details` listing uses. Tolerating a bare array too
+ * costs one check and means a listing that ever drops the envelope degrades to
+ * "here are the rows" rather than to a permanently empty table.
+ */
+type ResultListResponse = { results: RunDataResults[] } | RunDataResults[];
+
+function unwrapResults(response: ResultListResponse): RunDataResults[] {
+	if (Array.isArray(response)) return response;
+
+	return response?.results ?? [];
+}
+
 export function issuesParams(args: GetIssuesArgs) {
 	return {
 		project: args.projectId,
@@ -184,8 +198,7 @@ export const classificationEndpoints = {
 				params: { issue: String(issueId), project: projectId },
 				cache: 'no-cache'
 			}),
-			transformResponse: (response: { results: RunDataResults[] }) =>
-				response?.results ?? [],
+			transformResponse: (response: ResultListResponse) => unwrapResults(response),
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
 		getIssuePicker: build.query<
@@ -452,8 +465,7 @@ export const classificationEndpoints = {
 			// `{ results: [...] }`, like every other listing that goes through
 			// `generate_results_details`. Read as a bare array it is length-zero
 			// forever, which is what an expanded issue row showed.
-			transformResponse: (response: { results: RunDataResults[] }) =>
-				response?.results ?? [],
+			transformResponse: (response: ResultListResponse) => unwrapResults(response),
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
 		applyRulesToRun: build.mutation<

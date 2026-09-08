@@ -44,9 +44,10 @@ function ResultLinks({ runId, row }: ResultLinksProps) {
 				</ButtonTw>
 			</li>
 			<li>
-				{/* No `path` override: the row cannot supply the package chain, and
-				    the container resolves the result's own path anyway. */}
-				<HistoryLinkContainer runId={Number(runId)} resultId={row.result_id} />
+				{/* The row *is* a `RunDataResults`, so hand it over rather than an
+				    id: passing `resultId` makes the link re-fetch, per row, a result
+				    the listing already returned in full. */}
+				<HistoryLinkContainer runId={Number(runId)} result={row} />
 			</li>
 		</ul>
 	);
