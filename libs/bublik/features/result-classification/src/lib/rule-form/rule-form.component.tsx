@@ -18,6 +18,8 @@ import {
 	defaultExpectedFor
 } from '../shared/category.constants';
 import { IssuePicker } from '../pickers/issue-picker.container';
+import { TestPicker } from '../pickers/test-picker.component';
+import { useKnownTests } from './known-tests.hooks';
 import { MatcherField, MatcherReadOnly } from './matcher-fields.component';
 import { itemsToList, itemsToParameters } from './matcher-fields.utils';
 import { RuleForm } from './rule-form.types';
@@ -48,6 +50,9 @@ export function RuleFields({
 	const project = watch('project');
 	const category = watch('category') as IssueCategory;
 	const { data: projects } = bublikAPI.useGetAllProjectsQuery();
+	const { options: testOptions, isLoading: isTestsLoading } = useKnownTests(
+		project || undefined
+	);
 	const expectedTouched = Boolean(dirtyFields.expected);
 
 	useEffect(() => {
@@ -114,23 +119,29 @@ export function RuleFields({
 					</div>
 
 					{/*
-					 * Read-only, and by id unless the caller could name the test.
-					 * `/issue_rules/` no longer returns `test_name`, and nothing maps
-					 * an id back to a name, so there is no picker to offer — which is
-					 * also why `NewRuleButton` and `DuplicateRuleButton` are hidden.
-					 * TODO(api): restore the picker once `test_name` is serialized.
+					 * Options are labelled `Test #42` and cover only tests some rule
+					 * already targets — `/issue_rules/` returns no `test_name`, and a
+					 * rules listing is the only place the UI sees a test id at all.
+					 * See `docs/classification-api-gaps.md`.
 					 */}
-					<dl
-						className="grid grid-cols-[max-content_minmax(0,1fr)] items-baseline gap-x-3"
-						data-testid="rule-test"
-					>
-						<dt className="w-fit text-[0.6875rem] font-bold tracking-wider uppercase text-text-menu">
-							Test
-						</dt>
-						<dd className="min-w-0 text-xs text-text-primary">
-							{testName ?? `#${watch('test') || '—'}`}
-						</dd>
-					</dl>
+					<div data-testid="rule-test">
+						<Controller
+							control={control}
+							name="test"
+							render={({ field }) => (
+								<TestPicker
+									options={testOptions}
+									isLoading={isTestsLoading}
+									value={field.value || null}
+									valueName={testName ?? undefined}
+									onChange={(id) => field.onChange(id ?? 0)}
+									disabled={isEdit}
+									error={errors.test?.message}
+									container={container}
+								/>
+							)}
+						/>
+					</div>
 				</div>
 			</FormSection>
 

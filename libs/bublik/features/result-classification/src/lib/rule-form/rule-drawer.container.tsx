@@ -145,19 +145,14 @@ export interface NewRuleButtonProps extends RuleFormSeed {
 }
 
 /**
- * Hidden, not deleted.
- *
  * Authoring a rule from scratch means naming the test it applies to, and
- * `/issue_rules/` no longer returns `test_name` — `IssueRuleViewSet` annotates
- * it for ordering, but `IssueRuleSerializer.Meta.fields` omits it, and no other
- * endpoint maps a test id to its name. A picker here could only offer bare ids,
- * which is worse than not offering the flow at all.
+ * `/issue_rules/` no longer returns `test_name`, so the picker offers
+ * `Test #42` and only lists tests some rule already targets. See
+ * `docs/classification-api-gaps.md`; both limits lift when `test_name` is
+ * serialized again.
  *
- * Rules still arrive the way they mostly did: captured from a result through
- * the classify drawer, which resolves the test server-side. Editing, deleting
- * and activating them are all unaffected.
- *
- * TODO(api): drop the early return once `test_name` is serialized again.
+ * The unaffected path is still the main one: capturing a rule from a result
+ * through the classify drawer, where the server resolves the test itself.
  */
 export function NewRuleButton({
 	rule,
@@ -169,7 +164,6 @@ export function NewRuleButton({
 	size = 'xss',
 	label = 'New Rule'
 }: NewRuleButtonProps) {
-	const HIDDEN = true;
 	const [open, setOpen] = useState(false);
 	const { canManage, reason } = useCanManageIssues();
 	const seed = { rule, projectId, issueId, testId };
@@ -179,8 +173,6 @@ export function NewRuleButton({
 		setOpen(next);
 		if (!next) form.reset();
 	}
-
-	if (HIDDEN) return null;
 
 	return (
 		<>
