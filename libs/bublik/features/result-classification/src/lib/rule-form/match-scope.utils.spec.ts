@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	PRESETS,
-	applyMutualExclusion,
 	chipsForFlags,
 	chipsForRule,
+	matcherForFlags,
 	presetForFlags
 } from './match-scope.utils';
 
@@ -21,8 +21,7 @@ describe('match-scope.utils', () => {
 			presetForFlags({
 				matchParameters: false,
 				matchVerdicts: false,
-				matchImportantTags: true,
-				matchAllTags: true
+				matchTags: true
 			})
 		).toBe('Custom');
 	});
@@ -32,46 +31,51 @@ describe('match-scope.utils', () => {
 			chipsForFlags({
 				matchParameters: true,
 				matchVerdicts: true,
-				matchImportantTags: true,
-				matchAllTags: false
+				matchTags: true
 			})
-		).toEqual(['Path', 'Params', 'Verdicts', 'Important tags']);
+		).toEqual(['Path', 'Params', 'Verdicts', 'Tags']);
 		expect(
 			chipsForFlags({
 				matchParameters: false,
 				matchVerdicts: false,
-				matchImportantTags: false,
-				matchAllTags: false
+				matchTags: false
 			})
 		).toEqual(['Path']);
 	});
+});
 
-	it('mutual exclusion: checking all-tags unchecks important-tags', () => {
-		const next = applyMutualExclusion(
-			{
+describe('matcherForFlags', () => {
+	// The endpoint reads each key with a default drawn from the result, so an
+	// absent key captures and an empty one ignores. All three on is exactly the
+	// server's default, which is why it sends nothing at all.
+	it('sends no matcher when every dimension is on', () => {
+		expect(
+			matcherForFlags({
 				matchParameters: true,
 				matchVerdicts: true,
-				matchImportantTags: true,
-				matchAllTags: true
-			},
-			'matchAllTags'
-		);
-		expect(next.matchAllTags).toBe(true);
-		expect(next.matchImportantTags).toBe(false);
+				matchTags: true
+			})
+		).toBeUndefined();
 	});
 
-	it('mutual exclusion: checking important-tags unchecks all-tags', () => {
-		const next = applyMutualExclusion(
-			{
+	it('sends an empty value for each dimension that is off', () => {
+		expect(
+			matcherForFlags({
 				matchParameters: false,
 				matchVerdicts: false,
-				matchImportantTags: true,
-				matchAllTags: true
-			},
-			'matchImportantTags'
-		);
-		expect(next.matchImportantTags).toBe(true);
-		expect(next.matchAllTags).toBe(false);
+				matchTags: false
+			})
+		).toEqual({ parameters: {}, verdicts: [], tags: [] });
+	});
+
+	it('names only the dimensions being turned off', () => {
+		expect(
+			matcherForFlags({
+				matchParameters: true,
+				matchVerdicts: false,
+				matchTags: true
+			})
+		).toEqual({ verdicts: [] });
 	});
 });
 

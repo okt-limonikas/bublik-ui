@@ -8,44 +8,30 @@ import {
 } from '@/shared/tailwind-ui';
 
 import type { ClassifyForm } from '../classify/classify-form.types';
-import {
-	PRESETS,
-	applyMutualExclusion,
-	presetForFlags,
-	type MatchFlags
-} from './match-scope.utils';
+import { PRESETS, presetForFlags, type MatchFlags } from './match-scope.utils';
 
 function writeFlags(form: ClassifyForm, flags: MatchFlags) {
 	form.setValue('matchParameters', flags.matchParameters, {
 		shouldDirty: true
 	});
 	form.setValue('matchVerdicts', flags.matchVerdicts, { shouldDirty: true });
-	form.setValue('matchImportantTags', flags.matchImportantTags, {
-		shouldDirty: true
-	});
-	form.setValue('matchAllTags', flags.matchAllTags, { shouldDirty: true });
+	form.setValue('matchTags', flags.matchTags, { shouldDirty: true });
 }
 
 export function MatchScope({ form }: { form: ClassifyForm }) {
 	const flags = useWatch({
 		control: form.control,
-		name: [
-			'matchParameters',
-			'matchVerdicts',
-			'matchImportantTags',
-			'matchAllTags'
-		]
+		name: ['matchParameters', 'matchVerdicts', 'matchTags']
 	});
 	const current: MatchFlags = {
 		matchParameters: flags[0],
 		matchVerdicts: flags[1],
-		matchImportantTags: flags[2],
-		matchAllTags: flags[3]
+		matchTags: flags[2]
 	};
 	const preset = presetForFlags(current);
 
 	const toggle = (key: keyof MatchFlags, checked: boolean) => {
-		writeFlags(form, applyMutualExclusion({ ...current, [key]: checked }, key));
+		writeFlags(form, { ...current, [key]: checked });
 	};
 
 	return (
@@ -103,21 +89,12 @@ export function MatchScope({ form }: { form: ClassifyForm }) {
 				</label>
 				<label className="flex items-center gap-2 text-sm cursor-pointer">
 					<Checkbox
-						checked={current.matchImportantTags}
-						onCheckedChange={(c) => toggle('matchImportantTags', c === true)}
+						checked={current.matchTags}
+						onCheckedChange={(c) => toggle('matchTags', c === true)}
 						data-testid="match-scope-flag"
-						data-flag="matchImportantTags"
+						data-flag="matchTags"
 					/>
-					Important tags
-				</label>
-				<label className="flex items-center gap-2 text-sm cursor-pointer">
-					<Checkbox
-						checked={current.matchAllTags}
-						onCheckedChange={(c) => toggle('matchAllTags', c === true)}
-						data-testid="match-scope-flag"
-						data-flag="matchAllTags"
-					/>
-					All tags
+					Tags (important and relevant)
 				</label>
 			</div>
 		</div>

@@ -43,7 +43,8 @@ export function useClassificationTableState<F extends string>({
 	filterKeys,
 	searchColumnId,
 	defaultPageSize = DEFAULT_PAGE_SIZE,
-	defaultSorting = EMPTY_SORTING
+	defaultSorting = EMPTY_SORTING,
+	orderingByColumnId
 }: ClassificationTableStateConfig<F>): ClassificationTableState {
 	const filterKeysToken = filterKeys.join(DELIMITER);
 	const defaultSortingToken = serializeSorting(defaultSorting);
@@ -185,15 +186,27 @@ export function useClassificationTableState<F extends string>({
 		}
 
 		const [sort] = sorting;
+		const field = sort
+			? orderingByColumnId && sort.id in orderingByColumnId
+				? orderingByColumnId[sort.id]
+				: sort.id
+			: null;
 
 		return {
 			page: pagination.pageIndex + 1,
 			pageSize: pagination.pageSize,
 			search: search || undefined,
-			ordering: sort ? `${sort.desc ? '-' : ''}${sort.id}` : undefined,
+			ordering: field ? `${sort.desc ? '-' : ''}${field}` : undefined,
 			filters
 		};
-	}, [columnFilters, pagination, search, sorting, searchColumnId]);
+	}, [
+		columnFilters,
+		pagination,
+		search,
+		sorting,
+		searchColumnId,
+		orderingByColumnId
+	]);
 
 	return {
 		pagination,

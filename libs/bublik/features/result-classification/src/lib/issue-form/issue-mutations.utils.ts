@@ -30,7 +30,7 @@ export function buildIssueUpdateBody(
 	issue: Issue
 ): { title: string; description: string | null; bug_key?: string | null } {
 	const nextBugKey = composeBugKey(values.tracker, values.bugKey) ?? null;
-	const currentBugKey = issue.issue_ext?.key ?? null;
+	const currentBugKey = issue.bug_key ?? null;
 
 	return {
 		title: values.title.trim(),

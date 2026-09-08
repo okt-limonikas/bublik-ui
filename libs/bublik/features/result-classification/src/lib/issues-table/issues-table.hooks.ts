@@ -36,7 +36,7 @@ export function useFacetOptions(rows: IssueTableRow[]) {
 				labelFor: (value) => ISSUE_RULES_STATE_META[value].label
 			}),
 			categoryOptions: buildFacetOptions({
-				values: rows.flatMap((row) => row.categories),
+				values: rows.flatMap((row) => row.categories.map((c) => c.category)),
 				order: CATEGORY_ORDER,
 				labelFor: (category) => categoryMeta(category).displayValue
 			}),

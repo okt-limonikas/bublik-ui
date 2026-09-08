@@ -3,10 +3,10 @@
 import { useCallback } from 'react';
 
 import {
-	useCloseIssueMutation,
+	useCloseIssuesMutation,
 	useCreateIssueMutation,
 	useDeleteIssueMutation,
-	useReopenIssueMutation,
+	useReopenIssuesMutation,
 	useUpdateIssueMutation
 } from '@/services/bublik-api';
 import { toast } from '@/shared/tailwind-ui';
@@ -29,8 +29,8 @@ export interface SaveIssueArgs {
 export function useSaveIssue() {
 	const [createIssue] = useCreateIssueMutation();
 	const [updateIssue] = useUpdateIssueMutation();
-	const [closeIssue] = useCloseIssueMutation();
-	const [reopenIssue] = useReopenIssueMutation();
+	const [closeIssues] = useCloseIssuesMutation();
+	const [reopenIssues] = useReopenIssuesMutation();
 
 	return useCallback(
 		async ({ values, issue, projectId }: SaveIssueArgs): Promise<Issue> => {
@@ -46,7 +46,7 @@ export function useSaveIssue() {
 					}).unwrap();
 				}
 
-				let saved = await updateIssue({
+				const saved = await updateIssue({
 					issueId: issue.id,
 					projectId,
 					...buildIssueUpdateBody(values, issue)
@@ -54,13 +54,19 @@ export function useSaveIssue() {
 
 				const transition = issueStateTransition(values, issue);
 
-				if (transition) {
-					const move = transition === 'close' ? closeIssue : reopenIssue;
+				if (!transition) return saved;
 
-					saved = await move({ issueId: issue.id, projectId }).unwrap();
-				}
+				// close/reopen are bulk actions that answer with a count, not with
+				// the issue, so the row we return is the updated one with `state`
+				// moved to where the transition put it.
+				const move = transition === 'close' ? closeIssues : reopenIssues;
 
-				return saved;
+				await move({ ids: [issue.id], projectId }).unwrap();
+
+				return {
+					...saved,
+					state: transition === 'close' ? ('closed' as const) : ('open' as const)
+				};
 			}
 
 			const promise = run();
@@ -74,7 +80,7 @@ export function useSaveIssue() {
 
 			return promise;
 		},
-		[createIssue, updateIssue, closeIssue, reopenIssue]
+		[createIssue, updateIssue, closeIssues, reopenIssues]
 	);
 }
 

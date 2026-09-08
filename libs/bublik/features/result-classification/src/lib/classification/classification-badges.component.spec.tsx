@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { PropsWithChildren, ReactElement, ReactNode, forwardRef } from 'react';
 
 import { TooltipProvider } from '@/shared/tailwind-ui';
-import type { ResultIssueRef } from '@/shared/types';
+import type { IssueCategoryRef, ResultIssueRef } from '@/shared/types';
 
 import { categoryMeta } from './classification.utils';
 
@@ -40,9 +40,12 @@ vi.mock('../classify/classify-button.container', () => ({
 	)
 }));
 
-const { ClassificationVerdict, ProjectBadge, ResultIssueBadges } = await import(
-	'./classification-badges.component'
-);
+const {
+	CategoryBadgeList,
+	ClassificationVerdict,
+	ProjectBadge,
+	ResultIssueBadges
+} = await import('./classification-badges.component');
 
 const render = (ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) =>
 	rtlRender(ui, {
@@ -330,5 +333,71 @@ describe('ProjectBadge', () => {
 		render(<ProjectBadge name="tsf/net-drv" onClick={vi.fn()} />);
 
 		expect(screen.getByText('tsf/net-drv')).toHaveAttribute('type', 'button');
+	});
+});
+
+describe('CategoryBadgeList', () => {
+	// `categories` arrives as `(category, expected)` pairs. Deduping the pairs
+	// themselves — or handing them to a `Set` — dedupes nothing, because every
+	// pair is a fresh object: React then keys every badge `[object Object]` and
+	// warns about duplicate keys.
+	function refs(...pairs: [string, boolean | null][]): IssueCategoryRef[] {
+		return pairs.map(([category, expected]) => ({
+			category: category as IssueCategoryRef['category'],
+			expected
+		}));
+	}
+
+	it('renders one badge per distinct category', () => {
+		render(
+			<CategoryBadgeList
+				categories={refs(['flaky', true], ['flaky', true], ['env', true])}
+			/>
+		);
+
+		expect(screen.getAllByText(categoryMeta('flaky').label)).toHaveLength(1);
+		expect(screen.getAllByText(categoryMeta('env').label)).toHaveLength(1);
+	});
+
+	it('collapses one category carried under two dispositions into one badge', () => {
+		render(
+			<CategoryBadgeList categories={refs(['flaky', true], ['flaky', false])} />
+		);
+
+		const badges = screen.getAllByText(categoryMeta('flaky').label);
+
+		expect(badges).toHaveLength(1);
+		// Neither rule wins, so the badge states no disposition at all.
+		expect(badges[0]).not.toHaveAttribute('data-disposition');
+	});
+
+	it('carries the disposition through when the rules agree', () => {
+		render(<CategoryBadgeList categories={refs(['known-issue', true])} />);
+
+		expect(screen.getByText(categoryMeta('known-issue').label)).toHaveAttribute(
+			'data-disposition',
+			'expected'
+		);
+	});
+
+	it('orders badges by CATEGORY_ORDER, not by arrival', () => {
+		render(
+			<CategoryBadgeList
+				categories={refs(['flaky', true], ['product-defect', false])}
+			/>
+		);
+
+		const rendered = screen
+			.getAllByText(/.+/)
+			.filter((node) => node.hasAttribute('data-category'))
+			.map((node) => node.getAttribute('data-category'));
+
+		expect(rendered).toEqual(['product-defect', 'flaky']);
+	});
+
+	it('renders nothing at all for an unclassified issue', () => {
+		const { container } = render(<CategoryBadgeList categories={[]} />);
+
+		expect(container).toBeEmptyDOMElement();
 	});
 });

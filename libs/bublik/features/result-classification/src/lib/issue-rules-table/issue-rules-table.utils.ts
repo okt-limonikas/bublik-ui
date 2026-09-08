@@ -19,10 +19,14 @@ export function buildRows(
 
 		return {
 			...rule,
-			issueTitle: issue?.title ?? `#${rule.issue}`,
+			// Title and tracker key come off the rule itself now; the join is left
+			// only for the issue's state, which `IssueRuleSerializer` still does
+			// not carry.
+			// TODO(api): `issue_state` alongside `issue_title` would retire it.
+			issueTitle: rule.issue_title || `#${rule.issue}`,
 			issueState: issue?.state ?? null,
-			bugKey: formatBugKey(issue?.issue_ext?.key ?? null),
-			bugUrl: issue?.bug_url ?? null,
+			bugKey: formatBugKey(rule.bug_key),
+			bugUrl: rule.bug_url,
 			projectName: projectNames.get(rule.project) ?? `Project #${rule.project}`
 		};
 	});

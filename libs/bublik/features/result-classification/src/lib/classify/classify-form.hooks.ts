@@ -1,7 +1,14 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ClassifyScope, IssueCategory } from '@/shared/types';
-import { DEFAULT_MATCH_FLAGS } from '../rule-form/match-scope.utils';
+import type {
+	ClassifyMatcherOverride,
+	ClassifyScope,
+	IssueCategory
+} from '@/shared/types';
+import {
+	DEFAULT_MATCH_FLAGS,
+	matcherForFlags
+} from '../rule-form/match-scope.utils';
 import { composeBugKey } from '../shared/bug-key.utils';
 import { applyClassifyErrors } from './classify.utils';
 import {
@@ -32,12 +39,7 @@ export function buildSubmitHandler(
 		category: IssueCategory;
 		expected: boolean | null;
 		scope: ClassifyScope;
-		matcher: {
-			matchParameters: boolean;
-			matchVerdicts: boolean;
-			matchImportantTags: boolean;
-			matchAllTags: boolean;
-		};
+		matcher?: ClassifyMatcherOverride;
 	}) => Promise<unknown>,
 	form: ClassifyForm,
 	onDone: () => void
@@ -65,12 +67,13 @@ export function buildSubmitHandler(
 						? false
 						: null,
 				scope: values.scope as ClassifyScope,
-				matcher: {
+				// Undefined when every dimension is on: that is the server's own
+				// default capture, and sending an empty object would say nothing.
+				matcher: matcherForFlags({
 					matchParameters: values.matchParameters,
 					matchVerdicts: values.matchVerdicts,
-					matchImportantTags: values.matchImportantTags,
-					matchAllTags: values.matchAllTags
-				}
+					matchTags: values.matchTags
+				})
 			});
 		} catch (error: unknown) {
 			applyClassifyErrors(error, form);

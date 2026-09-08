@@ -3,9 +3,9 @@
 import { useCallback } from 'react';
 
 import {
-	useActivateRuleMutation,
+	useActivateRulesMutation,
 	useCreateRuleMutation,
-	useDeactivateRuleMutation,
+	useDeactivateRulesMutation,
 	useDeleteRuleMutation,
 	useUpdateRuleMutation
 } from '@/services/bublik-api';
@@ -28,8 +28,8 @@ export interface SaveRuleArgs {
 export function useSaveRule() {
 	const [createRule] = useCreateRuleMutation();
 	const [updateRule] = useUpdateRuleMutation();
-	const [activateRule] = useActivateRuleMutation();
-	const [deactivateRule] = useDeactivateRuleMutation();
+	const [activateRules] = useActivateRulesMutation();
+	const [deactivateRules] = useDeactivateRulesMutation();
 
 	return useCallback(
 		async ({ values, rule }: SaveRuleArgs): Promise<IssueRule> => {
@@ -39,6 +39,9 @@ export function useSaveRule() {
 			async function run(): Promise<IssueRule> {
 				const transition = ruleActiveTransition(values, rule);
 
+				// activate/deactivate are bulk actions that answer with a count, not
+				// with the rule, so the row we return is the one the create/update
+				// gave us with `active` moved to where the transition put it.
 				if (!rule) {
 					const created = await createRule({
 						projectId,
@@ -47,23 +50,25 @@ export function useSaveRule() {
 
 					if (transition !== 'deactivate') return created;
 
-					return deactivateRule({ ruleId: created.id, projectId }).unwrap();
+					await deactivateRules({ ids: [created.id], projectId }).unwrap();
+
+					return { ...created, active: false };
 				}
 
-				let saved = await updateRule({
+				const saved = await updateRule({
 					ruleId: rule.id,
 					projectId,
 					...buildRuleUpdateBody(values)
 				}).unwrap();
 
-				if (transition) {
-					const move =
-						transition === 'activate' ? activateRule : deactivateRule;
+				if (!transition) return saved;
 
-					saved = await move({ ruleId: rule.id, projectId }).unwrap();
-				}
+				const move =
+					transition === 'activate' ? activateRules : deactivateRules;
 
-				return saved;
+				await move({ ids: [rule.id], projectId }).unwrap();
+
+				return { ...saved, active: transition === 'activate' };
 			}
 
 			const promise = run();
@@ -77,7 +82,7 @@ export function useSaveRule() {
 
 			return promise;
 		},
-		[createRule, updateRule, activateRule, deactivateRule]
+		[createRule, updateRule, activateRules, deactivateRules]
 	);
 }
 

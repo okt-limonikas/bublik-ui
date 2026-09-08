@@ -37,7 +37,8 @@ import {
 	COMPACT_WIDTH_PX,
 	DEFAULT_COLUMN_VISIBILITY,
 	DEFAULT_PAGE_SIZE,
-	FILTER_KEYS
+	FILTER_KEYS,
+	ORDERING_BY_COLUMN_ID
 } from './issue-rules-table.constants';
 import { useFacetOptions } from './issue-rules-table.hooks';
 import type { IssueRulesTableProps } from './issue-rules-table.types';
@@ -90,9 +91,10 @@ export function IssueRulesTable({
 		queryArgs
 	} = useClassificationTableState({
 		filterKeys: FILTER_KEYS,
-		searchColumnId: COLUMN_ID.TEST,
+		searchColumnId: COLUMN_ID.ISSUE,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
-		defaultSorting: [{ id: COLUMN_ID.TEST, desc: false }]
+		defaultSorting: [{ id: COLUMN_ID.ISSUE, desc: false }],
+		orderingByColumnId: ORDERING_BY_COLUMN_ID
 	});
 
 	const {
@@ -111,9 +113,10 @@ export function IssueRulesTable({
 		active: queryArgs.filters[COLUMN_ID.ACTIVE]
 	});
 
-	// TODO(api): needed only to name the issue behind each rule, which
-	// `/issue_rules/` could embed. Fetched a page at a time like the rules, so
-	// beyond page one some rows fall back to `#id` until it does.
+	// TODO(api): needed only for each issue's *state*, which `/issue_rules/` does
+	// not embed (it does embed the title and the bug key). Fetched a page at a
+	// time like the rules, so beyond page one some rows show no state until it
+	// does.
 	const {
 		data: issuesData,
 		isLoading: isIssuesLoading,

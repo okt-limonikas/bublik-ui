@@ -171,7 +171,7 @@ export function getColumns(): ColumnDef<RunIssueRow, unknown>[] {
 
 				return (
 					<CategoryBadgeList
-						categories={row.original.categories.map((c) => c.category)}
+						categories={row.original.categories}
 						selectedCategories={facets.values(COLUMN_ID.CATEGORIES)}
 						onCategoryClick={(category) =>
 							facets.toggle(COLUMN_ID.CATEGORIES, category)

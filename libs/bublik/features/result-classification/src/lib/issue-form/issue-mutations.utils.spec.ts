@@ -13,16 +13,15 @@ import {
 function issue(overrides: Partial<Issue> = {}): Issue {
 	return {
 		id: 7,
+		project: 1,
 		title: 'ethtool reset regression',
 		description: null,
 		state: 'open',
-		issue_ext: {
-			id: 1,
-			key: 'ref://JIRA/FOO-123',
-			status: null,
-			title: null,
-			synced_at: null
-		},
+		bug_key: 'ref://JIRA/FOO-123',
+		bug_url: null,
+		categories: [],
+		rule_count: 0,
+		active_rule_count: 0,
 		created_at: '2026-01-01T00:00:00Z',
 		updated_at: '2026-01-01T00:00:00Z',
 		closed_at: null,
@@ -70,7 +69,7 @@ describe('buildIssueUpdateBody', () => {
 		expect(
 			buildIssueUpdateBody(
 				values({ tracker: '', bugKey: '' }),
-				issue({ issue_ext: null })
+				issue({ bug_key: null })
 			)
 		).not.toHaveProperty('bug_key');
 	});

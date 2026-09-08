@@ -6,7 +6,8 @@ import { skipToken } from '@reduxjs/toolkit/query';
 
 import {
 	useGetIssuePickerQuery,
-	useGetIssueQuery
+	useGetIssueQuery,
+	useGetIssueSearchOptionsQuery
 } from '@/services/bublik-api';
 import { Icon, InputLabel, cn } from '@/shared/tailwind-ui';
 import type { IssuePickerOption } from '@/shared/types';
@@ -37,6 +38,14 @@ export interface IssuePickerProps {
 	label?: string;
 	placeholder?: string;
 	container?: RefObject<HTMLElement>;
+	/**
+	 * Scope the options to the issues that classify at least one result of this
+	 * test, via `/history/issue_search_options/`. Without it the picker offers
+	 * every issue in the project, which on a filter form means most choices
+	 * return nothing. Filtering happens client-side here: unlike the project
+	 * picker, that endpoint takes no `search` term and returns one list.
+	 */
+	testName?: string | null;
 }
 
 export function IssuePicker({
@@ -45,23 +54,48 @@ export function IssuePicker({
 	onChange,
 	label,
 	placeholder = 'Search issue by key or title…',
-	container
+	container,
+	testName
 }: IssuePickerProps) {
 	const id = useId();
 	const [inputValue, setInputValue] = useState('');
 	const [open, setOpen] = useState(false);
 	const search = useDebouncedValue(inputValue, 250);
 
-	const { data, isFetching } = useGetIssuePickerQuery({
-		projectId,
-		search: search || undefined
-	});
+	const scoped = Boolean(testName);
+
+	const { data, isFetching } = useGetIssuePickerQuery(
+		scoped ? skipToken : { projectId, search: search || undefined }
+	);
+
+	const { data: scopedData, isFetching: isScopedFetching } =
+		useGetIssueSearchOptionsQuery(
+			scoped ? { testName: testName as string, project: projectId } : skipToken
+		);
 
 	const { data: selectedIssue } = useGetIssueQuery(
 		value != null ? { issueId: value, projectId } : skipToken
 	);
 
-	const options = useMemo(() => data ?? [], [data]);
+	const options = useMemo<IssuePickerOption[]>(() => {
+		if (!scoped) return data ?? [];
+
+		const term = search.trim().toLowerCase();
+
+		return (scopedData ?? [])
+			.map((issue) => ({
+				id: issue.id,
+				title: issue.title,
+				key: issue.bug_key,
+				category: null
+			}))
+			.filter(
+				(option) =>
+					!term ||
+					option.title.toLowerCase().includes(term) ||
+					(option.key ?? '').toLowerCase().includes(term)
+			);
+	}, [scoped, data, scopedData, search]);
 
 	useEffect(() => {
 		if (value == null) return;
@@ -84,7 +118,7 @@ export function IssuePicker({
 
 	const selectedKey =
 		value != null
-			? issueKeyLabel({ id: value, key: selectedIssue?.issue_ext?.key ?? null })
+			? issueKeyLabel({ id: value, key: selectedIssue?.bug_key ?? null })
 			: null;
 
 	return (
@@ -163,10 +197,12 @@ export function IssuePicker({
 					>
 						<Combobox.Empty>
 							<div className="py-3 px-3.5 text-xs text-text-menu">
-								{isFetching
+								{isFetching || isScopedFetching
 									? 'Searching…'
 									: search
 									? 'No matches'
+									: scoped
+									? 'No issue classifies a result of this test yet'
 									: 'No issues yet — classify a result to create one'}
 							</div>
 						</Combobox.Empty>

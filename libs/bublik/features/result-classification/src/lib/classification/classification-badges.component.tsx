@@ -14,6 +14,7 @@ import { LinkWithProject } from '@/bublik/features/projects';
 import { routes } from '@/router';
 import type {
 	IssueCategory,
+	IssueCategoryRef,
 	IssueState,
 	ResultIssueRef,
 	RunIssueRow
@@ -97,16 +98,37 @@ function MetaBadge({
 export interface CategoryBadgeProps extends BadgeExtras {
 	category: IssueCategory;
 	long?: boolean;
+	/**
+	 * The disposition the category is carried under, when the caller knows it.
+	 * It reads in the tooltip rather than on the badge: whether a category
+	 * suppresses is what a reader wants on hover, not a second word competing
+	 * with the category name in a table cell.
+	 */
+	expected?: boolean | null;
 }
 
-export function CategoryBadge({ category, long, ...rest }: CategoryBadgeProps) {
+export function CategoryBadge({
+	category,
+	long,
+	expected,
+	...rest
+}: CategoryBadgeProps) {
 	const meta = categoryMeta(category);
+	const disposition =
+		expected === undefined ? null : dispositionMeta(expected);
 
 	return (
 		<MetaBadge
-			description={meta.description}
+			description={
+				disposition
+					? `${meta.description} ${disposition.description}`
+					: meta.description
+			}
 			variant={meta.variant}
-			dataAttributes={{ 'data-category': category }}
+			dataAttributes={{
+				'data-category': category,
+				...(disposition ? { 'data-disposition': disposition.value } : null)
+			}}
 			{...rest}
 		>
 			{long ? meta.displayValue : meta.label}
@@ -115,19 +137,45 @@ export function CategoryBadge({ category, long, ...rest }: CategoryBadgeProps) {
 }
 
 export interface CategoryBadgeListProps {
-	categories: readonly IssueCategory[];
+	categories: readonly IssueCategoryRef[];
 	className?: string;
 	selectedCategories?: readonly string[];
 	onCategoryClick?: (category: IssueCategory) => void;
 }
 
+/**
+ * One badge per distinct category.
+ *
+ * The list arrives as `(category, expected)` pairs, and the same category can
+ * appear under more than one disposition — an issue can hold both an expected
+ * and an unexpected `flaky` rule. Deduping has to be on the category itself:
+ * deduping the pairs would leave two badges reading `Flaky` side by side, and a
+ * `Set` of the objects dedupes nothing at all, since every pair is a fresh
+ * object. Where a category is carried by rules that disagree, the disposition
+ * is dropped rather than picking a winner.
+ */
 export function CategoryBadgeList({
 	categories,
 	className,
 	selectedCategories,
 	onCategoryClick
 }: CategoryBadgeListProps) {
-	const unique = Array.from(new Set(categories)).sort(
+	// `undefined` is "the rules disagree", which is not the same as `null` —
+	// that is a disposition in its own right, the marker-only one.
+	const byCategory = new Map<IssueCategory, boolean | null | undefined>();
+
+	for (const ref of categories) {
+		if (byCategory.has(ref.category)) {
+			if (byCategory.get(ref.category) !== ref.expected) {
+				byCategory.set(ref.category, undefined);
+			}
+			continue;
+		}
+
+		byCategory.set(ref.category, ref.expected);
+	}
+
+	const unique = Array.from(byCategory.keys()).sort(
 		(a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
 	);
 
@@ -139,6 +187,7 @@ export function CategoryBadgeList({
 				<CategoryBadge
 					key={category}
 					category={category}
+					expected={byCategory.get(category)}
 					isSelected={selectedCategories?.includes(category)}
 					onClick={
 						onCategoryClick ? () => onCategoryClick(category) : undefined
@@ -413,10 +462,21 @@ export function BugKeyChip({
 export interface ClassificationVerdictProps {
 	issues?: ResultIssueRef[];
 	hasError: boolean;
+	/** See `resultClassification` — `has_error` alone cannot tell this. */
+	effectiveExpected?: boolean;
 	resultId?: number;
 	projectId?: number;
 	withLeadingSeparator?: boolean;
 }
+
+/**
+ * The two states where the classification changed what the result *counts as*,
+ * and so has to be legible on the line rather than only in the stamps beneath
+ * it: a failure held out of the unexpected counts, and one whose issue has
+ * since closed so it counts again. `unexpected` and `marked` leave the result
+ * reading exactly as it would unclassified, and `no-effect` says as much.
+ */
+const OUTCOME_CHANGING: ReadonlySet<string> = new Set(['suppressed', 'stale']);
 
 function VerticalRule() {
 	return (
@@ -427,19 +487,31 @@ function VerticalRule() {
 export function ClassificationVerdict({
 	issues,
 	hasError,
+	effectiveExpected,
 	resultId,
 	projectId,
 	withLeadingSeparator = true
 }: ClassificationVerdictProps) {
-	const meta = resultClassification({ issues, hasError });
+	const meta = resultClassification({ issues, hasError, effectiveExpected });
 
 	if (!meta) return null;
 
 	if (resultId === undefined) return null;
 
+	const effect = OUTCOME_CHANGING.has(meta.value) ? meta : null;
+
 	return (
 		<div className="flex items-center gap-1.5">
 			{withLeadingSeparator ? <VerticalRule /> : null}
+			{effect ? (
+				<MetaBadge
+					description={effect.description}
+					variant={effect.variant}
+					dataAttributes={{ 'data-classification': effect.value }}
+				>
+					{effect.label}
+				</MetaBadge>
+			) : null}
 			<ClassifyButton resultId={resultId} projectId={projectId} />
 		</div>
 	);
@@ -455,7 +527,8 @@ export interface ResultIssueBadgesProps {
 
 interface IssueStampGroup {
 	issue: ResultIssueRef;
-	categories: IssueCategory[];
+	/** Each stamp names both, so the badges can say how the category counts. */
+	categories: IssueCategoryRef[];
 	origins: RuleResultOrigin[];
 }
 
@@ -468,13 +541,16 @@ function groupStampsByIssue(stamps: readonly ResultIssueRef[]) {
 		if (!group) {
 			groups.set(stamp.issue_id, {
 				issue: stamp,
-				categories: [stamp.category],
+				categories: [{ category: stamp.category, expected: stamp.expected }],
 				origins: [stamp.origin]
 			});
 			continue;
 		}
 
-		group.categories.push(stamp.category);
+		group.categories.push({
+			category: stamp.category,
+			expected: stamp.expected
+		});
 		if (!group.origins.includes(stamp.origin)) group.origins.push(stamp.origin);
 	}
 

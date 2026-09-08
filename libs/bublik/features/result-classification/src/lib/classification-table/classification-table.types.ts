@@ -12,6 +12,13 @@ export interface ClassificationTableStateConfig<F extends string> {
 	searchColumnId: string;
 	defaultPageSize?: number;
 	defaultSorting?: SortingState;
+	/**
+	 * Column id -> the field name DRF's `OrderingFilter` knows it by, for the
+	 * columns whose two names differ. A column absent from the map orders by its
+	 * own id; a column mapped to `null` cannot be ordered server-side at all and
+	 * sends no `ordering` (the table still sorts the page it holds).
+	 */
+	orderingByColumnId?: Record<string, string | null>;
 }
 
 export interface ClassificationQueryArgs {

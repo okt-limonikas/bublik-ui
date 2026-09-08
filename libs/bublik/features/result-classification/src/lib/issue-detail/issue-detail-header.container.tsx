@@ -189,10 +189,7 @@ export function IssueDetailHeader({
 
 			<dl className="grid items-center grid-cols-[max-content,max-content] gap-y-2 gap-x-4">
 				<Fact label="Key">
-					<BugKeyChip
-						bugKey={issue.issue_ext?.key ?? null}
-						bugUrl={issue.bug_url ?? null}
-					/>
+					<BugKeyChip bugKey={issue.bug_key} bugUrl={issue.bug_url} />
 				</Fact>
 				<Fact label="Rules">
 					<Tooltip content={rulesMeta.description}>
@@ -217,9 +214,6 @@ export function IssueDetailHeader({
 					<Fact label="Closed">
 						<TimeValue value={issue.closed_at} />
 					</Fact>
-				) : null}
-				{issue.issue_ext?.status ? (
-					<Fact label="Tracker status">{issue.issue_ext.status}</Fact>
 				) : null}
 			</dl>
 		</div>

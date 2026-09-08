@@ -15,6 +15,17 @@ export const COLUMN_ID = {
 	RULES: 'rules'
 } as const;
 
+/**
+ * The columns DRF's `OrderingFilter` can actually sort, and the field name it
+ * knows each by. Anything absent orders by its own id; `IssueViewSet` takes
+ * `created_at`, `updated_at`, `title` and `state`.
+ */
+export const ORDERING_BY_COLUMN_ID: Record<string, string | null> = {
+	[COLUMN_ID.ISSUE]: 'title',
+	[COLUMN_ID.CREATED]: 'created_at',
+	[COLUMN_ID.STATE]: 'state'
+};
+
 export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
 	[COLUMN_ID.CREATED]: false
 };

@@ -9,11 +9,7 @@ import {
 } from '@tanstack/react-table';
 
 import { useIsScrollbarVisible } from '@/shared/hooks';
-import {
-	bublikAPI,
-	useGetIssueRulesQuery,
-	useGetIssuesQuery
-} from '@/services/bublik-api';
+import { bublikAPI, useGetIssuesQuery } from '@/services/bublik-api';
 import { useProjectSearch } from '@/bublik/features/projects';
 
 import {
@@ -32,7 +28,8 @@ import {
 	COLUMN_VISIBILITY_KEY,
 	DEFAULT_COLUMN_VISIBILITY,
 	DEFAULT_PAGE_SIZE,
-	FILTER_KEYS
+	FILTER_KEYS,
+	ORDERING_BY_COLUMN_ID
 } from './issues-table.constants';
 import { useFacetOptions } from './issues-table.hooks';
 import type { IssuesTableProps } from './issues-table.types';
@@ -66,7 +63,8 @@ export function IssuesTable({ toolbarActions }: IssuesTableProps = {}) {
 		filterKeys: FILTER_KEYS,
 		searchColumnId: COLUMN_ID.ISSUE,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
-		defaultSorting: [{ id: COLUMN_ID.CREATED, desc: true }]
+		defaultSorting: [{ id: COLUMN_ID.CREATED, desc: true }],
+		orderingByColumnId: ORDERING_BY_COLUMN_ID
 	});
 
 	const issuesQuery = useGetIssuesQuery({
@@ -80,16 +78,6 @@ export function IssuesTable({ toolbarActions }: IssuesTableProps = {}) {
 		rules: queryArgs.filters[COLUMN_ID.RULES]
 	});
 
-	// TODO(api): only needed until `/issues/` carries `categories` and the rule
-	// counts itself. It is fetched for the same page so the join covers at least
-	// the rows on screen, but it cannot be right in general — two independently
-	// paginated lists do not line up.
-	const rulesQuery = useGetIssueRulesQuery({
-		projectId,
-		page: queryArgs.page,
-		pageSize: queryArgs.pageSize
-	});
-
 	const projectNames = useMemo(
 		() =>
 			new Map((projects ?? []).map((project) => [project.id, project.name])),
@@ -98,12 +86,8 @@ export function IssuesTable({ toolbarActions }: IssuesTableProps = {}) {
 
 	const rows = useMemo(
 		() =>
-			buildRows(
-				issuesQuery.data?.results ?? [],
-				rulesQuery.data?.results ?? [],
-				projectNames
-			),
-		[issuesQuery.data, rulesQuery.data, projectNames]
+			buildRows(issuesQuery.data?.results ?? [], projectNames),
+		[issuesQuery.data, projectNames]
 	);
 	const totalCount = issuesQuery.data?.pagination.count ?? 0;
 	const columns = useMemo(() => getColumns(), []);

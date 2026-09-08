@@ -68,6 +68,13 @@ const ISSUE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	accessorFn: (row) => row.issueTitle,
 	header: 'Issue',
 	meta: { width: COLUMN_WIDTH[COLUMN_ID.ISSUE] },
+	// The toolbar's search box files its term against this column, so its filter
+	// has to cover everything the server's own `search` looks at that a row can
+	// still show: the issue's title and its bug key.
+	filterFn: makeSearchFilter<IssueRuleRow>((row) => [
+		row.issueTitle,
+		row.bugKey
+	]),
 	cell: ({ row }) => (
 		<Tooltip content={`Open ${row.original.issueTitle} and its other rules`}>
 			<LinkWithProject
@@ -326,22 +333,12 @@ export function getColumns({
 			)
 		},
 		PROJECT_COLUMN,
-		{
-			id: COLUMN_ID.TEST,
-			accessorFn: (row) => row.test_name,
-			header: 'Test',
-			meta: { width: COLUMN_WIDTH[COLUMN_ID.TEST] },
-			filterFn: makeSearchFilter<IssueRuleRow>((row) =>
-				showIssue
-					? [row.test_name, row.issueTitle, row.bugKey]
-					: [row.test_name]
-			),
-			cell: ({ row }) => (
-				<span className="font-medium text-text-primary overflow-wrap-anywhere">
-					{row.original.test_name}
-				</span>
-			)
-		},
+		// TODO(api): the Test column is gone because `/issue_rules/` no longer
+		// names the test. `IssueRuleViewSet` annotates `test_name` for ordering
+		// but `IssueRuleSerializer.Meta.fields` omits it, and there is no endpoint
+		// mapping a test id to its name, so a column here could only show `#42`.
+		// Restore this — and standalone rule authoring, which needs the same
+		// mapping to pick a test — once the field is serialized.
 		ACTIVE_COLUMN,
 		DISPOSITION_COLUMN,
 		...(showIssue ? [KEY_COLUMN, ISSUE_COLUMN, ISSUE_STATE_COLUMN] : []),

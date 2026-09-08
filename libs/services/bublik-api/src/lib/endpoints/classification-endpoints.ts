@@ -5,6 +5,7 @@ import { EndpointBuilder } from '@reduxjs/toolkit/query';
 import { config } from '@/bublik/config';
 
 import {
+	BulkActionResult,
 	ClassifyRequest,
 	CreateIssueRequest,
 	CreateRuleRequest,
@@ -21,7 +22,6 @@ import {
 } from '@/shared/types';
 
 import { BUBLIK_TAG } from '../types';
-import { prepareForSend } from '../utils';
 import { API_REDUCER_PATH } from '../constants';
 import { BublikBaseQueryFn, withApiV2 } from '../config';
 
@@ -95,33 +95,19 @@ export const classificationEndpoints = {
 					project: args.projectId,
 					page: args.page,
 					page_size: args.pageSize,
-					// `state` and `category` are deliberately NOT sent.
-					//
-					// `IssueViewSet.get_queryset` compares them with `=` against the
-					// raw query value, so the `;`-joined list a multi-select produces
-					// (`category=env;flaky`) matches no row at all and the endpoint
-					// returns an empty page — the table then reports "no matching
-					// issues" for a selection that has plenty. Verified against a
-					// live server: `?category=env` → 6, `?category=env;flaky` → 0.
-					//
-					// Sending a single value is no better. `category` filters on
-					// `rules__category` and `project` on `rules__project_id` as two
-					// separate `.filter()` calls, which under Django is two
-					// independent joins over the same multi-valued relation: the
-					// pair matches an issue with *some* rule in that category and
-					// *some* rule in that project, not one rule that is both.
-					//
-					// `IssuesTable` filters the loaded page client-side regardless,
-					// so withholding these costs nothing and removes both faults.
-					// TODO(api): send them again once the endpoint takes a list and
-					// applies the two conditions to the same rule.
-					//
-					// `search`, `ordering` and `rules` are sent but ignored —
-					// `filter_backends` is empty and `get_queryset` reads only
-					// state/category/project — so the search box, the Rules facet
-					// and column sorting all fall back to the client-side pass too.
 					search: args.search || undefined,
 					ordering: args.ordering,
+					// `state` takes a list: `IssueViewSet` splits it on
+					// `QUERY_DELIMITER`, the same `;` the URL state uses, so a facet
+					// selection round-trips from the address bar unchanged.
+					state: args.state?.join(config.queryDelimiter),
+					// `category` does not. It is compared with `=` against one raw
+					// value, so a multi-select falls back to the client-side pass
+					// rather than asking for a page the server cannot produce.
+					// TODO(api): accept a list here too.
+					category: args.category?.length === 1 ? args.category[0] : undefined,
+					// `rules` is derived from the two rule counts and has no
+					// server-side equivalent at all — always client-side.
 					rules: args.rules?.join(config.queryDelimiter)
 				},
 				cache: 'no-cache'
@@ -154,19 +140,23 @@ export const classificationEndpoints = {
 		 * Every result stamped under an issue, across runs — the issue-scoped
 		 * twin of `getRunIssueResults`.
 		 *
-		 * TODO(api): `GET /issues/{id}/results` does not exist yet. The issues
-		 * list already renders the sub-row that consumes it, so this 404s until
-		 * the endpoint lands.
+		 * Served by the plain result listing rather than an issue sub-route:
+		 * `ResultViewSet` takes an `issue` filter, and its rows already carry the
+		 * `run_id` a cross-run view needs. The filter is **comma** separated, not
+		 * `;` — `ResultService.list_results` parses it, not the `QUERY_DELIMITER`
+		 * convention the issue endpoints follow.
 		 */
 		getIssueResults: build.query<
 			IssueResultRow[],
 			{ issueId: number; projectId?: number }
 		>({
 			query: ({ issueId, projectId }) => ({
-				url: withApiV2(`/issues/${issueId}/results`),
-				params: { project: projectId },
+				url: withApiV2('/results'),
+				params: { issue: String(issueId), project: projectId },
 				cache: 'no-cache'
 			}),
+			transformResponse: (response: { results: IssueResultRow[] }) =>
+				response?.results ?? [],
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
 		getIssuePicker: build.query<
@@ -189,15 +179,17 @@ export const classificationEndpoints = {
 						issue: args.issue,
 						page: args.page,
 						page_size: args.pageSize,
-						// TODO(api): everything from here down is sent but ignored —
-						// `IssueRuleViewSet` filters on project and issue only. The
-						// search box, the Category/Disposition/State facets and column
-						// sorting are inert on this table until they land.
-						search: args.search || undefined,
+							search: args.search || undefined,
 						ordering: args.ordering,
-						category: args.category?.join(config.queryDelimiter),
-						expected: args.expected?.join(config.queryDelimiter),
-						active: args.active?.join(config.queryDelimiter)
+						// Only `active` takes a list. `category` is an `=` compare and
+						// `expected` a three-way choice, so a multi-select on either
+						// falls through to the client-side pass instead.
+						// TODO(api): accept lists for those two as well.
+						active: args.active?.join(config.queryDelimiter),
+						category:
+							args.category?.length === 1 ? args.category[0] : undefined,
+						expected:
+							args.expected?.length === 1 ? args.expected[0] : undefined
 					},
 					cache: 'no-cache'
 				}),
@@ -210,11 +202,15 @@ export const classificationEndpoints = {
 			{ issue_id: number; rule_id: number },
 			ClassifyRequest
 		>({
+			// Sent as written, **not** through `prepareForSend`: every field is
+			// already in the server's spelling, and decamelizing would recurse into
+			// `matcher.parameters` and rewrite the test's own parameter names —
+			// silently changing what the rule matches.
 			query: ({ resultId, projectId, ...body }) => ({
 				url: withApiV2(`/results/${resultId}/classify`),
 				method: 'POST',
 				params: { project: projectId },
-				body: prepareForSend(body)
+				body
 			}),
 			invalidatesTags: [
 				BUBLIK_TAG.Run,
@@ -344,36 +340,71 @@ export const classificationEndpoints = {
 				BUBLIK_TAG.ResultClassification
 			]
 		}),
-		closeIssue: build.mutation<Issue, { issueId: number; projectId?: number }>({
-			query: ({ issueId, projectId }) => ({
-				url: withApiV2(`/issues/${issueId}/close`),
+		/**
+		 * The four lifecycle actions are **bulk collection** routes — `POST
+		 * /issues/close/` with `{ids: [...]}`, not `POST /issues/{id}/close/`.
+		 * They answer with a summary rather than the mutated rows, and a row
+		 * already in the requested state comes back under `unchanged`, not as an
+		 * error, so a caller can send a whole selection without pre-filtering it.
+		 */
+		closeIssues: build.mutation<
+			BulkActionResult,
+			{ ids: number[]; projectId?: number }
+		>({
+			query: ({ ids, projectId }) => ({
+				url: withApiV2('/issues/close'),
 				method: 'POST',
-				params: { project: projectId }
+				params: { project: projectId },
+				body: { ids }
 			}),
+			// Closing an issue also deactivates every active rule on it, so the
+			// rules list and everything downstream of suppression move with it.
 			invalidatesTags: [
 				BUBLIK_TAG.Issues,
 				BUBLIK_TAG.IssueRules,
-				BUBLIK_TAG.Run
+				BUBLIK_TAG.Run,
+				BUBLIK_TAG.ResultClassification
 			]
 		}),
-		reopenIssue: build.mutation<Issue, { issueId: number; projectId?: number }>(
-			{
-				query: ({ issueId, projectId }) => ({
-					url: withApiV2(`/issues/${issueId}/reopen`),
-					method: 'POST',
-					params: { project: projectId }
-				}),
-				invalidatesTags: [BUBLIK_TAG.Issues, BUBLIK_TAG.Run]
-			}
-		),
-		deactivateRule: build.mutation<
-			IssueRule,
-			{ ruleId: number; projectId?: number }
+		reopenIssues: build.mutation<
+			BulkActionResult,
+			{ ids: number[]; projectId?: number }
 		>({
-			query: ({ ruleId, projectId }) => ({
-				url: withApiV2(`/issue_rules/${ruleId}/deactivate`),
+			query: ({ ids, projectId }) => ({
+				url: withApiV2('/issues/reopen'),
 				method: 'POST',
-				params: { project: projectId }
+				params: { project: projectId },
+				body: { ids }
+			}),
+			// Reopening does *not* reactivate the rules that closing deactivated,
+			// but it does restore suppression for stamps under still-active ones.
+			invalidatesTags: [
+				BUBLIK_TAG.Issues,
+				BUBLIK_TAG.Run,
+				BUBLIK_TAG.ResultClassification
+			]
+		}),
+		deactivateRules: build.mutation<
+			BulkActionResult,
+			{ ids: number[]; projectId?: number }
+		>({
+			query: ({ ids, projectId }) => ({
+				url: withApiV2('/issue_rules/deactivate'),
+				method: 'POST',
+				params: { project: projectId },
+				body: { ids }
+			}),
+			invalidatesTags: [BUBLIK_TAG.IssueRules, BUBLIK_TAG.Run]
+		}),
+		activateRules: build.mutation<
+			BulkActionResult,
+			{ ids: number[]; projectId?: number }
+		>({
+			query: ({ ids, projectId }) => ({
+				url: withApiV2('/issue_rules/activate'),
+				method: 'POST',
+				params: { project: projectId },
+				body: { ids }
 			}),
 			invalidatesTags: [BUBLIK_TAG.IssueRules, BUBLIK_TAG.Run]
 		}),
@@ -384,17 +415,6 @@ export const classificationEndpoints = {
 				cache: 'no-cache'
 			}),
 			providesTags: [BUBLIK_TAG.Issues]
-		}),
-		activateRule: build.mutation<
-			IssueRule,
-			{ ruleId: number; projectId?: number }
-		>({
-			query: ({ ruleId, projectId }) => ({
-				url: withApiV2(`/issue_rules/${ruleId}/activate`),
-				method: 'POST',
-				params: { project: projectId }
-			}),
-			invalidatesTags: [BUBLIK_TAG.IssueRules, BUBLIK_TAG.Run]
 		}),
 		getRunIssues: build.query<
 			RunIssueRow[],

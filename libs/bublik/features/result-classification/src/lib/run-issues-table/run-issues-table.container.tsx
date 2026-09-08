@@ -12,7 +12,8 @@ import {
 } from '@tanstack/react-table';
 
 import { useIsScrollbarVisible } from '@/shared/hooks';
-import { useGetIssuesQuery, useGetRunIssuesQuery } from '@/services/bublik-api';
+import type { RunIssueRow } from '@/shared/types';
+import { useGetRunIssuesQuery } from '@/services/bublik-api';
 
 import {
 	useClassificationTableState,
@@ -35,6 +36,9 @@ import {
 import { useFacetOptions } from './run-issues-table.hooks';
 import type { RunIssuesTableProps } from './run-issues-table.types';
 
+/** Stable empty reference, so an unloaded query does not remount the table. */
+const EMPTY_ISSUES: RunIssueRow[] = [];
+
 export function RunIssuesTable({
 	runId,
 	projectId,
@@ -42,21 +46,6 @@ export function RunIssuesTable({
 }: RunIssuesTableProps) {
 	const { data, isLoading, error } = useGetRunIssuesQuery(
 		projectId === undefined ? skipToken : { runId, projectId }
-	);
-
-	// TODO(api): only needed for the description and for the row the edit form
-	// starts from, neither of which `run_issues_summary` returns. Unlike the
-	// same-page joins elsewhere in this feature this one is sound rather than
-	// approximate — `/runs/{id}/issues/` is unpaginated and a run holds a
-	// handful of issues, so a single large page covers every id it can name.
-	// Adding `description` to that endpoint makes it dead code.
-	const { data: allIssues } = useGetIssuesQuery(
-		projectId === undefined ? skipToken : { projectId, page: 1, pageSize: 1000 }
-	);
-
-	const issueById = useMemo(
-		() => new Map((allIssues?.results ?? []).map((issue) => [issue.id, issue])),
-		[allIssues]
 	);
 
 	const [scrollRef, isScrollable] = useIsScrollbarVisible<HTMLDivElement>();
@@ -82,14 +71,7 @@ export function RunIssuesTable({
 		defaultSorting: [{ id: COLUMN_ID.RESULTS, desc: true }]
 	});
 
-	const issues = useMemo(
-		() =>
-			(data ?? []).map((row) => ({
-				...row,
-				description: row.description ?? issueById.get(row.issue_id)?.description
-			})),
-		[data, issueById]
-	);
+	const issues = data ?? EMPTY_ISSUES;
 	const columns = useMemo(() => getColumns(), []);
 	const { stateOptions, effectOptions, categoryOptions } =
 		useFacetOptions(issues);

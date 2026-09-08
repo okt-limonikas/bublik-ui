@@ -65,8 +65,22 @@ export function issueStateMeta(state: IssueState): IssueStateMeta {
 export function resultClassification(input: {
 	issues?: readonly Pick<ResultIssueRef, 'expected' | 'issue_state'>[];
 	hasError: boolean;
+	/**
+	 * The server's own verdict on whether an expected classification is holding
+	 * this failure out of the unexpected counts.
+	 *
+	 * It has to be asked for separately, because `has_error` is *already*
+	 * suppressed upstream — `is_result_unexpected` returns false as soon as a
+	 * suppressing stamp exists. Read from `has_error` alone, a suppressed
+	 * failure is indistinguishable from a pass that happens to carry a stamp,
+	 * and comes out `no-effect`: the one state that says the classification did
+	 * nothing. Where the field is served, it decides.
+	 */
+	effectiveExpected?: boolean;
 }): ResultClassificationMeta | null {
 	const stamps = input.issues ?? [];
+
+	if (input.effectiveExpected) return RUN_ISSUE_EFFECT_META.suppressed;
 
 	if (!stamps.length) return input.hasError ? UNTRIAGED_META : null;
 

@@ -24,6 +24,7 @@ function issue(partial: Partial<RunIssueRow>): RunIssueRow {
 		issue_id: 1,
 		title: 'Issue',
 		state: 'open',
+		description: null,
 		bug_key: null,
 		bug_url: null,
 		result_count: 1,
@@ -198,6 +199,35 @@ describe('formatBugKey', () => {
 describe('resultClassification', () => {
 	const open = (expected: boolean | null) =>
 		({ expected, issue_state: 'open' } as const);
+
+	// `has_error` arrives already suppressed — `is_result_unexpected` returns
+	// false the moment a suppressing stamp exists — so without the server's own
+	// flag a held-back failure is indistinguishable from a pass carrying a stamp.
+	it('reads a suppressed failure from effectiveExpected, not from hasError', () => {
+		expect(
+			resultClassification({
+				issues: [open(true)],
+				hasError: false,
+				effectiveExpected: true
+			})?.value
+		).toBe('suppressed');
+	});
+
+	it('without the flag the same row falls to no-effect', () => {
+		expect(
+			resultClassification({ issues: [open(true)], hasError: false })?.value
+		).toBe('no-effect');
+	});
+
+	it('leaves a row the server did not suppress to the stamps', () => {
+		expect(
+			resultClassification({
+				issues: [open(false)],
+				hasError: true,
+				effectiveExpected: false
+			})?.value
+		).toBe('unexpected');
+	});
 
 	it('is untriaged when a failure carries no stamps', () => {
 		expect(resultClassification({ issues: [], hasError: true })?.value).toBe(

@@ -11,41 +11,41 @@ export type IssueCategory =
 
 export type IssueState = 'open' | 'closed';
 
-export type IssueExt = {
-	id: number;
-	key: string;
-	status: string | null;
-	title: string | null;
-	synced_at: string | null;
-};
+/**
+ * A `(category, expected)` pair. An issue carries no classification of its own —
+ * category and disposition live on its rules — so both `/issues/` and
+ * `/runs/{id}/issues/` describe an issue by the distinct pairs its *active*
+ * rules hold.
+ */
+export interface IssueCategoryRef {
+	category: IssueCategory;
+	expected: boolean | null;
+}
 
 export type Issue = {
 	id: number;
+	project: number;
 	title: string;
 	description: string | null;
 	state: IssueState;
-	issue_ext: IssueExt | null;
+	/**
+	 * External bug reference in `ref://TRACKER/KEY` form, or null when unlinked.
+	 * There is no tracker-cache row behind it: the key *is* the reference.
+	 */
+	bug_key: string | null;
+	/** `bug_key` resolved against the project's tracker config, or null. */
+	bug_url: string | null;
+	categories: IssueCategoryRef[];
+	rule_count: number;
+	active_rule_count: number;
 	created_at: string;
 	updated_at: string;
 	closed_at: string | null;
 	/**
-	 * Everything below is what the issues list needs to be triaged from, and
-	 * none of it is on `/issues/` yet — `/runs/{id}/issues/` already returns the
-	 * same shape, so this is the contract the list endpoint is growing towards.
-	 *
-	 * Optional on purpose: `IssuesTable` reads each field when it arrives and
-	 * falls back to joining `/issue_rules/` client-side until then. Dropping the
-	 * optionality is the signal that the fallback can go.
+	 * TODO(api): distinct results stamped under this issue. `IssueSerializer`
+	 * annotates the two rule counts but not this one, so the issues table shows
+	 * nothing rather than guessing from the page it happens to hold.
 	 */
-	/** TODO(api): resolve like `run_issues_summary` does, via `resolve_ref`. */
-	bug_url?: string | null;
-	/** TODO(api): distinct categories across the issue's rules. */
-	categories?: IssueCategory[];
-	/** TODO(api): total rules on the issue, in the requested project. */
-	rule_count?: number;
-	/** TODO(api): of those, how many are active. */
-	active_rule_count?: number;
-	/** TODO(api): distinct results stamped under this issue. */
 	result_count?: number;
 };
 
@@ -53,6 +53,19 @@ export type Issue = {
 export interface PaginatedResponse<T> {
 	pagination: { count: number; next: string | null; previous: string | null };
 	results: T[];
+}
+
+/**
+ * The summary every bulk action returns — `close`/`reopen` on issues,
+ * `activate`/`deactivate` on rules. `unchanged` counts rows that were already in
+ * the requested state, which is why "nothing happened" is a success, not an
+ * error.
+ */
+export interface BulkActionResult {
+	requested: number;
+	updated: number;
+	unchanged: number;
+	not_found: number;
 }
 
 /**
@@ -71,19 +84,31 @@ export interface IssueFacets {
 
 export type IssueRule = {
 	id: number;
+	/** Read through `issue.project_id`; a rule has no project of its own. */
 	project: number;
 	issue: number;
+	/**
+	 * Read through the linked issue, so a rules list needs no join to name the
+	 * issue it belongs to or to link out to the tracker.
+	 */
+	issue_title: string;
+	bug_key: string | null;
+	bug_url: string | null;
 	category: IssueCategory;
 	expected: boolean | null;
 	active: boolean;
 	test: number;
-	test_name: string;
 	/**
 	 * The matcher. Every criterion is exact and an empty one is *ignored* —
 	 * which is also what a stored rule's "match scope" is: the set of these
 	 * three that carry anything. There are no `match_*` flags on the wire; those
 	 * belong to the classify request, where they choose what gets captured from
 	 * the result into these fields. See `chipsForRule`.
+	 *
+	 * TODO(api): there is no `test_name`. `IssueRuleViewSet` annotates one, but
+	 * only to make `ordering=test_name` legal — `IssueRuleSerializer.Meta.fields`
+	 * omits it, so a rule cannot name its own test. Adding it there is what lets
+	 * the Test column and standalone rule authoring come back.
 	 */
 	parameters: Record<string, string>;
 	verdicts: string[];
@@ -108,12 +133,7 @@ export type ResultIssueRef = {
 export interface RunIssueRow {
 	issue_id: number;
 	title: string;
-	/**
-	 * TODO(api): `run_issues_summary` does not select it, so the run's issue
-	 * table joins `/issues/` to fill it in. One more field on that `values()`
-	 * call would make the join dead code.
-	 */
-	description?: string | null;
+	description: string | null;
 	state: IssueState;
 	/** External tracker key, e.g. `ref://JIRA/FOO-123`. */
 	bug_key: string | null;
@@ -121,7 +141,7 @@ export interface RunIssueRow {
 	bug_url: string | null;
 	/** Distinct results in this run stamped under this issue. */
 	result_count: number;
-	categories: { category: IssueCategory; expected: boolean | null }[];
+	categories: IssueCategoryRef[];
 }
 
 export interface RunIssueResultRow {
@@ -136,9 +156,7 @@ export interface RunIssueResultRow {
 
 /**
  * The same row seen from the issue rather than from one run, so it has to say
- * which run each result came from.
- *
- * TODO(api): `GET /issues/{id}/results`.
+ * which run each result came from. Served by `GET /results/?issue={id}`.
  */
 export interface IssueResultRow extends RunIssueResultRow {
 	run_id: number;
@@ -153,23 +171,34 @@ export interface IssuePickerOption {
 
 export type ClassifyScope = 'future' | 'oneoff';
 
-export interface ClassifyMatcher {
-	matchParameters: boolean;
-	matchVerdicts: boolean;
-	matchImportantTags: boolean;
-	matchAllTags: boolean;
+/**
+ * Matcher **overrides** for a classify request, in the server's own spelling.
+ *
+ * `ResultViewSet.classify` reads each key with a default drawn from the result
+ * itself, so the three states are: key absent → capture that criterion from the
+ * result; key present and empty → ignore that criterion; key present with a
+ * value → use exactly that. There are no `match_*` booleans; sending them is
+ * how the UI used to *silently* get the default capture every time.
+ */
+export interface ClassifyMatcherOverride {
+	parameters?: Record<string, string>;
+	verdicts?: string[];
+	tags?: string[];
 }
 
 export type ClassifyRequest = {
 	resultId: number;
 	projectId: number;
+	/**
+	 * An existing issue ID, or the data to create one. `project` is **not** part
+	 * of the create payload — the server takes it from the result being
+	 * classified, and an existing issue from another project is rejected.
+	 */
 	issue: number | { title: string; description?: string; bug_key?: string };
 	category: IssueCategory;
 	expected?: boolean | null;
 	scope: ClassifyScope;
-	// Optional; keys are decamelized to match_* by prepareForSend. Omit to keep
-	// the backend defaults (path + params + verdicts + important tags).
-	matcher?: ClassifyMatcher;
+	matcher?: ClassifyMatcherOverride;
 };
 
 /**
@@ -201,9 +230,12 @@ export interface UpdateIssueRequest {
 	bug_key?: string | null;
 }
 
+/**
+ * `project` is not accepted: it is read-only on the serializer
+ * (`source='issue.project_id'`), so a rule's project is always its issue's.
+ */
 export interface CreateRuleRequest {
 	projectId?: number;
-	project: number;
 	issue: number;
 	test: number;
 	category: IssueCategory;
@@ -214,9 +246,11 @@ export interface CreateRuleRequest {
 }
 
 /**
- * Only the two fields that survive `_MATCHER_FIELDS`. `project`, `issue`,
- * `test`, `parameters`, `verdicts` and `tags` are rejected once the rule has
- * stamps, and `active` is read-only — it moves through activate/deactivate.
+ * Category and disposition only. The matcher fields — `issue`, `test`,
+ * `parameters`, `verdicts`, `tags` — are rejected *once the rule has stamps*,
+ * with "Create a new rule instead"; keeping them off the body is what stops the
+ * guard firing on a rule that has them. `active` is read-only and moves through
+ * activate/deactivate.
  */
 export interface UpdateRuleRequest {
 	ruleId: number;
@@ -225,8 +259,9 @@ export interface UpdateRuleRequest {
 	expected?: boolean | null;
 }
 
-/** A test the client can name and identify. See `useKnownTests`. */
-export interface TestOption {
+/** An issue that classifies at least one result of a given test. */
+export interface IssueSearchOption {
 	id: number;
-	name: string;
+	title: string;
+	bug_key: string | null;
 }

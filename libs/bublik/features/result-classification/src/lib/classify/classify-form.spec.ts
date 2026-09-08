@@ -14,8 +14,7 @@ const BASE = {
 	expected: 'none' as const,
 	matchParameters: true,
 	matchVerdicts: true,
-	matchImportantTags: true,
-	matchAllTags: false
+	matchTags: true
 };
 
 function errorsFor(values: Record<string, unknown>) {

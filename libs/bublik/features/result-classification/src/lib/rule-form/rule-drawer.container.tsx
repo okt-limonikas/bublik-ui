@@ -144,6 +144,21 @@ export interface NewRuleButtonProps extends RuleFormSeed {
 	label?: string;
 }
 
+/**
+ * Hidden, not deleted.
+ *
+ * Authoring a rule from scratch means naming the test it applies to, and
+ * `/issue_rules/` no longer returns `test_name` — `IssueRuleViewSet` annotates
+ * it for ordering, but `IssueRuleSerializer.Meta.fields` omits it, and no other
+ * endpoint maps a test id to its name. A picker here could only offer bare ids,
+ * which is worse than not offering the flow at all.
+ *
+ * Rules still arrive the way they mostly did: captured from a result through
+ * the classify drawer, which resolves the test server-side. Editing, deleting
+ * and activating them are all unaffected.
+ *
+ * TODO(api): drop the early return once `test_name` is serialized again.
+ */
 export function NewRuleButton({
 	rule,
 	projectId,
@@ -154,6 +169,7 @@ export function NewRuleButton({
 	size = 'xss',
 	label = 'New Rule'
 }: NewRuleButtonProps) {
+	const HIDDEN = true;
 	const [open, setOpen] = useState(false);
 	const { canManage, reason } = useCanManageIssues();
 	const seed = { rule, projectId, issueId, testId };
@@ -163,6 +179,8 @@ export function NewRuleButton({
 		setOpen(next);
 		if (!next) form.reset();
 	}
+
+	if (HIDDEN) return null;
 
 	return (
 		<>
@@ -235,7 +253,6 @@ export function EditRuleButton({
 					onOpenChange={setOpen}
 					seed={{ rule }}
 					rule={rule}
-					testName={rule.test_name}
 				/>
 			) : null}
 		</>
@@ -247,12 +264,16 @@ export interface DuplicateRuleButtonProps {
 	iconOnly?: boolean;
 }
 
+/** Hidden for the same reason as {@link NewRuleButton}: it seeds a new rule. */
 export function DuplicateRuleButton({
 	rule,
 	iconOnly = false
 }: DuplicateRuleButtonProps) {
+	const HIDDEN = true;
 	const [open, setOpen] = useLazyDialog();
 	const { canManage, reason } = useCanManageIssues();
+
+	if (HIDDEN) return null;
 
 	return (
 		<>
@@ -287,7 +308,6 @@ export function DuplicateRuleButton({
 					open={open}
 					onOpenChange={setOpen}
 					seed={{ rule }}
-					testName={rule.test_name}
 				/>
 			) : null}
 		</>
@@ -370,7 +390,7 @@ export function RuleDeleteButton({
 				<ConfirmDialog
 					open={isOpen}
 					onOpenChange={setIsOpen}
-					title={`Delete this rule on ${rule.test_name}?`}
+					title="Delete this rule?"
 					description={
 						'This also deletes every stamp the rule laid, so results it was explaining go back to counting as unexpected. To stop it applying to future imports while keeping that history, disable it instead.'
 					}

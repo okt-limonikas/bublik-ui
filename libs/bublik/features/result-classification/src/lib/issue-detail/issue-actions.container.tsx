@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import {
-	useCloseIssueMutation,
-	useReopenIssueMutation
+	useCloseIssuesMutation,
+	useReopenIssuesMutation
 } from '@/services/bublik-api';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { ButtonTw, Icon, Tooltip, cn, toast } from '@/shared/tailwind-ui';
@@ -53,15 +53,16 @@ export function IssueStateToggle({
 	projectId,
 	className
 }: IssueStateToggleProps) {
-	const [closeIssue, closeState] = useCloseIssueMutation();
-	const [reopenIssue, reopenState] = useReopenIssueMutation();
+	const [closeIssues, closeState] = useCloseIssuesMutation();
+	const [reopenIssues, reopenState] = useReopenIssuesMutation();
 
 	const isOpen = state === 'open';
 	const isBusy = closeState.isLoading || reopenState.isLoading;
 
 	function handleToggle() {
-		const action = isOpen ? closeIssue : reopenIssue;
-		const promise = action({ issueId, projectId }).unwrap();
+		// Bulk endpoints; one issue is just a list of one.
+		const action = isOpen ? closeIssues : reopenIssues;
+		const promise = action({ ids: [issueId], projectId }).unwrap();
 
 		toast.promise(promise, {
 			loading: isOpen ? 'Closing issue...' : 'Reopening issue...',

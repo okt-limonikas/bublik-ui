@@ -13,8 +13,7 @@ export const ClassifyFormShape = z.object({
 	expected: z.enum(['expected', 'unexpected', 'none']),
 	matchParameters: z.boolean(),
 	matchVerdicts: z.boolean(),
-	matchImportantTags: z.boolean(),
-	matchAllTags: z.boolean()
+	matchTags: z.boolean()
 });
 
 export const ClassifyFormSchema = ClassifyFormShape.superRefine(

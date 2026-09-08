@@ -28,10 +28,15 @@ function errorsFor(values: Record<string, unknown>) {
 function issue(overrides: Partial<Issue> = {}): Issue {
 	return {
 		id: 7,
+		project: 1,
 		title: 'ethtool reset regression',
 		description: null,
 		state: 'open',
-		issue_ext: null,
+		bug_key: null,
+		bug_url: null,
+		categories: [],
+		rule_count: 0,
+		active_rule_count: 0,
 		created_at: '2026-01-01T00:00:00Z',
 		updated_at: '2026-01-01T00:00:00Z',
 		closed_at: null,
@@ -82,17 +87,7 @@ describe('IssueFormSchema', () => {
 describe('issueToFormValues', () => {
 	it('splits the stored URI back into the two fields that produced it', () => {
 		expect(
-			issueToFormValues(
-				issue({
-					issue_ext: {
-						id: 1,
-						key: 'ref://JIRA/FOO-123',
-						status: null,
-						title: null,
-						synced_at: null
-					}
-				})
-			)
+			issueToFormValues(issue({ bug_key: 'ref://JIRA/FOO-123' }))
 		).toMatchObject({ tracker: 'JIRA', bugKey: 'FOO-123' });
 	});
 
