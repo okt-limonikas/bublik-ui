@@ -150,6 +150,10 @@ export function IssuesTableView({
 				<DataTableFacetedFilter
 					title="Category"
 					size="xss"
+					// `IssueViewSet` compares `category` against one raw value, so a
+					// multi-select could only ever be filtered client-side, over the
+					// page the table holds.
+					selection="single"
 					options={categoryOptions}
 					value={facets.values(COLUMN_ID.CATEGORIES)}
 					onChange={(values) => facets.set(COLUMN_ID.CATEGORIES, values)}

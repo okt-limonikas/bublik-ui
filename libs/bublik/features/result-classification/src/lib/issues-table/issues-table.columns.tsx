@@ -155,11 +155,11 @@ export function getColumns(): ColumnDef<IssueTableRow, unknown>[] {
 			// `[object Object]` — matching nothing, every time.
 			accessorFn: (row) => row.categories.map((c) => c.category),
 			header: 'Categories',
-			// 11rem fitted three badges, which was enough while `categories` came
-			// from a partial client-side join. `/issues/` now returns every active
-			// rule's category, so rows routinely carry four or more and wrapped
-			// mid-list. The surplus comes out of Description, the `1fr` track.
-			meta: { width: 'minmax(6rem, 20rem)', badgeCell: true },
+			// Sized to the widest row's badges rather than to a guess: a fixed cap
+			// either wrapped the busiest rows mid-list or left the ordinary ones —
+			// one or two badges — sitting in a column of empty space. Description
+			// is the `1fr` track, so whatever this does not take goes there.
+			meta: { width: 'minmax(6rem, max-content)', badgeCell: true },
 			enableSorting: false,
 			filterFn: someOfFilter,
 			cell: ({ row, table }) => {

@@ -24,14 +24,17 @@ const BADGE_TRACK = 'auto';
 /**
  * Grid tracks, one per column.
  *
- * Issue is the one flexible track, and only the all-rules view has it: with
- * every track capped the end gutter took the whole surplus, and once Test was
- * gone and the matcher columns started hidden the table sat at roughly half the
- * container. The per-issue view keeps the gutter — it shows badges and little
- * else, so there is nothing there that wants the room.
+ * Issue and Match Scope are `max-content`: sized to the widest row rather than
+ * to a fixed cap. A cap is a guess that is wrong in both directions — too low
+ * and Match Scope's chips wrap into what reads as two rules, too high and Issue
+ * sits in a column of empty space. `1fr` is worse still: it hands Issue every
+ * pixel the other columns did not want, which is most of them once Test is gone
+ * and the matcher columns start hidden.
  *
- * Match Scope is `max-content` rather than capped: its chips must not wrap, so
- * the track has to fit the widest set rather than clip it.
+ * With no `fr` track anywhere and no end gutter, the grid spreads whatever is
+ * left across the `auto` tracks — the badge columns — so the table fills its
+ * container without any one column swallowing the difference. That is why the
+ * gutter, which is itself an `fr`, had to go: it was taking the whole surplus.
  *
  * Every other track is capped. One that could grow without limit would swallow
  * whatever the hidden columns left behind, which is how Test and Issue used to
@@ -43,7 +46,7 @@ export const COLUMN_WIDTH: Record<string, string> = {
 	[COLUMN_ID.ACTIVE]: BADGE_TRACK,
 	[COLUMN_ID.DISPOSITION]: BADGE_TRACK,
 	[COLUMN_ID.KEY]: BADGE_TRACK,
-	[COLUMN_ID.ISSUE]: 'minmax(12rem, 1fr)',
+	[COLUMN_ID.ISSUE]: 'minmax(12rem, max-content)',
 	[COLUMN_ID.ISSUE_STATE]: BADGE_TRACK,
 	[COLUMN_ID.CATEGORY]: BADGE_TRACK,
 	[COLUMN_ID.SCOPE]: 'minmax(7rem, max-content)',

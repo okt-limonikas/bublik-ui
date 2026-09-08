@@ -166,9 +166,13 @@ export function IssueRulesTableView({
 						disabled={!issueStateOptions.length}
 					/>
 				) : null}
+				{/* `IssueRuleViewSet` compares `category` and `expected` against one
+				    raw value, so a multi-select here could only ever be filtered
+				    client-side, over the page the table holds. */}
 				<DataTableFacetedFilter
 					title="Category"
 					size="xss"
+					selection="single"
 					options={categoryOptions}
 					value={facets.values(COLUMN_ID.CATEGORY)}
 					onChange={(values) => facets.set(COLUMN_ID.CATEGORY, values)}
@@ -177,6 +181,7 @@ export function IssueRulesTableView({
 				<DataTableFacetedFilter
 					title="Disposition"
 					size="xss"
+					selection="single"
 					options={dispositionOptions}
 					value={facets.values(COLUMN_ID.DISPOSITION)}
 					onChange={(values) => facets.set(COLUMN_ID.DISPOSITION, values)}
@@ -253,13 +258,9 @@ export function IssueRulesTableView({
 						className="h-64"
 					/>
 				) : (
-					// The all-rules view has a flexible Issue column to take the
-					// surplus; the per-issue view is all badges, so it keeps the
-					// gutter rather than stretching a chip across the screen.
 					<ClassificationTable
 						table={table}
 						stickyHeader
-						endGutter={!showIssue}
 						scrollRef={scrollRef}
 						renderSubRow={renderSubRow}
 						testId="issue-rules-table"

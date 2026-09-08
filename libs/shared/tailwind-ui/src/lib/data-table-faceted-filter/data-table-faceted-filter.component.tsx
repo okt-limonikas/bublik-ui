@@ -33,6 +33,17 @@ export interface DataTableFacetedFilterProps {
 	className?: string;
 	size?: 'xss' | 'xs/2';
 	disabled?: boolean;
+	/**
+	 * `single` turns the list into a radio group: picking an option replaces the
+	 * selection instead of adding to it, picking the selected one clears it, and
+	 * "Select all" goes away because it cannot mean anything.
+	 *
+	 * For filters the server compares against one raw value — a `;`-joined list
+	 * matches no row — so offering a multi-select promises something the query
+	 * cannot keep. `onChange` still carries an array, of zero or one entry, so
+	 * callers and URL state are unchanged.
+	 */
+	selection?: 'multiple' | 'single';
 }
 
 export function DataTableFacetedFilter({
@@ -41,8 +52,10 @@ export function DataTableFacetedFilter({
 	value,
 	onChange,
 	size = 'xs/2',
-	disabled = false
+	disabled = false,
+	selection = 'multiple'
 }: DataTableFacetedFilterProps) {
+	const isSingle = selection === 'single';
 	const selectedValues = new Set(value);
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [inputValue, setInputValue] = React.useState('');
@@ -132,7 +145,14 @@ export function DataTableFacetedFilter({
 									return (
 										<CommandItem
 											key={option.value}
+											role={isSingle ? 'radio' : 'checkbox'}
+											aria-checked={isSelected}
 											onSelect={() => {
+												if (isSingle) {
+													onChange?.(isSelected ? [] : [option.value]);
+													return;
+												}
+
 												if (isSelected) {
 													selectedValues.delete(option.value);
 												} else {
@@ -145,13 +165,20 @@ export function DataTableFacetedFilter({
 										>
 											<div
 												className={cn(
-													'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-text-menu',
+													'mr-2 flex h-4 w-4 items-center justify-center border border-text-menu',
+													// A circle reads as "one of these"; the square the
+													// multi-select uses reads as "any of these".
+													isSingle ? 'rounded-full' : 'rounded-sm',
 													isSelected
 														? 'bg-primary text-white border-primary'
 														: 'opacity-50 [&_svg]:invisible'
 												)}
 											>
-												<CheckIcon className={cn('h-4 w-4')} />
+												{isSingle ? (
+													<span className="w-1.5 h-1.5 bg-white rounded-full" />
+												) : (
+													<CheckIcon className={cn('h-4 w-4')} />
+												)}
 											</div>
 											{option.icon && option.icon}
 											<span className="text-xs">{option.label}</span>
@@ -168,11 +195,11 @@ export function DataTableFacetedFilter({
 										onSelect={() => onChange?.([])}
 										className="justify-center text-xs text-center"
 									>
-										Clear filters
+										{isSingle ? 'Clear filter' : 'Clear filters'}
 									</CommandItem>
 								</CommandGroup>
 							</>
-						) : (
+						) : isSingle ? null : (
 							<>
 								<CommandSeparator />
 								<CommandGroup>
