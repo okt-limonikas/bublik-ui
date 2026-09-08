@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { RunIssueResultRow } from '@/shared/types';
+import type { RunDataResults } from '@/shared/types';
 
-export type ResultRow = RunIssueResultRow & { run_id?: number };
+export type ResultRow = RunDataResults;
 
 export interface IssueResultsProps {
 	issueId: number;

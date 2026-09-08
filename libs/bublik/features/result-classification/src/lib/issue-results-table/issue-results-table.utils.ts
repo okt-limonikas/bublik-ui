@@ -9,6 +9,13 @@ export function issueResultRunId(
 	return runId ?? row.run_id;
 }
 
-export function issueResultTestPath(row: ResultRow): string {
-	return [...row.path, row.name].filter(Boolean).join('/');
+/**
+ * The test's own name, which is all the row has.
+ *
+ * `generate_results_details` names the test but not the package chain above
+ * it — the run tree assembles that from the tree endpoint, not from a result.
+ * This used to join a `path` the classified-result listings never returned.
+ */
+export function issueResultTestName(row: ResultRow): string {
+	return row.name ?? '';
 }

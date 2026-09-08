@@ -144,23 +144,15 @@ export interface RunIssueRow {
 	categories: IssueCategoryRef[];
 }
 
-export interface RunIssueResultRow {
-	result_id: number;
-	/** Test name. The run tree folds this into `path`; here it stays separate. */
-	name: string | null;
-	/** Package chain only, top-down — the test's own name is **not** included. */
-	path: string[];
-	obtained_result: string | null;
-	verdicts: string[];
-}
-
 /**
- * The same row seen from the issue rather than from one run, so it has to say
- * which run each result came from. Served by `GET /results/?issue={id}`.
+ * Both classified-result listings — `/runs/{id}/issues/{issueId}/results/` and
+ * `/results/?issue={id}` — go through `generate_results_details`, so a row is a
+ * `RunDataResults` and carries its own `run_id`. They answer with a
+ * `{ results: [...] }` envelope rather than a bare array.
+ *
+ * There is no `path`: the details shape names the test but not the package
+ * chain above it, which the run tree supplies from elsewhere.
  */
-export interface IssueResultRow extends RunIssueResultRow {
-	run_id: number;
-}
 
 export interface IssuePickerOption {
 	id: number;

@@ -12,8 +12,6 @@ import {
 	useGetIssueResultsQuery,
 	useGetRunIssueResultsQuery
 } from '@/services/bublik-api';
-import type { IssueResultRow } from '@/shared/types';
-
 import { getColumns } from './issue-results-table.columns';
 import {
 	IssueResultsTable,
@@ -32,19 +30,13 @@ export function IssueResults({ runId, issueId, projectId }: IssueResultsProps) {
 			: skipToken
 	);
 
-	// TODO(api): `/issues/{id}/results` does not exist yet, so the issue-wide
-	// view 404s into the error state. The wiring is here so the sub-row starts
-	// working the moment the endpoint lands.
 	const issueQuery = useGetIssueResultsQuery(
 		!isRunScoped ? { issueId, projectId } : skipToken
 	);
 
 	const { data, isLoading, error } = isRunScoped ? runQuery : issueQuery;
 
-	const results = useMemo<ResultRow[]>(
-		() => (data as ResultRow[] | IssueResultRow[] | undefined) ?? [],
-		[data]
-	);
+	const results = useMemo<ResultRow[]>(() => data ?? [], [data]);
 	const columns = useMemo(() => getColumns(runId), [runId]);
 
 	const table = useReactTable({

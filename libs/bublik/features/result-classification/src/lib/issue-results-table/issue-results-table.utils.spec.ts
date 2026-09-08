@@ -4,35 +4,34 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	issueResultRunId,
-	issueResultTestPath
+	issueResultTestName
 } from './issue-results-table.utils';
+import type { ResultRow } from './issue-results-table.types';
 
-const row = (
-	over: Partial<Parameters<typeof issueResultTestPath>[0]> = {}
-) => ({
+const row = (over: Partial<ResultRow> = {}): ResultRow => ({
+	name: 'ethtool_reset',
 	result_id: 1,
-	name: 'test_name',
-	path: ['pkg', 'subpkg'],
-	obtained_result: 'FAILED',
-	verdicts: [],
+	iteration_id: 2,
+	run_id: 11,
+	has_measurements: false,
+	has_error: true,
+	expected_results: [],
+	obtained_result: { result_type: 'FAILED', verdicts: [] },
+	comments: [],
+	parameters: [],
+	start: '2026-01-01T00:00:00Z',
 	...over
 });
 
-describe('issueResultTestPath', () => {
-	it('appends the test name to the package chain', () => {
-		expect(issueResultTestPath(row())).toBe('pkg/subpkg/test_name');
+describe('issueResultTestName', () => {
+	// The classified-result listings go through `generate_results_details`,
+	// which names the test but carries no package chain to prefix it with.
+	it('is the test name the row carries', () => {
+		expect(issueResultTestName(row())).toBe('ethtool_reset');
 	});
 
-	it('handles a test sitting at the root', () => {
-		expect(issueResultTestPath(row({ path: [] }))).toBe('test_name');
-	});
-
-	it('drops a missing name rather than emitting a trailing slash', () => {
-		expect(issueResultTestPath(row({ name: null }))).toBe('pkg/subpkg');
-	});
-
-	it('is empty when there is nothing to name', () => {
-		expect(issueResultTestPath(row({ path: [], name: null }))).toBe('');
+	it('is empty when the row does not name a test', () => {
+		expect(issueResultTestName(row({ name: '' }))).toBe('');
 	});
 });
 
@@ -43,9 +42,5 @@ describe('issueResultRunId', () => {
 
 	it('falls back to the row when there is no run scope', () => {
 		expect(issueResultRunId(undefined, row({ run_id: 11 }))).toBe(11);
-	});
-
-	it('is undefined when neither knows the run', () => {
-		expect(issueResultRunId(undefined, row())).toBeUndefined();
 	});
 });

@@ -12,10 +12,9 @@ import {
 	Issue,
 	IssueFacets,
 	IssuePickerOption,
-	IssueResultRow,
 	IssueRule,
 	PaginatedResponse,
-	RunIssueResultRow,
+	RunDataResults,
 	RunIssueRow,
 	UpdateIssueRequest,
 	UpdateRuleRequest
@@ -177,7 +176,7 @@ export const classificationEndpoints = {
 		 * convention the issue endpoints follow.
 		 */
 		getIssueResults: build.query<
-			IssueResultRow[],
+			RunDataResults[],
 			{ issueId: number; projectId?: number }
 		>({
 			query: ({ issueId, projectId }) => ({
@@ -185,7 +184,7 @@ export const classificationEndpoints = {
 				params: { issue: String(issueId), project: projectId },
 				cache: 'no-cache'
 			}),
-			transformResponse: (response: { results: IssueResultRow[] }) =>
+			transformResponse: (response: { results: RunDataResults[] }) =>
 				response?.results ?? [],
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
@@ -442,7 +441,7 @@ export const classificationEndpoints = {
 			providesTags: [BUBLIK_TAG.Issues, BUBLIK_TAG.ResultClassification]
 		}),
 		getRunIssueResults: build.query<
-			RunIssueResultRow[],
+			RunDataResults[],
 			{ runId: number | string; issueId: number; projectId?: number }
 		>({
 			query: ({ runId, issueId, projectId }) => ({
@@ -450,6 +449,11 @@ export const classificationEndpoints = {
 				params: { project: projectId },
 				cache: 'no-cache'
 			}),
+			// `{ results: [...] }`, like every other listing that goes through
+			// `generate_results_details`. Read as a bare array it is length-zero
+			// forever, which is what an expanded issue row showed.
+			transformResponse: (response: { results: RunDataResults[] }) =>
+				response?.results ?? [],
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
 		applyRulesToRun: build.mutation<

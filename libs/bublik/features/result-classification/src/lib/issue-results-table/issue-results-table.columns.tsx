@@ -6,12 +6,11 @@ import { routes } from '@/router';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { HistoryLinkContainer } from '@/bublik/features/history-link';
 import { ButtonTw, Icon, VerdictList } from '@/shared/tailwind-ui';
-import type { RESULT_TYPE } from '@/shared/types';
 
 import type { ResultRow } from './issue-results-table.types';
 import {
 	issueResultRunId,
-	issueResultTestPath
+	issueResultTestName
 } from './issue-results-table.utils';
 
 interface ResultLinksProps {
@@ -45,11 +44,9 @@ function ResultLinks({ runId, row }: ResultLinksProps) {
 				</ButtonTw>
 			</li>
 			<li>
-				<HistoryLinkContainer
-					runId={Number(runId)}
-					resultId={row.result_id}
-					path={issueResultTestPath(row) || undefined}
-				/>
+				{/* No `path` override: the row cannot supply the package chain, and
+				    the container resolves the result's own path anyway. */}
+				<HistoryLinkContainer runId={Number(runId)} resultId={row.result_id} />
 			</li>
 		</ul>
 	);
@@ -73,39 +70,39 @@ export function getColumns(
 			}
 		},
 		{
-			id: 'test_path',
-			accessorFn: (row) => issueResultTestPath(row),
-			header: 'Test Path',
+			id: 'test_name',
+			accessorFn: (row) => issueResultTestName(row),
+			header: 'Test',
 			meta: { width: 'minmax(0, 24rem)' },
 			cell: ({ row }) => {
-				const path = issueResultTestPath(row.original);
+				const name = issueResultTestName(row.original);
 
-				if (!path) return null;
+				if (!name) return null;
 
 				return (
 					<span className="block min-w-0 truncate font-medium text-text-primary">
-						{path}
+						{name}
 					</span>
 				);
 			}
 		},
 		{
 			id: 'obtained',
-			accessorFn: (row) => row.obtained_result ?? '',
+			accessorFn: (row) => row.obtained_result?.result_type ?? '',
 			header: 'Obtained Result',
 			meta: { width: 'minmax(0, 1fr)' },
 			enableSorting: false,
 			cell: ({ row }) => {
-				const { obtained_result, verdicts } = row.original;
+				const { obtained_result, has_error } = row.original;
 
-				if (!obtained_result) return null;
+				if (!obtained_result?.result_type) return null;
 
 				return (
 					<VerdictList
 						variant="obtained"
-						result={obtained_result as RESULT_TYPE}
-						verdicts={verdicts}
-						isNotExpected
+						result={obtained_result.result_type}
+						verdicts={obtained_result.verdicts}
+						isNotExpected={has_error}
 					/>
 				);
 			}
