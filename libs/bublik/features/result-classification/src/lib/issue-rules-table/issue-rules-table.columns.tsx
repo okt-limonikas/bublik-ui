@@ -96,7 +96,11 @@ const SCOPE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 		const chips = chipsForRule(row.original);
 
 		return (
-			<div className="flex flex-wrap items-start gap-1">
+			// Never wraps: the chips are one statement — "this rule gates on path
+			// and verdicts" — and splitting it across lines reads as two rules and
+			// makes the row taller than every other row on the page. The track is
+			// sized to the widest set (`max-content`), so there is always room.
+			<div className="flex flex-nowrap items-center gap-1">
 				{chips.map((chip) => (
 					<Badge
 						key={chip}

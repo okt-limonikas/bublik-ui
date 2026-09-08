@@ -253,10 +253,13 @@ export function IssueRulesTableView({
 						className="h-64"
 					/>
 				) : (
+					// The all-rules view has a flexible Issue column to take the
+					// surplus; the per-issue view is all badges, so it keeps the
+					// gutter rather than stretching a chip across the screen.
 					<ClassificationTable
 						table={table}
 						stickyHeader
-						endGutter
+						endGutter={!showIssue}
 						scrollRef={scrollRef}
 						renderSubRow={renderSubRow}
 						testId="issue-rules-table"

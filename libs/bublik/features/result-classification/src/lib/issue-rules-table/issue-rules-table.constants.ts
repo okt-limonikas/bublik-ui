@@ -24,28 +24,29 @@ const BADGE_TRACK = 'auto';
 /**
  * Grid tracks, one per column.
  *
- * The caps carry the slack the Test column used to hold: with every track
- * capped the end gutter takes whatever the columns do not, so dropping a column
- * shrinks the table rather than redistributing its width. The remaining
- * text-bearing columns absorb it instead — Issue in the all-rules view, the
- * three matcher columns in the per-issue one, which has no Issue column.
+ * Issue is the one flexible track, and only the all-rules view has it: with
+ * every track capped the end gutter took the whole surplus, and once Test was
+ * gone and the matcher columns started hidden the table sat at roughly half the
+ * container. The per-issue view keeps the gutter — it shows badges and little
+ * else, so there is nothing there that wants the room.
  *
- * Every track is capped — none of them ends in `fr`. A column that could grow
- * without limit would swallow whatever the hidden columns left behind, which is
- * how Test and Issue used to stretch across a third of the screen each as soon
- * as Tags, Verdicts and Parameters were switched off. The surplus goes to the
- * table's end gutter instead, so a column occupies the same place no matter
- * which of its neighbours are on.
+ * Match Scope is `max-content` rather than capped: its chips must not wrap, so
+ * the track has to fit the widest set rather than clip it.
+ *
+ * Every other track is capped. One that could grow without limit would swallow
+ * whatever the hidden columns left behind, which is how Test and Issue used to
+ * stretch across a third of the screen each as soon as Tags, Verdicts and
+ * Parameters were switched off.
  */
 export const COLUMN_WIDTH: Record<string, string> = {
 	[COLUMN_ID.PROJECT]: BADGE_TRACK,
 	[COLUMN_ID.ACTIVE]: BADGE_TRACK,
 	[COLUMN_ID.DISPOSITION]: BADGE_TRACK,
 	[COLUMN_ID.KEY]: BADGE_TRACK,
-	[COLUMN_ID.ISSUE]: 'minmax(12rem, 34rem)',
+	[COLUMN_ID.ISSUE]: 'minmax(12rem, 1fr)',
 	[COLUMN_ID.ISSUE_STATE]: BADGE_TRACK,
 	[COLUMN_ID.CATEGORY]: BADGE_TRACK,
-	[COLUMN_ID.SCOPE]: 'minmax(7rem, 9rem)',
+	[COLUMN_ID.SCOPE]: 'minmax(7rem, max-content)',
 	[COLUMN_ID.TAGS]: 'minmax(9rem, 20rem)',
 	[COLUMN_ID.VERDICTS]: 'minmax(12rem, 28rem)',
 	[COLUMN_ID.PARAMETERS]: 'minmax(12rem, 28rem)'

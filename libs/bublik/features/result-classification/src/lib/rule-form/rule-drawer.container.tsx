@@ -264,16 +264,18 @@ export interface DuplicateRuleButtonProps {
 	iconOnly?: boolean;
 }
 
-/** Hidden for the same reason as {@link NewRuleButton}: it seeds a new rule. */
+/**
+ * Unaffected by the missing `test_name`: it seeds from a rule that already
+ * names its test by id, so nothing here has to resolve a name. With
+ * {@link NewRuleButton} hidden this is the way to author a rule — start from
+ * one that already targets the test you mean, and change the matcher.
+ */
 export function DuplicateRuleButton({
 	rule,
 	iconOnly = false
 }: DuplicateRuleButtonProps) {
-	const HIDDEN = true;
 	const [open, setOpen] = useLazyDialog();
 	const { canManage, reason } = useCanManageIssues();
-
-	if (HIDDEN) return null;
 
 	return (
 		<>
