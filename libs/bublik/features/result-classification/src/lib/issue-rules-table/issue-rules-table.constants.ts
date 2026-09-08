@@ -6,7 +6,6 @@ export const COLUMN_ID = {
 	STATUS: 'status',
 	PROJECT: 'rule_project',
 	ACTIONS: 'actions',
-	TEST: 'test',
 	KEY: 'key',
 	ISSUE: 'issue',
 	ISSUE_STATE: 'issueState',
@@ -25,6 +24,12 @@ const BADGE_TRACK = 'auto';
 /**
  * Grid tracks, one per column.
  *
+ * The caps carry the slack the Test column used to hold: with every track
+ * capped the end gutter takes whatever the columns do not, so dropping a column
+ * shrinks the table rather than redistributing its width. The remaining
+ * text-bearing columns absorb it instead — Issue in the all-rules view, the
+ * three matcher columns in the per-issue one, which has no Issue column.
+ *
  * Every track is capped — none of them ends in `fr`. A column that could grow
  * without limit would swallow whatever the hidden columns left behind, which is
  * how Test and Issue used to stretch across a third of the screen each as soon
@@ -34,21 +39,33 @@ const BADGE_TRACK = 'auto';
  */
 export const COLUMN_WIDTH: Record<string, string> = {
 	[COLUMN_ID.PROJECT]: BADGE_TRACK,
-	[COLUMN_ID.TEST]: 'minmax(9rem, 18rem)',
 	[COLUMN_ID.ACTIVE]: BADGE_TRACK,
 	[COLUMN_ID.DISPOSITION]: BADGE_TRACK,
 	[COLUMN_ID.KEY]: BADGE_TRACK,
-	[COLUMN_ID.ISSUE]: 'minmax(12rem, 26rem)',
+	[COLUMN_ID.ISSUE]: 'minmax(12rem, 34rem)',
 	[COLUMN_ID.ISSUE_STATE]: BADGE_TRACK,
 	[COLUMN_ID.CATEGORY]: BADGE_TRACK,
 	[COLUMN_ID.SCOPE]: 'minmax(7rem, 9rem)',
-	[COLUMN_ID.TAGS]: 'minmax(9rem, 16rem)',
-	[COLUMN_ID.VERDICTS]: 'minmax(12rem, 22rem)',
-	[COLUMN_ID.PARAMETERS]: 'minmax(12rem, 22rem)'
+	[COLUMN_ID.TAGS]: 'minmax(9rem, 20rem)',
+	[COLUMN_ID.VERDICTS]: 'minmax(12rem, 28rem)',
+	[COLUMN_ID.PARAMETERS]: 'minmax(12rem, 28rem)'
 };
 
+/**
+ * The matcher columns start hidden.
+ *
+ * They are the widest thing the table can show and the least often read: what a
+ * rule matches on is a detail you go looking for on one rule, not something you
+ * scan a page of rules for. The Match Scope chips already say *which* criteria
+ * a rule gates on, and the row detail panel spells out their values, so nothing
+ * is unreachable — the column visibility control brings them back, and the
+ * choice is remembered per table.
+ */
 export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
-	[COLUMN_ID.ACTIVE]: false
+	[COLUMN_ID.ACTIVE]: false,
+	[COLUMN_ID.TAGS]: false,
+	[COLUMN_ID.VERDICTS]: false,
+	[COLUMN_ID.PARAMETERS]: false
 };
 
 /**
@@ -73,10 +90,15 @@ export const COMPACT_COLUMN_VISIBILITY: VisibilityState = {
  * overflows and the wide columns would scroll off-screen unreachably, so they
  * fold into the detail panel instead. The all-rules view needs more room
  * because it also carries Key, Issue and State.
+ *
+ * Measured against the *default* visible set, which no longer includes Test
+ * (`9rem`) or the three matcher columns (`12rem` + `12rem` + `9rem`). Held
+ * above the bare minimum so that turning a matcher column back on still folds
+ * on a genuinely narrow window rather than overflowing.
  */
 export const COMPACT_WIDTH_PX = {
-	ALL_RULES: 1400,
-	ONE_ISSUE: 1120
+	ALL_RULES: 1000,
+	ONE_ISSUE: 700
 } as const;
 
 export const FILTER_KEYS = [
@@ -89,6 +111,19 @@ export const FILTER_KEYS = [
 	COLUMN_ID.VERDICTS,
 	COLUMN_ID.PARAMETERS
 ] as const;
+
+/**
+ * The columns DRF's `OrderingFilter` can actually sort, and the field name it
+ * knows each by. `IssueRuleViewSet.ordering_fields` also lists `test_name`, but
+ * no column reads it — the serializer does not return the name.
+ */
+export const ORDERING_BY_COLUMN_ID: Record<string, string | null> = {
+	[COLUMN_ID.ISSUE]: 'issue_title',
+	[COLUMN_ID.CATEGORY]: 'category',
+	[COLUMN_ID.ACTIVE]: 'active',
+	// Not an ordering field: rules are grouped by project through a filter.
+	[COLUMN_ID.PROJECT]: null
+};
 
 export const ACTIVE_ORDER = ['true', 'false'] as const;
 

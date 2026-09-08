@@ -149,9 +149,17 @@ export function getColumns(): ColumnDef<IssueTableRow, unknown>[] {
 		},
 		{
 			id: COLUMN_ID.CATEGORIES,
-			accessorFn: (row) => row.categories,
+			// The bare category strings, not the `(category, expected)` pairs the
+			// row holds: `someOfFilter` compares the accessor's values against the
+			// selected facet keys with `String(v)`, and an object stringifies to
+			// `[object Object]` — matching nothing, every time.
+			accessorFn: (row) => row.categories.map((c) => c.category),
 			header: 'Categories',
-			meta: { width: 'minmax(6rem, 11rem)', badgeCell: true },
+			// 11rem fitted three badges, which was enough while `categories` came
+			// from a partial client-side join. `/issues/` now returns every active
+			// rule's category, so rows routinely carry four or more and wrapped
+			// mid-list. The surplus comes out of Description, the `1fr` track.
+			meta: { width: 'minmax(6rem, 20rem)', badgeCell: true },
 			enableSorting: false,
 			filterFn: someOfFilter,
 			cell: ({ row, table }) => {
