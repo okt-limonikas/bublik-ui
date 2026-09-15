@@ -158,6 +158,8 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 					showToolbar={showToolbar}
 					setShowToolbar={setShowToolbar}
 					viewToggle={viewToggle}
+					showLinkToRun={Array.isArray(runId)}
+					path={path}
 				/>
 			) : (
 				<>

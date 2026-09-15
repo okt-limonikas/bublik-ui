@@ -3,7 +3,7 @@
 import { HistoryMode, RunDataResults } from '@/shared/types';
 import { usePrefetch } from '@/services/bublik-api';
 import { routes } from '@/router';
-import { Icon } from '@/shared/tailwind-ui';
+import { Icon, cn } from '@/shared/tailwind-ui';
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { useUserPreferences } from '@/bublik/features/user-preferences';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
@@ -22,6 +22,8 @@ export interface ResultLinksProps {
 	onLinkClick?: (action: string) => void;
 	showLinkToRun?: boolean;
 	path?: string;
+	/** Stack the links (default) or lay them out in one wrapping line. */
+	direction?: 'column' | 'row';
 }
 
 export const ResultLinks = (props: ResultLinksProps) => {
@@ -35,12 +37,20 @@ export const ResultLinks = (props: ResultLinksProps) => {
 		onMeasurementLinkMouseEnter,
 		onLinkClick,
 		showLinkToRun = false,
-		path
+		path,
+		direction = 'column'
 	} = props;
 
 	return (
 		<div className="flex flex-col justify-start gap-3 text-primary text-[0.6875rem] font-semibold leading-[0.875rem]">
-			<ul className="flex flex-col items-start gap-3">
+			<ul
+				className={cn(
+					'flex gap-3',
+					direction === 'row'
+						? 'flex-row flex-wrap items-center'
+						: 'flex-col items-start'
+				)}
+			>
 				{showLinkToRun ? (
 					<li className="pl-2">
 						<LinkWithProject
@@ -116,10 +126,18 @@ export interface ActionLinksProps {
 	result: RunDataResults;
 	showLinkToRun?: boolean;
 	path?: string;
+	direction?: ResultLinksProps['direction'];
 }
 
 export const ResultLinksContainer = (props: ActionLinksProps) => {
-	const { runId, resultId, result, showLinkToRun = false, path } = props;
+	const {
+		runId,
+		resultId,
+		result,
+		showLinkToRun = false,
+		path,
+		direction
+	} = props;
 	const { has_measurements: hasMeasurements } = result;
 	const { userPreferences } = useUserPreferences();
 
@@ -152,6 +170,7 @@ export const ResultLinksContainer = (props: ActionLinksProps) => {
 			onMeasurementLinkMouseEnter={handleMeasurementLinkMouseEnter}
 			showLinkToRun={showLinkToRun}
 			path={path}
+			direction={direction}
 			onLinkClick={handleLinkClick}
 		/>
 	);
