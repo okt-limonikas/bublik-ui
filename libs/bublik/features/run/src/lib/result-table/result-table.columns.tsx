@@ -12,7 +12,14 @@ import { createNextState } from '@reduxjs/toolkit';
 import { RESULT_PROPERTIES, RESULT_TYPE, RunDataResults } from '@/shared/types';
 import { config } from '@/bublik/config';
 import { ResultLinksContainer } from '@/bublik/features/result-links';
-import { Badge, VerdictList, cn } from '@/shared/tailwind-ui';
+import {
+	Badge,
+	ButtonTw,
+	Icon,
+	Tooltip,
+	VerdictList,
+	cn
+} from '@/shared/tailwind-ui';
 import { formatKeyValueForDisplay } from '@/shared/utils';
 
 import { KeyList } from './key-list';
@@ -36,6 +43,9 @@ interface GetColumnsOptions {
 	rowId: string;
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
+	/** Whether the filter row is shown (the Requirements header toggles it). */
+	showToolbar: boolean;
+	setShowToolbar: (showToolbar: boolean) => void;
 	path?: string;
 }
 
@@ -43,6 +53,8 @@ export const getColumns = ({
 	rowId,
 	data,
 	showLinkToRun = false,
+	showToolbar,
+	setShowToolbar,
 	path
 }: GetColumnsOptions) => {
 	const parametersDataset = Object.fromEntries(
@@ -305,7 +317,27 @@ export const getColumns = ({
 			meta: { headerCellClassName: 'pl-[12px]' }
 		}),
 		helper.accessor('requirements', {
-			header: 'Requirements',
+			header: () => (
+				<div className="flex items-center justify-between gap-2 w-full">
+					<span>Requirements</span>
+					<Tooltip content={showToolbar ? 'Hide filters' : 'Show filters'}>
+						<ButtonTw
+							variant={showToolbar ? 'primary' : 'secondary'}
+							size="xss"
+							onClick={() => setShowToolbar(!showToolbar)}
+							className={cn(
+								'border ml-auto',
+								showToolbar
+									? 'border-primary hover:border-[#94b0ff]'
+									: 'border-border-primary hover:shadow-none hover:border-primary'
+							)}
+						>
+							<Icon name="Filter" size={16} className="mr-1.5" />
+							<span>Filters</span>
+						</ButtonTw>
+					</Tooltip>
+				</div>
+			),
 			id: COLUMN_ID.REQUIREMENTS,
 			cell: (cell) => {
 				const requirements = cell.getValue() ?? [];

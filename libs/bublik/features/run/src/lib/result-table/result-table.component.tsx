@@ -3,7 +3,6 @@
 import {
 	Fragment,
 	MouseEvent as ReactMouseEvent,
-	ReactNode,
 	memo,
 	useMemo,
 	useRef,
@@ -25,12 +24,18 @@ import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import { getColumns } from './result-table.columns';
 import { ResultTableFilters } from './result-table-filters.component';
-import { useColumnFilters, useDataTableFilters } from './result-table.filters';
+import {
+	useColumnFilters,
+	useDataTableFilters,
+	useGlobalRequirementsFilters
+} from './result-table.filters';
 import { useTargetIterationId } from '../run-table/run-table.hooks';
 import { RowState } from '../hooks';
 
 /** Height of the sticky run-table header the iteration views stick under. */
 export const HEADER_HEIGHT = 102;
+/** Height of the List view's sticky column-header row. */
+export const HEADER_ROW_HEIGHT = 30;
 /** Height of the sticky filter row shared by the List and Matrix views. */
 export const TOOLBAR_HEIGHT = 36;
 export interface SkeletonProps {
@@ -72,9 +77,10 @@ export interface ResultTableProps {
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
 	height: number;
-	/** Rendered at the start of the filter row (the List / Matrix switcher). */
-	toolbarLeading?: ReactNode;
-	/** Tree indent of the rows, in rem (the filter row stays flush). */
+	/** Filter row visibility (the Requirements header button); active filters force it on. */
+	showToolbar: boolean;
+	setShowToolbar: (showToolbar: boolean) => void;
+	/** Tree indent of the rows and the filter row, in rem. */
 	indent?: number;
 	targetIterationId?: number;
 	rowState?: RowState;
@@ -88,15 +94,25 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		rowId,
 		showLinkToRun = false,
 		height,
-		toolbarLeading,
+		showToolbar,
+		setShowToolbar,
 		indent = 0,
 		targetIterationId,
 		rowState,
 		onRowClick,
 		path
 	} = props;
-	const { columnFilters, setColumnFilters } = useColumnFilters(rowId);
+	const {
+		columnFilters,
+		setColumnFilters,
+		hasFilters: hasColumnFilters
+	} = useColumnFilters(rowId);
 	const filters = useDataTableFilters(rowId, data);
+	const { hasGlobalRequirements } = useGlobalRequirementsFilters({
+		localRequirements: filters.requirementsFilter
+	});
+	// Hidden by default; active filters keep it visible so they can be cleared.
+	const hasToolbar = showToolbar || hasColumnFilters || hasGlobalRequirements;
 
 	const columns = useMemo(
 		() =>
@@ -104,9 +120,11 @@ export const ResultTable = memo((props: ResultTableProps) => {
 				rowId,
 				showLinkToRun,
 				data,
+				showToolbar: hasToolbar,
+				setShowToolbar,
 				path
 			}),
-		[rowId, showLinkToRun, data, path]
+		[rowId, showLinkToRun, data, hasToolbar, setShowToolbar, path]
 	);
 
 	const table = useReactTable<RunDataResults>({
@@ -129,12 +147,6 @@ export const ResultTable = memo((props: ResultTableProps) => {
 	return (
 		<div>
 			<div
-				className="sticky z-10 flex h-9 items-center border-b border-border-primary bg-white px-4 shadow-sticky"
-				style={{ top: height + HEADER_HEIGHT }}
-			>
-				<ResultTableFilters {...filters} leading={toolbarLeading} />
-			</div>
-			<div
 				className="px-4 pb-2"
 				style={{ paddingLeft: `calc(1rem + ${indent}rem)` }}
 			>
@@ -150,15 +162,18 @@ export const ResultTable = memo((props: ResultTableProps) => {
 									<div
 										key={header.id}
 										className={cn(
-											'px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
-											'bg-primary-wash sticky mb-1',
+											'h-[30px] px-1 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
+											'bg-primary-wash sticky whitespace-nowrap',
 											'flex items-center',
-											idx === 0 && 'rounded-bl-md',
-											idx === headers.length - 1 && 'rounded-br-md',
+											idx === 0 && !hasToolbar && 'rounded-bl-md',
+											idx === headers.length - 1 &&
+												!hasToolbar &&
+												'rounded-br-md',
+											!hasToolbar && 'mb-1',
 											className,
 											headerCellClassName
 										)}
-										style={{ top: height + HEADER_HEIGHT + TOOLBAR_HEIGHT }}
+										style={{ top: height + HEADER_HEIGHT }}
 									>
 										{header.isPlaceholder
 											? null
@@ -171,6 +186,19 @@ export const ResultTable = memo((props: ResultTableProps) => {
 							})}
 						</Fragment>
 					))}
+
+					{hasToolbar ? (
+						// Spans the grid so it sits under the headers, as one sticky stack.
+						<div
+							className="sticky z-10 mb-1 flex h-9 items-center border-t border-border-primary bg-white px-4 shadow-sticky"
+							style={{
+								gridColumn: '1 / -1',
+								top: height + HEADER_HEIGHT + HEADER_ROW_HEIGHT
+							}}
+						>
+							<ResultTableFilters {...filters} />
+						</div>
+					) : null}
 
 					{table.getRowModel().rows.map((row, idx, arr) => (
 						<ResultRow

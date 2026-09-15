@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { ReactNode } from 'react';
-
 import {
 	ButtonTw,
 	DataTableFacetedFilter,
@@ -18,19 +16,16 @@ export type ResultTableFiltersProps = Omit<
 	ReturnType<typeof useDataTableFilters>,
 	'filteredData' | 'requirements' | 'requirementsFilter'
 > & {
-	/** Rendered before the filters, e.g. the List / Matrix switcher. */
-	leading?: ReactNode;
 	className?: string;
 };
 
 /**
  * The faceted filter row shared by the List and Matrix views of a test's
- * iterations: `leading | filters | Reset`. State comes from
+ * iterations: `filters | Reset`. State comes from
  * `useDataTableFilters`.
  */
 export function ResultTableFilters(props: ResultTableFiltersProps) {
 	const {
-		leading,
 		className,
 		parameters,
 		verdicts,
@@ -51,12 +46,6 @@ export function ResultTableFilters(props: ResultTableFiltersProps) {
 
 	return (
 		<div className={cn('flex gap-2 items-center', className)}>
-			{leading ? (
-				<>
-					{leading}
-					<Separator orientation="vertical" className="h-5" />
-				</>
-			) : null}
 			<DataTableFacetedFilter
 				title="Obtained Result"
 				size="xss"

@@ -33,6 +33,7 @@ const analyticsEventNames = {
 	resultTableReferenceToggle: 'result_table_reference_toggle',
 	resultTableFilterChange: 'result_table_filter_change',
 	resultTableFiltersReset: 'result_table_filters_reset',
+	resultTableToolbarToggle: 'result_table_toolbar_toggle',
 	resultTableLinkClick: 'result_table_link_click',
 	resultViewToggle: 'result_view_toggle',
 	resultMatrixConfigChange: 'result_matrix_config_change',

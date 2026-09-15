@@ -31,6 +31,7 @@ import { stringifySearch } from '@/router';
 
 import { badgeColumns } from './badge-columns';
 import { TestComments } from '../components/test-comments';
+import { ResultViewSwitch } from '../../result-table/result-view-switch';
 import { ColumnId } from '../types';
 import {
 	buildColumnGroups,
@@ -168,6 +169,17 @@ function getColumns({
 			if (!node) return null;
 
 			const { name, type } = node;
+			const isTest = type === NodeEntity.Test;
+			// The switch drives the expanded content, so it only shows with it.
+			const viewSwitch =
+				isTest && row.getIsExpanded() ? <ResultViewSwitch row={row} /> : null;
+			const historyLinks =
+				isTest && runIds && runIds.length === 1 ? (
+					<HistoryRunLinksDropdownMenu
+						runIds={runIds}
+						path={row.original.path}
+					/>
+				) : null;
 
 			return (
 				<TableNode
@@ -184,11 +196,11 @@ function getColumns({
 					isExpanded={row.getIsExpanded()}
 					depth={row.depth}
 					trailing={
-						runIds && runIds.length === 1 && type === NodeEntity.Test ? (
-							<HistoryRunLinksDropdownMenu
-								runIds={runIds}
-								path={row.original.path}
-							/>
+						viewSwitch || historyLinks ? (
+							<>
+								{viewSwitch}
+								{historyLinks}
+							</>
 						) : null
 					}
 				/>
