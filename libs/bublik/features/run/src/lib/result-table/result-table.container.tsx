@@ -71,7 +71,7 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 	}, [requests, values]);
 
 	const showToolbar = useMemo(() => {
-		return rowState?.showToolbar ?? false;
+		return rowState?.showToolbar ?? true;
 	}, [rowState?.showToolbar]);
 
 	const setShowToolbar = useCallback(
