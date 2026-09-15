@@ -145,20 +145,18 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 					path={path}
 				/>
 			) : (
-				// The list keeps the tree indent; the matrix is flush with the row.
-				<div style={{ paddingLeft: `${row.depth * 0.8}rem` }}>
-					<ResultTable
-						showLinkToRun={Array.isArray(runId)}
-						data={data}
-						rowId={rowId}
-						height={height}
-						toolbarLeading={viewToggle}
-						targetIterationId={targetIterationId}
-						rowState={rowState}
-						onRowClick={onRowClick}
-						path={path}
-					/>
-				</div>
+				<ResultTable
+					showLinkToRun={Array.isArray(runId)}
+					data={data}
+					rowId={rowId}
+					height={height}
+					toolbarLeading={viewToggle}
+					indent={row.depth * 0.8}
+					targetIterationId={targetIterationId}
+					rowState={rowState}
+					onRowClick={onRowClick}
+					path={path}
+				/>
 			)}
 		</div>
 	);

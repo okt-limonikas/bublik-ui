@@ -31,6 +31,8 @@ import { RowState } from '../hooks';
 
 /** Height of the sticky run-table header the iteration views stick under. */
 export const HEADER_HEIGHT = 102;
+/** Height of the sticky filter row shared by the List and Matrix views. */
+export const TOOLBAR_HEIGHT = 36;
 export interface SkeletonProps {
 	rowCount?: number;
 }
@@ -72,6 +74,8 @@ export interface ResultTableProps {
 	height: number;
 	/** Rendered at the start of the filter row (the List / Matrix switcher). */
 	toolbarLeading?: ReactNode;
+	/** Tree indent of the rows, in rem (the filter row stays flush). */
+	indent?: number;
 	targetIterationId?: number;
 	rowState?: RowState;
 	onRowClick?: (row: Row<RunDataResults>) => void;
@@ -85,6 +89,7 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		showLinkToRun = false,
 		height,
 		toolbarLeading,
+		indent = 0,
 		targetIterationId,
 		rowState,
 		onRowClick,
@@ -121,12 +126,18 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		.map((col) => col.meta?.['width'] || 'minmax(0, 1fr)')
 		.join(' ');
 
-	const HEADER_ROW_HEIGHT = 42;
-	const columnCount = columns.length;
-
 	return (
-		<div className="px-4 pb-2">
-			<div className="w-full">
+		<div>
+			<div
+				className="sticky z-10 flex h-9 items-center border-b border-border-primary bg-white px-4 shadow-sticky"
+				style={{ top: height + HEADER_HEIGHT }}
+			>
+				<ResultTableFilters {...filters} leading={toolbarLeading} />
+			</div>
+			<div
+				className="px-4 pb-2"
+				style={{ paddingLeft: `calc(1rem + ${indent}rem)` }}
+			>
 				<div className="grid relative z-[5]" style={{ gridTemplateColumns }}>
 					{table.getHeaderGroups().map((headerGroup) => (
 						<Fragment key={headerGroup.id}>
@@ -140,12 +151,14 @@ export const ResultTable = memo((props: ResultTableProps) => {
 										key={header.id}
 										className={cn(
 											'px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
-											'bg-primary-wash sticky',
+											'bg-primary-wash sticky mb-1',
 											'flex items-center',
+											idx === 0 && 'rounded-bl-md',
+											idx === headers.length - 1 && 'rounded-br-md',
 											className,
 											headerCellClassName
 										)}
-										style={{ top: height + HEADER_HEIGHT }}
+										style={{ top: height + HEADER_HEIGHT + TOOLBAR_HEIGHT }}
 									>
 										{header.isPlaceholder
 											? null
@@ -158,19 +171,6 @@ export const ResultTable = memo((props: ResultTableProps) => {
 							})}
 						</Fragment>
 					))}
-
-					<div
-						className={cn(
-							'flex items-center justify-between px-4 mb-1',
-							'bg-white h-9 sticky shadow-sticky z-10 border-t border-border-primary'
-						)}
-						style={{
-							gridColumn: `1 / ${columnCount + 1}`,
-							top: `${height + HEADER_HEIGHT + HEADER_ROW_HEIGHT}px`
-						}}
-					>
-						<ResultTableFilters {...filters} leading={toolbarLeading} />
-					</div>
 
 					{table.getRowModel().rows.map((row, idx, arr) => (
 						<ResultRow
