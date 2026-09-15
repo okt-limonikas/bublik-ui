@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import {
-	CSSProperties,
 	Fragment,
 	MouseEvent as ReactMouseEvent,
+	ReactNode,
 	memo,
-	useCallback,
 	useMemo,
 	useRef,
 	useState
@@ -19,23 +18,19 @@ import {
 	useReactTable
 } from '@tanstack/react-table';
 
-import { useIsSticky, useMount } from '@/shared/hooks';
+import { useMount } from '@/shared/hooks';
 import { RunDataResults } from '@/shared/types';
-import { cn, Skeleton, TwTableProps } from '@/shared/tailwind-ui';
+import { cn, Skeleton } from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import { getColumns } from './result-table.columns';
 import { ResultTableFilters } from './result-table-filters.component';
-import {
-	useColumnFilters,
-	useDataTableFilters,
-	useGlobalRequirementsFilters
-} from './result-table.filters';
+import { useColumnFilters, useDataTableFilters } from './result-table.filters';
 import { useTargetIterationId } from '../run-table/run-table.hooks';
 import { RowState } from '../hooks';
 
-const HEADER_HEIGHT = 102;
-const STICKY_OFFSET = HEADER_HEIGHT + 1;
+/** Height of the sticky run-table header the iteration views stick under. */
+export const HEADER_HEIGHT = 102;
 export interface SkeletonProps {
 	rowCount?: number;
 }
@@ -75,8 +70,8 @@ export interface ResultTableProps {
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
 	height: number;
-	showToolbar: boolean;
-	setShowToolbar: (showToolbar: boolean) => void;
+	/** Rendered at the start of the filter row (the List / Matrix switcher). */
+	toolbarLeading?: ReactNode;
 	targetIterationId?: number;
 	rowState?: RowState;
 	onRowClick?: (row: Row<RunDataResults>) => void;
@@ -89,24 +84,14 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		rowId,
 		showLinkToRun = false,
 		height,
-		showToolbar,
-		setShowToolbar,
+		toolbarLeading,
 		targetIterationId,
 		rowState,
 		onRowClick,
 		path
 	} = props;
-	const {
-		columnFilters,
-		setColumnFilters,
-		hasFilters: hasColumnFilters
-	} = useColumnFilters(rowId);
+	const { columnFilters, setColumnFilters } = useColumnFilters(rowId);
 	const filters = useDataTableFilters(rowId, data);
-	const { hasGlobalRequirements } = useGlobalRequirementsFilters({
-		localRequirements: filters.requirementsFilter
-	});
-	const hasFilters = hasColumnFilters || hasGlobalRequirements;
-	const hasToolbar = showToolbar || hasFilters;
 
 	const columns = useMemo(
 		() =>
@@ -114,14 +99,10 @@ export const ResultTable = memo((props: ResultTableProps) => {
 				rowId,
 				showLinkToRun,
 				data,
-				showToolbar: hasToolbar,
-				setShowToolbar,
 				path
 			}),
-		[rowId, showLinkToRun, data, hasToolbar, setShowToolbar, path]
+		[rowId, showLinkToRun, data, path]
 	);
-
-	const { stickyOffset } = useStickyHeader({ height });
 
 	const table = useReactTable<RunDataResults>({
 		data,
@@ -139,11 +120,6 @@ export const ResultTable = memo((props: ResultTableProps) => {
 	const gridTemplateColumns = columns
 		.map((col) => col.meta?.['width'] || 'minmax(0, 1fr)')
 		.join(' ');
-
-	const headerRef = useRef<HTMLDivElement | null>(null);
-	const { isSticky } = useIsSticky(headerRef, {
-		offset: stickyOffset
-	});
 
 	const HEADER_ROW_HEIGHT = 42;
 	const columnCount = columns.length;
@@ -166,26 +142,10 @@ export const ResultTable = memo((props: ResultTableProps) => {
 											'px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
 											'bg-primary-wash sticky',
 											'flex items-center',
-											idx === 0 && !hasToolbar && 'rounded-bl-md',
-											idx === headers.length - 1 &&
-												!hasToolbar &&
-												'rounded-br-md',
-											!hasToolbar && 'mb-1',
 											className,
 											headerCellClassName
 										)}
-										style={{
-											top: height + HEADER_HEIGHT,
-											boxShadow:
-												isSticky && !hasToolbar
-													? `rgba(0, 0, 0, 0.1) ${idx === 0 ? 0 : 7}px 2px 10px`
-													: 'none'
-										}}
-										ref={(el) => {
-											if (idx === 0) {
-												headerRef.current = el;
-											}
-										}}
+										style={{ top: height + HEADER_HEIGHT }}
 									>
 										{header.isPlaceholder
 											? null
@@ -199,20 +159,18 @@ export const ResultTable = memo((props: ResultTableProps) => {
 						</Fragment>
 					))}
 
-					{hasToolbar ? (
-						<div
-							className={cn(
-								'flex items-center justify-between px-4 mb-1',
-								'bg-white h-9 sticky shadow-sticky z-10 border-t border-border-primary'
-							)}
-							style={{
-								gridColumn: `1 / ${columnCount + 1}`,
-								top: `${height + HEADER_HEIGHT + HEADER_ROW_HEIGHT}px`
-							}}
-						>
-							<ResultTableFilters {...filters} />
-						</div>
-					) : null}
+					<div
+						className={cn(
+							'flex items-center justify-between px-4 mb-1',
+							'bg-white h-9 sticky shadow-sticky z-10 border-t border-border-primary'
+						)}
+						style={{
+							gridColumn: `1 / ${columnCount + 1}`,
+							top: `${height + HEADER_HEIGHT + HEADER_ROW_HEIGHT}px`
+						}}
+					>
+						<ResultTableFilters {...filters} leading={toolbarLeading} />
+					</div>
 
 					{table.getRowModel().rows.map((row, idx, arr) => (
 						<ResultRow
@@ -314,31 +272,4 @@ function ResultRow(props: ResultRowProps) {
 			})}
 		</Fragment>
 	);
-}
-
-interface StickyHeaderOptions {
-	height: number;
-}
-
-function useStickyHeader({ height }: StickyHeaderOptions) {
-	// Sticky offset is used for the useIsSticky hook to detect when header becomes sticky
-	// Now that toolbar is below header, offset doesn't depend on toolbar visibility
-	const stickyOffset = -(height + STICKY_OFFSET);
-
-	const getHeaderProps = useCallback<
-		NonNullable<TwTableProps<RunDataResults>['getHeaderProps']>
-	>(
-		(_, { isSticky }) => {
-			return {
-				style: {
-					top: `${height + HEADER_HEIGHT}px`,
-					position: 'sticky',
-					boxShadow: isSticky ? '0 0 10px rgba(0, 0, 0, 0.1)' : 'none'
-				} as CSSProperties
-			};
-		},
-		[height]
-	);
-
-	return { stickyOffset, getHeaderProps };
 }

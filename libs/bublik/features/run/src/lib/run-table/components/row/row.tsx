@@ -97,14 +97,12 @@ export const RunRow = ({
 			{row.getIsExpanded() && row.original?.type === NodeEntity.Test ? (
 				<tr role="row">
 					<td colSpan={row.getVisibleCells().length} className="p-0 bg-white">
-						<div style={{ paddingLeft: `${row.depth * 0.8}rem` }}>
-							<ResultTableContainer
-								runId={runId}
-								row={row}
-								height={height}
-								targetIterationId={targetIterationId}
-							/>
-						</div>
+						<ResultTableContainer
+							runId={runId}
+							row={row}
+							height={height}
+							targetIterationId={targetIterationId}
+						/>
 					</td>
 				</tr>
 			) : null}

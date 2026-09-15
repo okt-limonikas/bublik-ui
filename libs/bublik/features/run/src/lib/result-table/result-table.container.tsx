@@ -24,7 +24,7 @@ import {
 	toIterations,
 	useResultView
 } from '../result-matrix';
-import { ResultViewBar, ResultViewToggle } from './result-view-toggle';
+import { ResultViewToggle } from './result-view-toggle';
 
 function getResultSelectors(row: Row<RunData | MergedRun>) {
 	return 'parent_ids' in row.original
@@ -95,21 +95,6 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 		);
 	}, [requests, values]);
 
-	const showToolbar = useMemo(() => {
-		return rowState?.showToolbar ?? true;
-	}, [rowState?.showToolbar]);
-
-	const setShowToolbar = useCallback(
-		(showToolbar: boolean) => {
-			trackEvent(analyticsEventNames.resultTableToolbarToggle, {
-				enabled: showToolbar
-			});
-
-			return updateRowState({ ...rowState, showToolbar, rowId });
-		},
-		[updateRowState, rowId, rowState]
-	);
-
 	const onRowClick = useCallback(
 		(row: Row<RunDataResults>) => {
 			const referenceDiffRowId =
@@ -155,28 +140,26 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 					data={data}
 					iterations={iterations}
 					classification={classification}
-					showToolbar={showToolbar}
-					setShowToolbar={setShowToolbar}
+					height={height}
 					viewToggle={viewToggle}
 					showLinkToRun={Array.isArray(runId)}
 					path={path}
 				/>
 			) : (
-				<>
-					<ResultViewBar left={viewToggle} />
+				// The list keeps the tree indent; the matrix is flush with the row.
+				<div style={{ paddingLeft: `${row.depth * 0.8}rem` }}>
 					<ResultTable
 						showLinkToRun={Array.isArray(runId)}
 						data={data}
 						rowId={rowId}
 						height={height}
-						showToolbar={showToolbar}
-						setShowToolbar={setShowToolbar}
+						toolbarLeading={viewToggle}
 						targetIterationId={targetIterationId}
 						rowState={rowState}
 						onRowClick={onRowClick}
 						path={path}
 					/>
-				</>
+				</div>
 			)}
 		</div>
 	);

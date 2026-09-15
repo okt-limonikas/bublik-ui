@@ -16,7 +16,6 @@ import { Badge, VerdictList, cn } from '@/shared/tailwind-ui';
 import { formatKeyValueForDisplay } from '@/shared/utils';
 
 import { KeyList } from './key-list';
-import { FiltersToggleButton } from './filters-toggle-button';
 import { getCommonParameters } from './matcher';
 import { useGlobalRequirements, useRunTableRowState } from '../hooks';
 import { COLUMN_ID, ObtainedResultFilterSchema } from './constants';
@@ -37,8 +36,6 @@ interface GetColumnsOptions {
 	rowId: string;
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
-	showToolbar?: boolean;
-	setShowToolbar: (showToolbar: boolean) => void;
 	path?: string;
 }
 
@@ -46,8 +43,6 @@ export const getColumns = ({
 	rowId,
 	data,
 	showLinkToRun = false,
-	showToolbar = false,
-	setShowToolbar,
 	path
 }: GetColumnsOptions) => {
 	const parametersDataset = Object.fromEntries(
@@ -310,16 +305,7 @@ export const getColumns = ({
 			meta: { headerCellClassName: 'pl-[12px]' }
 		}),
 		helper.accessor('requirements', {
-			header: () => (
-				<div className="flex items-center justify-between gap-2 w-full">
-					<span>Requirements</span>
-					<FiltersToggleButton
-						showToolbar={showToolbar}
-						setShowToolbar={setShowToolbar}
-						className="ml-auto"
-					/>
-				</div>
-			),
+			header: 'Requirements',
 			id: COLUMN_ID.REQUIREMENTS,
 			cell: (cell) => {
 				const requirements = cell.getValue() ?? [];
