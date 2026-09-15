@@ -136,7 +136,6 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 			{view === 'matrix' ? (
 				<ResultMatrixContainer
 					rowId={rowId}
-					testName={row.original.test_name}
 					data={data}
 					iterations={iterations}
 					classification={classification}
