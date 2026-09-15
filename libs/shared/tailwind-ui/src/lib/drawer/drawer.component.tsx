@@ -5,6 +5,7 @@ import {
 	Dialog,
 	DialogContent,
 	DialogOverlay,
+	DialogPortal,
 	DialogTrigger,
 	dialogOverlayStyles
 } from '../dialog';
@@ -25,10 +26,15 @@ export const DrawerTrigger = forwardRef<HTMLButtonElement, DialogTriggerProps>(
 	}
 );
 
+/**
+ * Rendered in a portal so the overlay and the panel sit above everything,
+ * including ancestors that open their own stacking context (`isolate`,
+ * `z-*` on sticky headers) and the app sidebar.
+ */
 export const DrawerContent = forwardRef<HTMLDivElement, DialogContentProps>(
 	({ className, children, ...props }, ref) => {
 		return (
-			<>
+			<DialogPortal>
 				<DialogOverlay className={dialogOverlayStyles()} />
 				<DialogContent
 					{...props}
@@ -40,7 +46,7 @@ export const DrawerContent = forwardRef<HTMLDivElement, DialogContentProps>(
 				>
 					{children}
 				</DialogContent>
-			</>
+			</DialogPortal>
 		);
 	}
 );
