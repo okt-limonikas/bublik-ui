@@ -40,6 +40,9 @@ export const ResultLinks = (props: ResultLinksProps) => {
 		path,
 		direction = 'column'
 	} = props;
+	// In the column layout the items are nudged so their icons line up; in a
+	// row the gap alone spaces them evenly.
+	const column = direction === 'column';
 
 	return (
 		<div className="flex flex-col justify-start gap-3 text-primary text-[0.6875rem] font-semibold leading-[0.875rem]">
@@ -52,7 +55,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 				)}
 			>
 				{showLinkToRun ? (
-					<li className="pl-2">
+					<li className={column ? 'pl-2' : undefined}>
 						<LinkWithProject
 							className="flex items-center w-full gap-1"
 							to={routes.run({ runId, targetIterationId: resultId })}
@@ -63,7 +66,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 						</LinkWithProject>
 					</li>
 				) : null}
-				<li className="pl-2">
+				<li className={column ? 'pl-2' : undefined}>
 					<LinkWithProject
 						className="flex items-center w-full gap-1"
 						onMouseEnter={onLogLinkMouseEnter}
@@ -74,7 +77,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 						Log
 					</LinkWithProject>
 				</li>
-				<li className="pl-0.5">
+				<li className={column ? 'pl-0.5' : undefined}>
 					<HistoryLinkContainer
 						runId={Number(runId)}
 						result={result}
@@ -83,7 +86,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 					/>
 				</li>
 				{hasMeasurements && (
-					<li className="pl-2">
+					<li className={column ? 'pl-2' : undefined}>
 						<LinkWithProject
 							className="flex items-center gap-1"
 							to={routes.measurements({ runId, resultId })}
@@ -95,7 +98,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 						</LinkWithProject>
 					</li>
 				)}
-				<li className="pl-2">
+				<li className={column ? 'pl-2' : undefined}>
 					<LogPreviewContainer
 						logName={result.name}
 						resultId={resultId}
