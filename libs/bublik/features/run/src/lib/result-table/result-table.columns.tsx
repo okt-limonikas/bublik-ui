@@ -12,17 +12,11 @@ import { createNextState } from '@reduxjs/toolkit';
 import { RESULT_PROPERTIES, RESULT_TYPE, RunDataResults } from '@/shared/types';
 import { config } from '@/bublik/config';
 import { ResultLinksContainer } from '@/bublik/features/result-links';
-import {
-	Badge,
-	Icon,
-	ButtonTw,
-	VerdictList,
-	cn,
-	Tooltip
-} from '@/shared/tailwind-ui';
+import { Badge, VerdictList, cn } from '@/shared/tailwind-ui';
 import { formatKeyValueForDisplay } from '@/shared/utils';
 
 import { KeyList } from './key-list';
+import { FiltersToggleButton } from './filters-toggle-button';
 import { getCommonParameters } from './matcher';
 import { useGlobalRequirements, useRunTableRowState } from '../hooks';
 import { COLUMN_ID, ObtainedResultFilterSchema } from './constants';
@@ -319,22 +313,11 @@ export const getColumns = ({
 			header: () => (
 				<div className="flex items-center justify-between gap-2 w-full">
 					<span>Requirements</span>
-					<Tooltip content={showToolbar ? 'Hide filters' : 'Show filters'}>
-						<ButtonTw
-							variant={showToolbar ? 'primary' : 'secondary'}
-							size="xss"
-							onClick={() => setShowToolbar(!showToolbar)}
-							className={cn(
-								'border ml-auto',
-								showToolbar
-									? 'border-primary hover:border-[#94b0ff]'
-									: 'border-border-primary hover:shadow-none hover:border-primary'
-							)}
-						>
-							<Icon name="Filter" size={16} className="mr-1.5" />
-							<span>Filters</span>
-						</ButtonTw>
-					</Tooltip>
+					<FiltersToggleButton
+						showToolbar={showToolbar}
+						setShowToolbar={setShowToolbar}
+						className="ml-auto"
+					/>
 				</div>
 			),
 			id: COLUMN_ID.REQUIREMENTS,
