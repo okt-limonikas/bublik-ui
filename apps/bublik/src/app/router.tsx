@@ -21,6 +21,7 @@ import { RedirectToDashboard, RedirectToLogPage } from './redirects';
 import { AdminAnalyticsPage } from '../pages/admin-analytics';
 import { AuthLayout } from '../pages/auth/auth.layout';
 import { AdminUsersPage } from '../pages/admin-users/admin-users.page';
+import { AdminTokensPage } from '../pages/admin-tokens/admin-tokens.page';
 import { ConfigsPage } from '../pages/configs/configs.page';
 import { ChatPage } from '../pages/chat-page';
 import { DashboardPageV2 } from '../pages/dashboard-page/dashboard-page-v2';
@@ -324,6 +325,14 @@ const router = createBrowserRouter(
 											element: (
 												<LazyRoute>
 													<AdminUsersPage />
+												</LazyRoute>
+											)
+										},
+										{
+											path: 'tokens',
+											element: (
+												<LazyRoute>
+													<AdminTokensPage />
 												</LazyRoute>
 											)
 										},
