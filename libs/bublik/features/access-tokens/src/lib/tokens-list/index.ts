@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2026 OKTET Labs Ltd. */
+export * from './tokens-list.component';
+export * from './tokens-list.container';
