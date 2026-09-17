@@ -9,6 +9,7 @@ import { getMinutes } from './utils';
 import { createBaseQueryWithAuth } from './base-query-with-auth';
 import { requestLogin } from './login-prompt';
 import {
+	accessTokenEndpoints,
 	adminUsersEndpoints,
 	authEndpoints,
 	dashboardEndpoints,
@@ -54,6 +55,7 @@ export const bublikAPI = createApi({
 	.injectEndpoints(importLogEventsEndpoint)
 	.injectEndpoints(authEndpoints)
 	.injectEndpoints(adminUsersEndpoints)
+	.injectEndpoints(accessTokenEndpoints)
 	.injectEndpoints(reportEndpoints)
 	.injectEndpoints(configsEndpoints)
 	.injectEndpoints(projectEndpoints)
@@ -116,6 +118,11 @@ export const {
 	useAdminCreateUserMutation,
 	useAdminDeleteUserMutation,
 	useAdminUpdateUserMutation,
+	// Access tokens
+	useGetAccessTokensQuery,
+	useCreateAccessTokenMutation,
+	useRevokeAccessTokenMutation,
+	useAdminGetAccessTokensQuery,
 	useGetPerformanceTimeoutsQuery,
 	useGetRunReportQuery,
 	useGetRunReportConfigsQuery,
