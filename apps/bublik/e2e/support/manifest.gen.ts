@@ -16,6 +16,7 @@
 export interface E2EManifest {
 	baseUrl: string;
 	bundles: Bundle[];
+	classification?: ClassificationManifest | null;
 	configs: ReportConfig[];
 	dashboardUrl: string;
 	emptyDates: string[];
@@ -51,6 +52,7 @@ export interface Bundle {
 	logUrl?: string | null;
 	logUrlTemplate: string;
 	mix: string;
+	pinnedResults?: PinnedResult[];
 	project: string;
 	revisions: Revision[];
 	runId?: number | null;
@@ -224,6 +226,33 @@ export interface IterationEntry {
 	verdicts: unknown[];
 }
 /**
+ * One leaf a classification pin forced, as generated into a bundle.
+ *
+ * The fixture tree is identical across every run of a fixture, so a pin
+ * resolves to the same test and parameters in every run it applies to. That is
+ * what lets a rule written against one run be asserted against another.
+ */
+export interface PinnedResult {
+	params: {
+		[k: string]: unknown;
+	};
+	pathStr: string;
+	pin: string;
+	status:
+		| 'PASSED'
+		| 'FAILED'
+		| 'SKIPPED'
+		| 'KILLED'
+		| 'CORED'
+		| 'FAKED'
+		| 'INCOMPLETE'
+		| 'EMPTY';
+	test: string;
+	tin: number;
+	unexpected: boolean;
+	verdicts: string[];
+}
+/**
  * A single source revision parsed from run metas (``*_GIT_URL`` etc.).
  */
 export interface Revision {
@@ -231,6 +260,73 @@ export interface Revision {
 	name: string;
 	rev?: string | null;
 	url?: string | null;
+}
+/**
+ * Everything the suite needs to drive and assert result classification.
+ */
+export interface ClassificationManifest {
+	issues: ClassificationIssue[];
+	pins: ClassificationPin[];
+	rules: ClassificationRule[];
+}
+/**
+ * An issue the plan declares. ``issueId`` is filled by --setup-classification.
+ */
+export interface ClassificationIssue {
+	close: boolean;
+	description: string | null;
+	id: string;
+	issueId?: number | null;
+	key: string | null;
+	projectId?: number | null;
+	projectName?: string | null;
+}
+/**
+ * A pin, with the bundles it landed in split by import wave.
+ */
+export interface ClassificationPin {
+	appliesTo: string[];
+	conclusions: string[];
+	fixture: string;
+	id: string;
+	iterations: number[];
+	seededIn: string[];
+	status:
+		| 'PASSED'
+		| 'FAILED'
+		| 'SKIPPED'
+		| 'KILLED'
+		| 'CORED'
+		| 'FAKED'
+		| 'INCOMPLETE'
+		| 'EMPTY';
+	test: string;
+	unexpected: boolean;
+	verdicts: string[];
+}
+/**
+ * A rule the plan declares. ``ruleId`` is filled by --setup-classification.
+ *
+ * ``match`` lists the matcher dimensions kept beyond the test, which is always
+ * matched. An empty list is a test-only rule: it matches every iteration of
+ * that test, in every run of the project.
+ */
+export interface ClassificationRule {
+	category:
+		| 'product-defect'
+		| 'test-bug'
+		| 'env'
+		| 'known-issue'
+		| 'flaky'
+		| 'to-investigate';
+	classifiedResultIds?: number[];
+	expected: boolean | null;
+	id: string;
+	issue: string;
+	match: ('parameters' | 'verdicts' | 'tags')[];
+	pin: string;
+	ruleId?: number | null;
+	scope: 'future' | 'oneoff';
 }
 /**
  * A UI report config bundled into the manifest. ``content`` is free-form.
