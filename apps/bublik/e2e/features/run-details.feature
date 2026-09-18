@@ -285,3 +285,13 @@ Feature: Run details
     When I click the run's NOK counter
     Then the run page for that run is open
     And no unexpected filter is recorded in the URL
+
+  # Runs without the shared signed-in storage state.
+  @run @comments @auth
+  Scenario: Notes cannot be added while signed out and point to signing in
+    Given I am signed out and open an imported run's page with the Notes column shown
+    Then adding a note is disabled with a hint to log in
+    When I click it anyway
+    Then I am asked to sign in to add notes
+    When I close the sign-in dialog
+    Then I am still on the run page

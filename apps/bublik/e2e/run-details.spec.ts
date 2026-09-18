@@ -1249,3 +1249,58 @@ test.describe('Run Details Page', () => {
 		}
 	);
 });
+
+test.describe('Run Details Page (signed out)', () => {
+	test.use({ storageState: { cookies: [], origins: [] } });
+
+	test(
+		'Notes cannot be added while signed out and point to signing in',
+		{ tag: ['@run', '@comments', '@auth'] },
+		async ({ page }) => {
+			const runPage = new RunPage(page);
+			const { expectedRun, runId } = scratchRun();
+			let testRow = page.locator('never');
+			const addNote = () =>
+				runPage
+					.noteCell(testRow)
+					.getByRole('button', { name: 'Log in to add notes' });
+
+			await given(
+				"I am signed out and open an imported run's page with the Notes column shown",
+				async () => {
+					await runPage.goto(runId);
+					await runPage.expectLoaded(expectedRun.name);
+					await runPage.showColumn('Notes');
+					testRow = await runPage.expandUntilTestRow();
+				}
+			);
+			await then(
+				'adding a note is disabled with a hint to log in',
+				async () => {
+					await expect(
+						runPage.noteCell(testRow).getByRole('button', { name: 'Add Note' })
+					).toHaveCount(0);
+					await addNote().hover();
+					await expect(
+						page.getByRole('tooltip', { name: 'Log in to add notes' })
+					).toBeVisible();
+				}
+			);
+			await when('I click it anyway', () => addNote().click());
+			await then('I am asked to sign in to add notes', () =>
+				expect(
+					page.getByTestId('login-dialog').getByText('Log in to add notes.')
+				).toBeVisible()
+			);
+			await when('I close the sign-in dialog', () =>
+				page
+					.getByTestId('login-dialog')
+					.getByRole('button', { name: 'Close' })
+					.click()
+			);
+			await then('I am still on the run page', () =>
+				expect(page).toHaveURL(new RegExp(`/runs/${runId}`))
+			);
+		}
+	);
+});
