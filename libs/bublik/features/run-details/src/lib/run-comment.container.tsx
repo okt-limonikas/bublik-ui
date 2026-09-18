@@ -4,7 +4,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PopoverClose, PopoverPortal } from '@radix-ui/react-popover';
 
-import { bublikAPI } from '@/services/bublik-api';
+import { bublikAPI, getErrorMessage } from '@/services/bublik-api';
+import { LoginRequired } from '@/bublik/features/auth';
 import {
 	ButtonTw,
 	cn,
@@ -16,6 +17,10 @@ import {
 	toast,
 	Tooltip
 } from '@/shared/tailwind-ui';
+
+/** Shows the server's reason, e.g. a missing permission, instead of a generic failure. */
+const toastError = (fallback: string) => (e: unknown) =>
+	getErrorMessage(e).description || fallback;
 
 const RunCommentFormSchema = z.object({
 	comment: z.string()
@@ -44,7 +49,7 @@ function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 			toast.promise(promise, {
 				loading: 'Deleting comment...',
 				success: 'Comment deleted successfully',
-				error: 'Failed to delete comment'
+				error: toastError('Failed to delete comment')
 			});
 
 			await promise;
@@ -62,7 +67,9 @@ function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 			success: isCreate
 				? 'Comment created successfully'
 				: 'Comment updated successfully',
-			error: isCreate ? 'Failed to create comment' : 'Failed to update comment'
+			error: toastError(
+				isCreate ? 'Failed to create comment' : 'Failed to update comment'
+			)
 		});
 
 		await promise;
@@ -81,14 +88,16 @@ function RunCommentFormContainer(props: RunCommentFormContainerProps) {
 				>
 					{defaultValues.comment || '—'}
 				</pre>
-				<Tooltip content="Edit Run Comment">
-					<PopoverTrigger asChild>
-						<ButtonTw variant="secondary" size="xss" className="size-6">
-							<Icon name="Edit" className="size-5 shrink-0" />
-							<span className="sr-only">Edit</span>
-						</ButtonTw>
-					</PopoverTrigger>
-				</Tooltip>
+				<LoginRequired message="Log in to edit the run comment">
+					<Tooltip content="Edit Run Comment">
+						<PopoverTrigger asChild>
+							<ButtonTw variant="secondary" size="xss" className="size-6">
+								<Icon name="Edit" className="size-5 shrink-0" />
+								<span className="sr-only">Edit</span>
+							</ButtonTw>
+						</PopoverTrigger>
+					</Tooltip>
+				</LoginRequired>
 			</div>
 
 			<PopoverPortal container={document.body}>
