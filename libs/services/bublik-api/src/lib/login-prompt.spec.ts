@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-	isLoginPromptOpen,
+	getLoginPrompt,
 	requestLogin,
 	resolveLogin,
 	subscribeLoginPrompt
@@ -14,20 +14,44 @@ describe('login prompt', () => {
 		const listener = vi.fn();
 		const unsubscribe = subscribeLoginPrompt(listener);
 
-		const first = requestLogin();
-		const second = requestLogin();
+		const first = requestLogin({ kind: 'action' });
+		const second = requestLogin({ kind: 'action' });
 
 		expect(first).toBe(second);
-		expect(isLoginPromptOpen()).toBe(true);
+		expect(getLoginPrompt()).toEqual({ kind: 'action' });
 
 		resolveLogin(true);
 
 		await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
-		expect(isLoginPromptOpen()).toBe(false);
+		expect(getLoginPrompt()).toBeNull();
 		// opened once, closed once
 		expect(listener).toHaveBeenCalledTimes(2);
 
 		unsubscribe();
+	});
+
+	it('lets a page request take over an open action prompt', async () => {
+		const action = requestLogin({
+			kind: 'action',
+			message: 'Log in to add notes.'
+		});
+		const page = requestLogin({ kind: 'page' });
+
+		expect(page).toBe(action);
+		expect(getLoginPrompt()).toEqual({ kind: 'page' });
+
+		// ...but not the other way around
+		requestLogin({ kind: 'action', message: 'ignored' });
+		expect(getLoginPrompt()).toEqual({ kind: 'page' });
+
+		resolveLogin(false);
+		await expect(action).resolves.toBe(false);
+	});
+
+	it('keeps the snapshot stable while nothing changes', () => {
+		requestLogin({ kind: 'page' });
+		expect(getLoginPrompt()).toBe(getLoginPrompt());
+		resolveLogin(false);
 	});
 
 	it('opens a fresh prompt after the previous one was dismissed', async () => {
@@ -43,6 +67,6 @@ describe('login prompt', () => {
 
 	it('ignores resolve without an open prompt', () => {
 		expect(() => resolveLogin(true)).not.toThrow();
-		expect(isLoginPromptOpen()).toBe(false);
+		expect(getLoginPrompt()).toBeNull();
 	});
 });

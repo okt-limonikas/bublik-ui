@@ -28,7 +28,9 @@ import {
 
 const baseQueryWithAuth = createBaseQueryWithAuth({
 	baseQuery: fetchBaseQuery(getAPIConfig()),
-	onAuthRequired: () => requestLogin()
+	// A rejected query means the page can't render; a mutation is a single action
+	onAuthRequired: (api) =>
+		requestLogin({ kind: api.type === 'query' ? 'page' : 'action' })
 });
 
 export const bublikAPI = createApi({

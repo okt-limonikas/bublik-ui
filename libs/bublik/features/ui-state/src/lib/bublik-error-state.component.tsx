@@ -1,15 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { ComponentProps } from 'react';
-import { useDispatch } from 'react-redux';
 
-import {
-	bublikAPI,
-	getErrorViewModel,
-	isNotAuthenticatedError,
-	requestLogin
-} from '@/services/bublik-api';
-import { ButtonTw, State, cn } from '@/shared/tailwind-ui';
+import { getErrorViewModel } from '@/services/bublik-api';
+import { State, cn } from '@/shared/tailwind-ui';
 
 interface BublikErrorStateProps {
 	error: unknown;
@@ -25,13 +19,6 @@ function BublikErrorState(props: BublikErrorStateProps) {
 
 	const stateTitle = `${status} ${title}`;
 	const shouldRenderDetailsList = details.length > 1;
-	const dispatch = useDispatch();
-
-	// Reached when the login dialog was dismissed: offer it again, then reload
-	// every query since the session (and permissions) just changed.
-	const handleLoginClick = async () => {
-		if (await requestLogin()) dispatch(bublikAPI.util.resetApiState());
-	};
 
 	return (
 		<State.Root className={className}>
@@ -47,13 +34,6 @@ function BublikErrorState(props: BublikErrorStateProps) {
 				) : (
 					<State.Description>{description}</State.Description>
 				)}
-				{isNotAuthenticatedError(error) ? (
-					<State.Actions>
-						<ButtonTw variant="primary" size="xss" onClick={handleLoginClick}>
-							Log in
-						</ButtonTw>
-					</State.Actions>
-				) : null}
 			</State.Content>
 		</State.Root>
 	);

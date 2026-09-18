@@ -2,40 +2,57 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useRef, useSyncExternalStore } from 'react';
 import { useDispatch } from 'react-redux';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AnyAction } from '@reduxjs/toolkit';
 
+import { routes } from '@/router';
 import { LoginFormInputs } from '@/shared/types';
 import {
 	bublikAPI,
-	isLoginPromptOpen,
+	getLoginPrompt,
+	LoginPromptReason,
 	resolveLogin,
 	subscribeLoginPrompt,
 	useLoginMutation
 } from '@/services/bublik-api';
 import { setErrorsOnForm } from '@/shared/utils';
 import {
-	cn,
 	Dialog,
-	DialogContent,
+	DialogClose,
 	DialogDescription,
-	dialogContentStyles,
-	DialogOverlay,
-	dialogOverlayStyles,
 	DialogPortal,
 	DialogTitle,
+	Icon,
+	ModalContent,
 	toast
 } from '@/shared/tailwind-ui';
 
 import { LoginForm, LoginFormHandle } from './login-form.component';
 
+function getNote(reason: LoginPromptReason, pathname: string): string {
+	if (reason.message) return reason.message;
+
+	if (reason.kind === 'action') return 'You need to sign in to do this.';
+
+	return pathname.startsWith('/admin')
+		? 'To view this page you need to sign in as an admin.'
+		: 'To view this page you need to sign in.';
+}
+
 /**
  * Asks for credentials when a request was rejected as "Not Authenticated".
  * On success the rejected requests are retried by the base query, so the user
  * stays on the page they were on.
+ *
+ * Dismissing it depends on what asked:
+ * - a page that could not load: go back where the user came from
+ * - an action: just close, the page stays usable
  */
 export function LoginDialogContainer() {
-	const open = useSyncExternalStore(subscribeLoginPrompt, isLoginPromptOpen);
+	const reason = useSyncExternalStore(subscribeLoginPrompt, getLoginPrompt);
 	const dispatch = useDispatch();
+	const navigate = useNavigate();
+	const { pathname } = useLocation();
 	const [login] = useLoginMutation();
 	const formRef = useRef<LoginFormHandle>(null);
 
@@ -59,35 +76,58 @@ export function LoginDialogContainer() {
 		}
 	};
 
+	const handleDismiss = () => {
+		const kind = reason?.kind;
+
+		resolveLogin(false);
+
+		if (kind !== 'page') return;
+
+		// `idx` is React Router's position in its own history stack
+		const canGoBack = (window.history.state?.idx ?? 0) > 0;
+
+		if (canGoBack) navigate(-1);
+		else navigate(routes.dashboard({}), { replace: true });
+	};
+
 	return (
 		<Dialog
-			open={open}
+			open={reason !== null}
 			onOpenChange={(isOpen) => {
-				if (!isOpen) resolveLogin(false);
+				if (!isOpen) handleDismiss();
 			}}
 		>
 			<DialogPortal>
-				<DialogOverlay className={dialogOverlayStyles()} />
-				<DialogContent
+				<ModalContent
 					data-testid="login-dialog"
-					className={cn(
-						'w-[92vw] max-w-[420px] z-50 bg-white rounded-xl p-8 shadow-2xl',
-						dialogContentStyles()
-					)}
+					className="w-full sm:max-w-md p-6 bg-white sm:rounded-lg md:shadow min-w-[420px] z-50 relative overflow-auto max-h-[85vh]"
 				>
-					<DialogTitle className="text-xl font-semibold text-text-primary">
-						Sign in to continue
+					<DialogClose
+						aria-label="Close"
+						className="absolute grid p-1 transition-colors rounded-md right-4 top-4 place-items-center text-text-menu hover:bg-primary-wash hover:text-primary"
+					>
+						<Icon name="Cross" size={14} />
+					</DialogClose>
+					<DialogTitle className="mb-4 text-2xl font-bold leading-tight tracking-tight text-text-primary">
+						Sign in
 					</DialogTitle>
-					<DialogDescription className="mt-1 mb-6 text-sm text-text-menu">
-						Your session has expired or you are not logged in.
-					</DialogDescription>
+					{reason ? (
+						<DialogDescription className="flex items-start gap-2 p-3 mb-6 text-sm rounded-md bg-primary-wash text-primary">
+							<Icon
+								name="InformationCircleExclamationMark"
+								size={20}
+								className="shrink-0"
+							/>
+							<span>{getNote(reason, pathname)}</span>
+						</DialogDescription>
+					) : null}
 					<LoginForm
 						ref={formRef}
 						bare
 						onSubmit={handleSubmit}
 						onForgotPasswordClick={() => resolveLogin(false)}
 					/>
-				</DialogContent>
+				</ModalContent>
 			</DialogPortal>
 		</Dialog>
 	);
