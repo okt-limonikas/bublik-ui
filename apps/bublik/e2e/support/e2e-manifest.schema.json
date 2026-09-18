@@ -163,6 +163,32 @@
       ],
       "type": "object"
     },
+    "EmptySessionEntry": {
+      "additionalProperties": false,
+      "description": "A session in which no test ran, reported by TE with the EMPTY status.\n\nIt is not a leaf and has no path of its own -- a session shares its parent\npackage's -- so it is located by ``parentPathStr`` and ``name``.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "parentPathStr": {
+          "type": "string"
+        },
+        "status": {
+          "const": "EMPTY",
+          "type": "string"
+        },
+        "testId": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "testId",
+        "parentPathStr",
+        "status"
+      ],
+      "type": "object"
+    },
     "ExpectedMatrix": {
       "additionalProperties": false,
       "description": "Expected result counts per (expectation, result-type) cell.\n\nKeys mirror ``core.constants.MATRIX_KEYS``; the generator always emits every\ncell, so all fields are required.",
@@ -238,6 +264,12 @@
       "properties": {
         "dashboardDate": {
           "type": "string"
+        },
+        "emptySessions": {
+          "items": {
+            "$ref": "#/$defs/EmptySessionEntry"
+          },
+          "type": "array"
         },
         "expectedConclusion": {
           "enum": [
@@ -393,7 +425,8 @@
             "CORED",
             "FAKED",
             "INCOMPLETE",
-            "EMPTY"
+            "EMPTY",
+            "UNSPEC"
           ],
           "type": "string"
         },

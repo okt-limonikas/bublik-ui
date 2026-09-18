@@ -77,6 +77,7 @@ export interface Bundle {
  */
 export interface ExpectedRun {
 	dashboardDate: string;
+	emptySessions?: EmptySessionEntry[];
 	expectedConclusion:
 		| 'run-ok'
 		| 'run-warning'
@@ -112,6 +113,18 @@ export interface ExpectedRun {
 		[k: string]: unknown;
 	};
 	verdicts: string[];
+}
+/**
+ * A session in which no test ran, reported by TE with the EMPTY status.
+ *
+ * It is not a leaf and has no path of its own -- a session shares its parent
+ * package's -- so it is located by ``parentPathStr`` and ``name``.
+ */
+export interface EmptySessionEntry {
+	name: string;
+	parentPathStr: string;
+	status: 'EMPTY';
+	testId: number;
 }
 /**
  * Expected result counts per (expectation, result-type) cell.
@@ -201,7 +214,8 @@ export interface IterationEntry {
 		| 'CORED'
 		| 'FAKED'
 		| 'INCOMPLETE'
-		| 'EMPTY';
+		| 'EMPTY'
+		| 'UNSPEC';
 	measurements: unknown[];
 	name: string | null;
 	params: {
