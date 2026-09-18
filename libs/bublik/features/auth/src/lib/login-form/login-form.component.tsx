@@ -15,11 +15,19 @@ export type LoginFormHandle = UseFormReturn<LoginFormInputs>;
 type LoginFormProps = {
 	onSubmit?: (form: LoginFormInputs) => void;
 	defaultValues?: LoginFormInputs;
+	/** Render only the form, without the page card, e.g. inside a dialog. */
+	bare?: boolean;
+	onForgotPasswordClick?: () => void;
 };
 
 export const LoginForm = forwardRef<LoginFormHandle, LoginFormProps>(
 	(props, ref) => {
-		const { onSubmit, defaultValues = { email: '', password: '' } } = props;
+		const {
+			onSubmit,
+			defaultValues = { email: '', password: '' },
+			bare = false,
+			onForgotPasswordClick
+		} = props;
 
 		const form = useForm<LoginFormInputs>({
 			defaultValues,
@@ -30,8 +38,8 @@ export const LoginForm = forwardRef<LoginFormHandle, LoginFormProps>(
 
 		const rootError = form.formState.errors.root;
 
-		return (
-			<AuthFormLayout label="Sign in to your account">
+		const content = (
+			<>
 				{rootError ? (
 					<div className="mb-6">
 						<FormAlertError title={'Error'} description={rootError.message} />
@@ -57,6 +65,7 @@ export const LoginForm = forwardRef<LoginFormHandle, LoginFormProps>(
 					<div className="flex items-center justify-end">
 						<Link
 							to="/auth/forgot"
+							onClick={onForgotPasswordClick}
 							className="text-sm font-medium text-primary hover:underline"
 						>
 							Forgot password?
@@ -66,7 +75,13 @@ export const LoginForm = forwardRef<LoginFormHandle, LoginFormProps>(
 						{form.formState.isLoading ? '...' : 'Sign in'}
 					</ButtonTw>
 				</form>
-			</AuthFormLayout>
+			</>
+		);
+
+		if (bare) return content;
+
+		return (
+			<AuthFormLayout label="Sign in to your account">{content}</AuthFormLayout>
 		);
 	}
 );
