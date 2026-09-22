@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { ComponentType, ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-import { Navigate, To, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { User } from '@/shared/types';
 import { routes } from '@/router';
@@ -67,29 +67,5 @@ export const useAuth = () => {
 		isAdmin: Boolean(user?.roles.includes('admin')),
 		changePassword: changePasswordMutation,
 		verifyEmail
-	};
-};
-
-interface WithAuthConfig {
-	fallback?: ReactNode;
-	redirectTo?: To;
-}
-
-export interface WithAuthProps {
-	firstName: string;
-	lastName: string;
-}
-
-export const withAuth = <T extends WithAuthProps = WithAuthProps>(
-	WrappedComponent: ComponentType<T>
-) => {
-	return (config?: WithAuthConfig) => (props: Omit<T, keyof WithAuthProps>) => {
-		const { user, isLoading } = useAuth();
-
-		if (isLoading) return config?.fallback || null;
-
-		if (!user) return <Navigate to={config?.redirectTo ?? '/auth/login'} />;
-
-		return <WrappedComponent {...user} {...(props as T)} />;
 	};
 };
