@@ -46,6 +46,7 @@ Feature: Navigation
     Given I open the dashboard
     When I hover the version next to the Bublik label
     Then the deployed UI and API versions are shown
+    And a release version links to its release notes
 
   Scenario: An unknown address shows the not-found page
     When I open an address that does not exist

@@ -109,6 +109,9 @@ test.describe('Navigation', () => {
 		await then('the deployed UI and API versions are shown', () =>
 			sidebar.expectDeployInfoOnHover()
 		);
+		await and('a release version links to its release notes', () =>
+			sidebar.expectVersionLinksToReleaseNotes()
+		);
 	});
 
 	test('An unknown address shows the not-found page', async ({ page }) => {
