@@ -130,6 +130,7 @@ export const {
 	useCreateMcpServerMutation,
 	useUpdateMcpServerMutation,
 	useDeleteMcpServerMutation,
+	useGetMcpStatusQuery,
 	useGetPerformanceTimeoutsQuery,
 	useGetRunReportQuery,
 	useGetRunReportConfigsQuery,
