@@ -10,6 +10,7 @@ import { createBaseQueryWithAuth } from './base-query-with-auth';
 import { requestLogin } from './login-prompt';
 import {
 	accessTokenEndpoints,
+	mcpServerEndpoints,
 	adminUsersEndpoints,
 	authEndpoints,
 	dashboardEndpoints,
@@ -56,6 +57,7 @@ export const bublikAPI = createApi({
 	.injectEndpoints(authEndpoints)
 	.injectEndpoints(adminUsersEndpoints)
 	.injectEndpoints(accessTokenEndpoints)
+	.injectEndpoints(mcpServerEndpoints)
 	.injectEndpoints(reportEndpoints)
 	.injectEndpoints(configsEndpoints)
 	.injectEndpoints(projectEndpoints)
@@ -123,6 +125,11 @@ export const {
 	useCreateAccessTokenMutation,
 	useRevokeAccessTokenMutation,
 	useAdminGetAccessTokensQuery,
+	// MCP servers
+	useGetMcpServersQuery,
+	useCreateMcpServerMutation,
+	useUpdateMcpServerMutation,
+	useDeleteMcpServerMutation,
 	useGetPerformanceTimeoutsQuery,
 	useGetRunReportQuery,
 	useGetRunReportConfigsQuery,

@@ -25,7 +25,8 @@ export const tagTypes: BUBLIK_TAG[] = [
 	BUBLIK_TAG.Analytics,
 	BUBLIK_TAG.Chat,
 	BUBLIK_TAG.AccessTokens,
-	BUBLIK_TAG.AdminAccessTokens
+	BUBLIK_TAG.AdminAccessTokens,
+	BUBLIK_TAG.McpServers
 ];
 
 type TagDescription = BUBLIK_TAG | { type: BUBLIK_TAG; id?: string | number };
