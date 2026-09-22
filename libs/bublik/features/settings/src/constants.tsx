@@ -1,4 +1,4 @@
-import { FlaskConical, KeyRound } from 'lucide-react';
+import { FlaskConical, KeyRound, Plug } from 'lucide-react';
 
 import { Icon } from '@/shared/tailwind-ui';
 import type { SettingsTabConfig } from './types';
@@ -27,6 +27,12 @@ export const SETTINGS_TABS: SettingsTabConfig[] = [
 		label: 'Access tokens',
 		icon: <KeyRound className="size-[18px]" />,
 		description: 'Tokens for the API and the MCP server'
+	},
+	{
+		id: 'mcp-servers',
+		label: 'MCP servers',
+		icon: <Plug className="size-[18px]" />,
+		description: 'Your own tool servers for the AI assistant'
 	},
 	{
 		id: 'beta',

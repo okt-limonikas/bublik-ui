@@ -22,6 +22,9 @@
 			"@/bublik/features/access-tokens": [
 				"libs/bublik/features/access-tokens/src/index.ts"
 			],
+			"@/bublik/features/mcp-servers": [
+				"libs/bublik/features/mcp-servers/src/index.ts"
+			],
 			"@/bublik/features/admin-users": [
 				"libs/bublik/features/admin-users/src/index.ts"
 			],

@@ -18,7 +18,7 @@ import {
 	Tooltip
 } from '@/shared/tailwind-ui';
 
-import { SETTINGS_TABS } from '../constants';
+import { useSettingsTabs } from '../use-settings-tabs';
 import type { SettingsTab } from '../types';
 import { getUserLabel } from '../user-label';
 
@@ -49,6 +49,7 @@ function SidebarAccountRow({
 }: SidebarAccountRowProps) {
 	const { name, detail } = user ? getUserLabel(user) : { name: 'Guest' };
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
+	const tabs = useSettingsTabs();
 
 	if (!isLoading && !user) {
 		return (
@@ -161,7 +162,7 @@ function SidebarAccountRow({
 					</DropdownMenuLabel>
 					<DropdownMenuSeparator />
 
-					{SETTINGS_TABS.map((tab) => (
+					{tabs.map((tab) => (
 						<DropdownMenuItem
 							key={tab.id}
 							className={menuItemStyles}

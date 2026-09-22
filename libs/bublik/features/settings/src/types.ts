@@ -4,6 +4,7 @@ export type SettingsTab =
 	| 'account'
 	| 'appearance'
 	| 'tokens'
+	| 'mcp-servers'
 	| 'beta'
 	| 'preferences';
 

@@ -15,7 +15,7 @@ import {
 } from '@/shared/tailwind-ui';
 import { useAuth } from '@/bublik/features/auth';
 import { requestLogin } from '@/services/bublik-api';
-import { SETTINGS_TABS } from './constants';
+import { useSettingsTabs } from './use-settings-tabs';
 import type { SettingsTab } from './types';
 import { SettingsContent } from './settings-content';
 import { SettingsNavItem } from './components/settings-nav-item';
@@ -31,6 +31,7 @@ export function SettingsModal() {
 	);
 	const { user, isLoading, logout } = useAuth();
 	const { isSidebarOpen } = useSidebar();
+	const tabs = useSettingsTabs();
 	const userLabel = user ? getUserLabel(user) : null;
 
 	const handleLogout = async () => {
@@ -88,7 +89,7 @@ export function SettingsModal() {
 							)}
 
 							<nav className={cn('flex-1 p-2 space-y-0.5', !user && 'pt-8')}>
-								{SETTINGS_TABS.map((tab) => (
+								{tabs.map((tab) => (
 									<SettingsNavItem
 										key={tab.id}
 										tab={tab}
