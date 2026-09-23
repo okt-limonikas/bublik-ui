@@ -7,6 +7,7 @@ export * from './lib/input';
 export * from './lib/input-label';
 export * from './lib/badge';
 export * from './lib/error-message';
+export * from './lib/file-dropzone';
 export * from './lib/info-card';
 export * from './lib/pagination';
 export * from './lib/spinner';
