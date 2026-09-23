@@ -199,6 +199,29 @@ const toFetchableLogUrl = (url: string): string => {
 	return `${config.rootUrl}/external?url=${encodeURIComponent(url)}`;
 };
 
+/**
+ * Credentials mode for fetching a log file.
+ *
+ * Log servers may rely on cookies, so credentials are sent by default. A
+ * presigned object-storage URL carries its own authorization in the query
+ * string; sending cookies with it cross-origin would only make the storage's
+ * CORS policy reject it, so they are omitted.
+ */
+export const getLogFetchCredentials = (url: string): RequestCredentials => {
+	let params: URLSearchParams;
+	try {
+		params = new URL(url, window.location.href).searchParams;
+	} catch {
+		return 'include';
+	}
+
+	const isPresigned =
+		params.has('X-Amz-Signature') ||
+		(params.has('Signature') && params.has('AWSAccessKeyId'));
+
+	return isPresigned ? 'omit' : 'include';
+};
+
 export const fetchJson = async <T = unknown>(
 	externalUrl: string,
 	signal?: AbortSignal
@@ -208,7 +231,7 @@ export const fetchJson = async <T = unknown>(
 	};
 
 	const options: RequestInit = {
-		credentials: 'include',
+		credentials: getLogFetchCredentials(externalUrl),
 		cache: 'no-store',
 		referrerPolicy: 'origin',
 		signal

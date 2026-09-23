@@ -9,6 +9,7 @@ import {
 	constructJsonUrl,
 	fetchJson,
 	fixPagesCountForAllView,
+	getLogFetchCredentials,
 	normalizeLogJsonInput
 } from './log-endpoints';
 
@@ -171,6 +172,47 @@ const createApi = (
 	({
 		getState: () => ({ bublikApi: { queries } })
 	} as unknown as BaseQueryApi);
+
+describe('getLogFetchCredentials', () => {
+	test('sends credentials to log servers and Bublik', () => {
+		expect(getLogFetchCredentials('/logs/node.json')).toBe('include');
+		expect(
+			getLogFetchCredentials('https://logs.example/logs/run/json/node_1_0.json')
+		).toBe('include');
+		expect(
+			getLogFetchCredentials(
+				'https://bublik.example/api/v2/logs/s3/bucket/run/json/node_1_0.json'
+			)
+		).toBe('include');
+	});
+
+	test('omits credentials for presigned object storage URLs', () => {
+		expect(
+			getLogFetchCredentials(
+				'https://s3.example.com/bucket/run/json/node_1_0.json?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc'
+			)
+		).toBe('omit');
+		expect(
+			getLogFetchCredentials(
+				'https://s3.example.com/bucket/node.json?AWSAccessKeyId=a&Signature=b&Expires=1'
+			)
+		).toBe('omit');
+	});
+
+	test('fetchJson uses the matching credentials mode', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockImplementation(async () => createResponse('{"root":[]}'));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await fetchJson('https://s3.example.com/b/node.json?X-Amz-Signature=abc');
+		await fetchJson('/logs/node.json');
+
+		expect(
+			fetchMock.mock.calls.map(([, options]) => options.credentials)
+		).toEqual(['omit', 'include']);
+	});
+});
 
 describe('constructJsonUrl', () => {
 	test('it constructs the correct URL without page', () => {
