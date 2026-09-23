@@ -116,3 +116,10 @@ export const ImportJsonLogResponseSchema = z.object({
 });
 
 export type ImportJsonLog = z.infer<typeof ImportJsonLogResponseSchema>;
+
+export const ImportUploadResponseSchema = ImportRunsJobResponseSchema.extend({
+	/** Where the tarball was stored, e.g. `s3://bucket/prefix/TS/2026/09/23/cfg-10:00:00/` */
+	url: z.string()
+});
+
+export type ImportUploadResponse = z.infer<typeof ImportUploadResponseSchema>;
