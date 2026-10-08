@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { defineConfig, HttpProxy, loadEnv, Plugin, ProxyOptions } from 'vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import svgr from 'vite-plugin-svgr';
@@ -123,6 +124,17 @@ export default defineConfig(({ mode }) => {
 		},
 		optimizeDeps: { include: ['react/jsx-runtime'] },
 		plugins: [
+			// Generates src/routeTree.gen.ts from src/routes and splits every route
+			// component into its own chunk. Must run before the React plugin.
+			tanstackRouter({
+				target: 'react',
+				routesDirectory: './src/routes',
+				generatedRouteTree: './src/routeTree.gen.ts',
+				routeFileIgnorePrefix: '-',
+				quoteStyle: 'single',
+				semicolons: true,
+				autoCodeSplitting: true
+			}),
 			react(),
 			nxViteTsPaths(),
 			svgr({ svgrOptions: { ref: true } }),
@@ -138,7 +150,7 @@ export default defineConfig(({ mode }) => {
 				output: {
 					manualChunks: {
 						echarts: ['echarts'],
-						react: ['react', 'react-dom', 'react-router-dom'],
+						react: ['react', 'react-dom', '@tanstack/react-router'],
 						monaco: ['monaco-editor', '@monaco-editor/react'],
 						shiki: ['react-shiki'],
 						prettier: ['prettier', 'prettier/parser-babel'],
