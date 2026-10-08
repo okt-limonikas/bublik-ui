@@ -2,20 +2,28 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
-import { LogPageMode } from '@/shared/types';
+import { isLogPageMode, LogPageMode } from '@/shared/types';
 
 import { logSearch } from '../../-search/log.search';
 
-// The legacy `/log/:runId/:old` address opens the log in the tree mode. The
-// mode is set rather than appended and the entry is replaced.
+// `/log/:runId/:old` predates the `mode` param; the backend still sends
+// `/log/:id/treeAndinfoAndlog` and `/log/:id/infoAndlog` here. A layout in
+// `:old` becomes the one `mode`; anything else keeps the search's own mode or
+// falls back to the tree, info and log, as these links always opened. The
+// hash is kept and the entry is replaced.
 export const Route = createFileRoute('/_app/log/$runId/$old')({
 	validateSearch: logSearch.validateSearch,
 	search: { middlewares: logSearch.middlewares },
-	beforeLoad: ({ params, search }) => {
+	beforeLoad: ({ params, search, location }) => {
+		const mode = isLogPageMode(params.old)
+			? params.old
+			: search.mode ?? LogPageMode.TreeAndInfoAndLog;
+
 		throw redirect({
 			to: '/log/$runId',
 			params: { runId: params.runId },
-			search: { ...search, mode: LogPageMode.TreeAndInfoAndLog },
+			search: { ...search, mode },
+			hash: location.hash,
 			replace: true
 		});
 	}

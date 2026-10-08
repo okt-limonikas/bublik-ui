@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useCallback } from 'react';
 import { OnChangeFn } from '@tanstack/react-table';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '@/router';
 
 import { useGetRunsTablePageQuery } from '@/services/bublik-api';
 import { useUserPreferences } from '@/bublik/features/user-preferences';

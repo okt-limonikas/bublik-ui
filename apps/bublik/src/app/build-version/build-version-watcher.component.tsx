@@ -1,14 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import { useCallback, useEffect, useRef } from 'react';
-import {
-	BlockerFunction,
-	createPath,
-	useBlocker,
-	useLocation
-} from 'react-router-dom';
-
-import { config } from '@/bublik/config';
+import { useEffect, useRef } from 'react';
+import { useRouter, useRouterState } from '@tanstack/react-router';
 
 import {
 	fetchDeployedBuildId,
@@ -26,7 +19,10 @@ const MIN_CHECK_GAP_MS = 60 * 1000;
  * load, which costs the user nothing they had on screen.
  */
 function BuildVersionWatcher() {
-	const { pathname } = useLocation();
+	const router = useRouter();
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname
+	});
 	const newBuildIdRef = useRef<string | null>(null);
 	const previousPathnameRef = useRef(pathname);
 
@@ -56,25 +52,27 @@ function BuildVersionWatcher() {
 	}, []);
 
 	// Take over the navigation before the old build renders the destination,
-	// so that the page is loaded, and counted as viewed, once.
-	const shouldBlock = useCallback<BlockerFunction>(
-		({ currentLocation, nextLocation, historyAction }) => {
-			const newBuildId = newBuildIdRef.current;
+	// so that the page is loaded, and counted as viewed, once. The history's
+	// locations are the browser's, base URL included.
+	useEffect(
+		() =>
+			router.history.block({
+				blockerFn: ({ currentLocation, nextLocation, action }) => {
+					const newBuildId = newBuildIdRef.current;
 
-			if (!newBuildId) return false;
-			if (currentLocation.pathname === nextLocation.pathname) return false;
-			// The browser has already moved on back/forward: see the effect below
-			if (historyAction === 'POP') return false;
+					if (!newBuildId) return false;
+					if (currentLocation.pathname === nextLocation.pathname) return false;
+					// The browser has already moved on back/forward: see the effect below
+					if (action !== 'PUSH' && action !== 'REPLACE') return false;
 
-			return openInNewBuild(
-				newBuildId,
-				`${config.baseUrl}${createPath(nextLocation)}`,
-				{ replace: historyAction === 'REPLACE' }
-			);
-		},
-		[]
+					return openInNewBuild(newBuildId, nextLocation.href, {
+						replace: action === 'REPLACE'
+					});
+				},
+				enableBeforeUnload: false
+			}),
+		[router]
 	);
-	useBlocker(shouldBlock);
 
 	// Back/forward navigation cannot be taken over, so reload where it landed
 	useEffect(() => {

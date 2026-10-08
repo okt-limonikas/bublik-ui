@@ -9,7 +9,7 @@ import type {
 	ReactNode
 } from 'react';
 import { Children, createContext, isValidElement, useContext } from 'react';
-import { useLocation, type To } from 'react-router-dom';
+import { useLocation, type To } from '@/router';
 
 import {
 	cn,

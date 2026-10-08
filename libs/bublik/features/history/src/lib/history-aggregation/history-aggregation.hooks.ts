@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from '@/router';
 import { OnChangeFn } from '@tanstack/react-table';
 
 import { HistoryAggregationGlobalFilter } from './history-aggregation.types';

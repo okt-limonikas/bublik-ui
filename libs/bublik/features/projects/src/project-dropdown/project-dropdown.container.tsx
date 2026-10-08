@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useState } from 'react';
-import { useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from '@/router';
 
 import { bublikAPI } from '@/services/bublik-api';
 import { usePhysicalHotkeys } from '@/shared/hooks';
@@ -35,7 +35,8 @@ function ProjectPickerContainer({
 	const navigate = useNavigate();
 	const location = useLocation();
 	// The run report already takes P to toggle its pair-gain columns.
-	const isRunReport = useMatch('/runs/:runId/report') !== null;
+	const isRunReport =
+		matchPath('/runs/:runId/report', location.pathname) !== null;
 
 	usePhysicalHotkeys(
 		[

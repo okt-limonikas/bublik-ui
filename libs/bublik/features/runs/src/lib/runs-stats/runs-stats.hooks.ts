@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { ECElementEvent } from 'echarts';
 import type ReactEChartsCore from 'echarts-for-react/lib/core';
-import { useQueryParam } from 'use-query-params';
+import { useQueryParam } from '@/router';
 
 import {
 	RUN_STATUS,

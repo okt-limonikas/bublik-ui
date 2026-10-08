@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root';
 import { Route as AppRouteImport } from './routes/_app';
 import { Route as AuthRouteRouteImport } from './routes/auth/route';
 import { Route as AppIndexRouteImport } from './routes/_app/index';
+import { Route as AppSplatRouteImport } from './routes/_app/$';
 import { Route as AppProtectedRouteImport } from './routes/_app/_protected';
 import { Route as AppRunsRouteImport } from './routes/_app/_runs';
 import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route';
@@ -35,6 +36,7 @@ import { Route as AppIssuesRulesRouteImport } from './routes/_app/issues/rules';
 import { Route as AppToolsPacketViewerRouteImport } from './routes/_app/tools/packet-viewer';
 import { Route as AppProtectedChatChar123ThreadIdChar125RouteImport } from './routes/_app/_protected/chat.{-$threadId}';
 import { Route as AppAdminAdminAnalyticsRouteImport } from './routes/_app/admin/_admin/analytics';
+import { Route as AppAdminAdminTokensRouteImport } from './routes/_app/admin/_admin/tokens';
 import { Route as AppAdminAdminUsersRouteImport } from './routes/_app/admin/_admin/users';
 import { Route as AppAdminIssuesSplatRouteImport } from './routes/_app/admin/issues.$';
 import { Route as AppIssuesIssueIdResultsRouteImport } from './routes/_app/issues/$issueId_.results';
@@ -59,6 +61,11 @@ const AuthRouteRoute = AuthRouteRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any);
+const AppSplatRoute = AppSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => AppRoute,
 } as any);
 const AppProtectedRoute = AppProtectedRouteImport.update({
@@ -174,6 +181,11 @@ const AppAdminAdminAnalyticsRoute = AppAdminAdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppAdminAdminRoute,
 } as any);
+const AppAdminAdminTokensRoute = AppAdminAdminTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => AppAdminAdminRoute,
+} as any);
 const AppAdminAdminUsersRoute = AppAdminAdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -237,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteRouteWithChildren;
   '/': typeof AppIndexRoute;
   '/admin': typeof AppAdminRouteRouteWithChildren;
+  '/$': typeof AppSplatRoute;
   '/dashboard': typeof AppDashboardRoute;
   '/auth/forgot': typeof AuthForgotRoute;
   '/auth/login': typeof AuthLoginRoute;
@@ -256,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/issues/': typeof AppIssuesIndexRoute;
   '/chat/{-$threadId}': typeof AppProtectedChatChar123ThreadIdChar125Route;
   '/admin/analytics': typeof AppAdminAdminAnalyticsRoute;
+  '/admin/tokens': typeof AppAdminAdminTokensRoute;
   '/admin/users': typeof AppAdminAdminUsersRoute;
   '/admin/issues/$': typeof AppAdminIssuesSplatRoute;
   '/issues/$issueId/results': typeof AppIssuesIssueIdResultsRoute;
@@ -270,6 +284,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRouteRouteWithChildren;
+  '/$': typeof AppSplatRoute;
   '/': typeof AppIndexRoute;
   '/dashboard': typeof AppDashboardRoute;
   '/auth/forgot': typeof AuthForgotRoute;
@@ -290,6 +305,7 @@ export interface FileRoutesByTo {
   '/issues': typeof AppIssuesIndexRoute;
   '/chat/{-$threadId}': typeof AppProtectedChatChar123ThreadIdChar125Route;
   '/admin/analytics': typeof AppAdminAdminAnalyticsRoute;
+  '/admin/tokens': typeof AppAdminAdminTokensRoute;
   '/admin/users': typeof AppAdminAdminUsersRoute;
   '/admin/issues/$': typeof AppAdminIssuesSplatRoute;
   '/issues/$issueId/results': typeof AppIssuesIssueIdResultsRoute;
@@ -307,6 +323,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteRouteWithChildren;
   '/_app': typeof AppRouteWithChildren;
   '/_app/admin': typeof AppAdminRouteRouteWithChildren;
+  '/_app/$': typeof AppSplatRoute;
   '/_app/_protected': typeof AppProtectedRouteWithChildren;
   '/_app/_runs': typeof AppRunsRouteWithChildren;
   '/_app/dashboard': typeof AppDashboardRoute;
@@ -330,6 +347,7 @@ export interface FileRoutesById {
   '/_app/issues/': typeof AppIssuesIndexRoute;
   '/_app/_protected/chat/{-$threadId}': typeof AppProtectedChatChar123ThreadIdChar125Route;
   '/_app/admin/_admin/analytics': typeof AppAdminAdminAnalyticsRoute;
+  '/_app/admin/_admin/tokens': typeof AppAdminAdminTokensRoute;
   '/_app/admin/_admin/users': typeof AppAdminAdminUsersRoute;
   '/_app/admin/issues/$': typeof AppAdminIssuesSplatRoute;
   '/_app/issues/$issueId_/results': typeof AppIssuesIssueIdResultsRoute;
@@ -348,6 +366,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/'
     | '/admin'
+    | '/$'
     | '/dashboard'
     | '/auth/forgot'
     | '/auth/login'
@@ -367,6 +386,7 @@ export interface FileRouteTypes {
     | '/issues/'
     | '/chat/{-$threadId}'
     | '/admin/analytics'
+    | '/admin/tokens'
     | '/admin/users'
     | '/admin/issues/$'
     | '/issues/$issueId/results'
@@ -381,6 +401,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | '/auth'
+    | '/$'
     | '/'
     | '/dashboard'
     | '/auth/forgot'
@@ -401,6 +422,7 @@ export interface FileRouteTypes {
     | '/issues'
     | '/chat/{-$threadId}'
     | '/admin/analytics'
+    | '/admin/tokens'
     | '/admin/users'
     | '/admin/issues/$'
     | '/issues/$issueId/results'
@@ -417,6 +439,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app'
     | '/_app/admin'
+    | '/_app/$'
     | '/_app/_protected'
     | '/_app/_runs'
     | '/_app/dashboard'
@@ -440,6 +463,7 @@ export interface FileRouteTypes {
     | '/_app/issues/'
     | '/_app/_protected/chat/{-$threadId}'
     | '/_app/admin/_admin/analytics'
+    | '/_app/admin/_admin/tokens'
     | '/_app/admin/_admin/users'
     | '/_app/admin/issues/$'
     | '/_app/issues/$issueId_/results'
@@ -479,6 +503,13 @@ declare module '@tanstack/react-router' {
       path: '/';
       fullPath: '/';
       preLoaderRoute: typeof AppIndexRouteImport;
+      parentRoute: typeof AppRoute;
+    };
+    '/_app/$': {
+      id: '/_app/$';
+      path: '/$';
+      fullPath: '/$';
+      preLoaderRoute: typeof AppSplatRouteImport;
       parentRoute: typeof AppRoute;
     };
     '/_app/_protected': {
@@ -642,6 +673,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAdminAnalyticsRouteImport;
       parentRoute: typeof AppAdminAdminRoute;
     };
+    '/_app/admin/_admin/tokens': {
+      id: '/_app/admin/_admin/tokens';
+      path: '/tokens';
+      fullPath: '/admin/tokens';
+      preLoaderRoute: typeof AppAdminAdminTokensRouteImport;
+      parentRoute: typeof AppAdminAdminRoute;
+    };
     '/_app/admin/_admin/users': {
       id: '/_app/admin/_admin/users';
       path: '/users';
@@ -743,11 +781,13 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
 
 interface AppAdminAdminRouteChildren {
   AppAdminAdminAnalyticsRoute: typeof AppAdminAdminAnalyticsRoute;
+  AppAdminAdminTokensRoute: typeof AppAdminAdminTokensRoute;
   AppAdminAdminUsersRoute: typeof AppAdminAdminUsersRoute;
 }
 
 const AppAdminAdminRouteChildren: AppAdminAdminRouteChildren = {
   AppAdminAdminAnalyticsRoute: AppAdminAdminAnalyticsRoute,
+  AppAdminAdminTokensRoute: AppAdminAdminTokensRoute,
   AppAdminAdminUsersRoute: AppAdminAdminUsersRoute,
 };
 
@@ -807,6 +847,7 @@ const AppRunsRouteWithChildren =
 
 interface AppRouteChildren {
   AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren;
+  AppSplatRoute: typeof AppSplatRoute;
   AppProtectedRoute: typeof AppProtectedRouteWithChildren;
   AppRunsRoute: typeof AppRunsRouteWithChildren;
   AppDashboardRoute: typeof AppDashboardRoute;
@@ -829,6 +870,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
+  AppSplatRoute: AppSplatRoute,
   AppProtectedRoute: AppProtectedRouteWithChildren,
   AppRunsRoute: AppRunsRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useCallback, useMemo } from 'react';
-import { QueryParamConfig, useQueryParam, withDefault } from 'use-query-params';
+import { QueryParamConfig, useQueryParam, withDefault } from '@/router';
 
 import { CompressedJsonParam } from '../run-table/run-table.hooks';
 import { MatrixSuggestion, ParamClassification } from './matrix-analysis';

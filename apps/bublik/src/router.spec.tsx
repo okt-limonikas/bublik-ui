@@ -88,6 +88,16 @@ describe('createAppRouter', () => {
 				{}
 			],
 			[
+				'/admin/tokens',
+				[
+					'/_app',
+					'/_app/admin',
+					'/_app/admin/_admin',
+					'/_app/admin/_admin/tokens'
+				],
+				{}
+			],
+			[
 				'/admin/analytics',
 				[
 					'/_app',
@@ -139,11 +149,34 @@ describe('createAppRouter', () => {
 		});
 
 		it('sends the legacy /log/:runId/:old to /log/:runId with the tree mode set', async () => {
-			const router = await routerAt('/log/1/old?focusId=3&mode=tree');
+			const router = await routerAt('/log/1/old?focusId=3');
 
 			expect(router.state.location.href).toBe(
 				'/log/1?focusId=3&mode=treeAndinfoAndlog'
 			);
+			expect(matched(router).at(-1)).toBe('/_app/log/$runId/');
+			expect(router.history.length).toBe(1);
+		});
+
+		it.each([
+			// The layout named by the old path segment wins over the search's
+			['/log/42/infoAndlog?mode=log', '/log/42?mode=infoAndlog'],
+			['/log/42/infoAndlog?focusId=7', '/log/42?focusId=7&mode=infoAndlog'],
+			[
+				'/log/42/treeAndlog?mode=log&focusId=7',
+				'/log/42?mode=treeAndlog&focusId=7'
+			],
+			// Not a layout: the search's own mode is kept
+			['/log/42/whatever?mode=infoAndlog', '/log/42?mode=infoAndlog'],
+			// The hash is kept
+			[
+				'/log/42/infoAndlog?focusId=7#line',
+				'/log/42?focusId=7&mode=infoAndlog#line'
+			]
+		])('sends the legacy %s to %s', async (from, to) => {
+			const router = await routerAt(from);
+
+			expect(router.state.location.href).toBe(to);
 			expect(matched(router).at(-1)).toBe('/_app/log/$runId/');
 			expect(router.history.length).toBe(1);
 		});
@@ -167,15 +200,23 @@ describe('createAppRouter', () => {
 		);
 	});
 
-	it('serves an unknown URL as not found without rewriting it', async () => {
-		const router = await routerAt('/definitely-not-a-bublik-page?project=1');
+	it.each([
+		'/definitely-not-a-bublik-page?project=1',
+		'/runs/1/garbage',
+		'/admin/garbage',
+		'/auth/garbage',
+		'/help'
+	])(
+		'serves the unknown URL %s as not found inside the app shell without rewriting it',
+		async (url) => {
+			const router = await routerAt(url);
 
-		expect(router.state.location.href).toBe(
-			'/definitely-not-a-bublik-page?project=1'
-		);
-		// Nothing below the root matches; the router's not-found component renders.
-		expect(matched(router)).toEqual(['__root__']);
-	});
+			expect(router.state.location.href).toBe(url);
+			// The `$` splat under the app layout is React Router's `*` route: the
+			// not-found page renders inside the shell, sidebar included.
+			expect(matched(router)).toEqual(['__root__', '/_app', '/_app/$']);
+		}
+	);
 
 	it('builds hrefs under the base URL', async () => {
 		const router = await routerAt('/dashboard');
