@@ -49,7 +49,10 @@ const RUN_TABLE_SHAPE = {
 	columnOrder: json<string[]>(),
 	globalRequirements: repeated(),
 	targetIterationId: num(),
-	resultFilter: str()
+	resultFilter: str(),
+	// Each result table's list or matrix view, keyed by its row id (the run
+	// feature's `ResultViewParam`).
+	resultView: compressedJson<Record<string, unknown>>()
 };
 
 /** `/runs/$runId`'s search schema; `/multiple` adds its own keys to the shape. */

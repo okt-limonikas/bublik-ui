@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useCallback, useMemo } from 'react';
-import { QueryParamConfig, useQueryParam, withDefault } from '@/router';
 
-import { CompressedJsonParam } from '../run-table/run-table.hooks';
+import { useRunTableSetter, useRunTableValue } from '../run-search.hooks';
 import { MatrixSuggestion, ParamClassification } from './matrix-analysis';
 
 export type ResultViewMode = 'list' | 'matrix';
@@ -60,11 +59,6 @@ const MATRIX_KEYS: (keyof ResultViewState)[] = [
 	'margins',
 	'fill'
 ];
-
-const ResultViewQueryParam = withDefault(
-	CompressedJsonParam as QueryParamConfig<ResultViewParam, ResultViewParam>,
-	{}
-);
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -168,11 +162,12 @@ export function isLayoutApplied(
 }
 
 export function useResultView(rowId: string) {
-	const [param, setParam] = useQueryParam<ResultViewParam>(
-		'resultView',
-		ResultViewQueryParam,
-		{ updateType: 'replaceIn' }
-	);
+	// Read and written on `/runs/$runId` and `/multiple` alike, as a replace
+	// merged into the current search.
+	const param = useRunTableValue('resultView') as ResultViewParam | undefined;
+	const setParam = useRunTableSetter('resultView', {}) as (
+		update: (latest: ResultViewParam) => ResultViewParam
+	) => void;
 
 	const state = useMemo<ResultViewState>(() => {
 		const value = param?.[rowId];
@@ -183,7 +178,7 @@ export function useResultView(rowId: string) {
 	const write = useCallback(
 		(next: ResultViewState) => {
 			setParam((prev) => {
-				const rest = { ...(prev ?? {}) };
+				const rest = { ...(isObject(prev) ? prev : {}) };
 				const compacted = compact(next);
 
 				if (Object.keys(compacted).length === 0) {
