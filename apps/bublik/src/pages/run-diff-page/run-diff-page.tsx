@@ -22,6 +22,7 @@ import {
 } from '@/bublik/features/run-diff';
 import {
 	LinkWithProject,
+	TypedLinkWithProject,
 	useTabTitleWithPrefix
 } from '@/bublik/features/projects';
 import { useDefaultLogMode } from '@/bublik/features/user-preferences';
@@ -197,7 +198,7 @@ export const RunDiffPage = () => {
 						rounded="lg"
 						className="w-full py-2.5"
 					>
-						<LinkWithProject to="/runs">Go to runs</LinkWithProject>
+						<TypedLinkWithProject to="/runs">Go to runs</TypedLinkWithProject>
 					</ButtonTw>
 				}
 			/>
