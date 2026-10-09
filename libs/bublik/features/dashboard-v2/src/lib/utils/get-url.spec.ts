@@ -8,16 +8,26 @@ import { getUrl } from './index';
 
 describe('getUrl', () => {
 	it('opens a tree cell in the given log layout', () => {
-		expect(getUrl('tree', 42, LogPageMode.InfoAndLog)).toBe(
-			'/log/42?mode=infoAndlog'
-		);
+		expect(getUrl('tree', 42, LogPageMode.InfoAndLog)).toEqual({
+			pathname: '/log/42',
+			search: '?mode=infoAndlog',
+			hash: ''
+		});
 	});
 
 	it('names the log-only layout rather than relying on a bare URL', () => {
-		expect(getUrl('tree', 42, LogPageMode.Log)).toBe('/log/42?mode=log');
+		expect(getUrl('tree', 42, LogPageMode.Log)).toEqual({
+			pathname: '/log/42',
+			search: '?mode=log',
+			hash: ''
+		});
 	});
 
 	it('links other cells by their path and run id', () => {
-		expect(getUrl('runs', 42, LogPageMode.Log)).toBe('/runs/42');
+		expect(getUrl('runs', 42, LogPageMode.Log)).toEqual({
+			pathname: '/runs/42',
+			search: '',
+			hash: ''
+		});
 	});
 });
