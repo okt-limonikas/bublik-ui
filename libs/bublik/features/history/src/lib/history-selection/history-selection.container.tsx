@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import type { ReactNode } from 'react';
-import { useSearchParams } from '@/router';
 
 import { ResultSelectionProvider } from '@/bublik/features/result-classification';
 
-import { useHistoryQuery } from '../hooks';
+import { useHistoryQuery, useHistorySearch } from '../hooks';
 import { useHistoryLinearRowsOnScreen } from '../history-linear/history-linear.hooks';
 import { useHistoryAggregationResultsOnScreen } from '../history-aggregation/history-aggregation.hooks';
 import { resolveHistoryMode } from '../history-mode-picker/history-mode';
@@ -24,8 +23,7 @@ interface HistorySelectionProviderProps {
  */
 function HistorySelectionProvider({ children }: HistorySelectionProviderProps) {
 	const { query } = useHistoryQuery();
-	const [searchParams] = useSearchParams();
-	const mode = resolveHistoryMode(searchParams.get('mode'));
+	const mode = useHistorySearch((search) => resolveHistoryMode(search.mode));
 	const linearRows = useHistoryLinearRowsOnScreen({ skip: mode !== 'linear' });
 	const aggregationResults = useHistoryAggregationResultsOnScreen({
 		skip: mode !== 'aggregation'

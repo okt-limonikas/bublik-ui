@@ -123,7 +123,6 @@ export const LinkList = ({ results, hasError = false }: LinkListProps) => {
 					>
 						<LinkWithProject
 							to={to}
-							state={{ fromHistory: true }}
 							className={cn(
 								badgeBaseStyles(),
 								badgeVariantStyles({

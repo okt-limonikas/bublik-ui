@@ -2,7 +2,6 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { useLocation } from '@/router';
 import { OnChangeFn } from '@tanstack/react-table';
 
 import { HistoryAggregationGlobalFilter } from './history-aggregation.types';
@@ -16,7 +15,7 @@ import {
 	matchesAggregationGlobalFilter
 } from './history-aggregation.utils';
 import { selectAggregationGlobalFilter, useHistoryActions } from '../slice';
-import { useHistoryQuery } from '../hooks';
+import { useHistoryFromRun, useHistoryQuery } from '../hooks';
 
 export const useAggregationGlobalFilter = () => {
 	const actions = useHistoryActions();
@@ -61,10 +60,10 @@ export const useHistoryAggregationResultsOnScreen = ({
 	skip = false
 } = {}): SelectableResult[] => {
 	const { query } = useHistoryQuery();
-	const state = useLocation().state as { fromRun?: boolean } | null;
+	const fromRun = useHistoryFromRun();
 	const globalFilter = useSelector(selectAggregationGlobalFilter);
 	const { data } = useGetHistoryAggregationQuery(query, {
-		skip: skip || state?.fromRun || !query.testName
+		skip: skip || fromRun || !query.testName
 	});
 
 	return useMemo(
