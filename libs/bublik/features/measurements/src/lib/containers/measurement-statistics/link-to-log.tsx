@@ -8,8 +8,8 @@ import { useDefaultLogMode } from '@/bublik/features/user-preferences';
 import { useLinkTarget } from '../../link-target';
 
 export interface LinkToLogProps {
-	runId: string;
-	resultId: string;
+	runId: number;
+	resultId: number;
 }
 
 export const LinkToLog = ({ runId, resultId }: LinkToLogProps) => {
@@ -19,7 +19,7 @@ export const LinkToLog = ({ runId, resultId }: LinkToLogProps) => {
 	const to = useLinkTarget({
 		to: '/log/$runId',
 		params: { runId },
-		search: { focusId: Number(resultId), mode: logMode }
+		search: { focusId: resultId, mode: logMode }
 	});
 
 	return (

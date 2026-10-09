@@ -247,7 +247,7 @@ export function MatrixCellDrawer(props: MatrixCellDrawerProps) {
 							    column has them. */}
 								<div className="flex shrink-0 flex-col items-start gap-2">
 									<ResultLinksContainer
-										runId={String(it.source.run_id)}
+										runId={it.source.run_id}
 										resultId={it.resultId}
 										result={it.source}
 										showLinkToRun={showLinkToRun}

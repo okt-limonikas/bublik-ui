@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import { skipToken } from '@reduxjs/toolkit/query';
 import { getRouteApi } from '@tanstack/react-router';
 
 import {
@@ -17,7 +16,6 @@ import {
 	useTabTitleWithPrefix
 } from '@/bublik/features/projects';
 import { CopyShortUrlButtonContainer } from '@/bublik/features/copy-url';
-import { BublikEmptyState } from '@/bublik/features/ui-state';
 import { routes } from '@/router';
 import { useGetIssueQuery } from '@/services/bublik-api';
 
@@ -50,34 +48,18 @@ export const IssueResultsPage = () => {
 	const { projectIds } = useProjectSearch();
 	const projectId = projectIds[0];
 
-	const isValidId = !!issueId && /^\d+$/.test(issueId);
-	const numericIssueId = isValidId ? Number(issueId) : undefined;
-
-	const { data: issue } = useGetIssueQuery(
-		numericIssueId !== undefined
-			? { issueId: numericIssueId, projectId }
-			: skipToken
-	);
+	const { data: issue } = useGetIssueQuery({ issueId, projectId });
 
 	useTabTitleWithPrefix([issue?.title, 'Issue Results - Bublik']);
-
-	if (numericIssueId === undefined) {
-		return (
-			<BublikEmptyState
-				title="No data"
-				description="Issue ID is missing or invalid"
-			/>
-		);
-	}
 
 	return (
 		<div
 			className="flex flex-col h-full gap-1 p-2"
 			data-testid="issue-results-page"
 		>
-			<IssueResultsHeader issueId={numericIssueId} projectId={projectId} />
-			<ResultTableHost selectionScope={`issue:${numericIssueId}`}>
-				<IssueResultsCard issueId={numericIssueId} projectId={projectId} />
+			<IssueResultsHeader issueId={issueId} projectId={projectId} />
+			<ResultTableHost selectionScope={`issue:${issueId}`}>
+				<IssueResultsCard issueId={issueId} projectId={projectId} />
 			</ResultTableHost>
 		</div>
 	);

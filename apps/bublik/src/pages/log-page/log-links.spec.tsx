@@ -50,7 +50,7 @@ describe('the log page links', () => {
 		await renderOnLogPage(
 			<>
 				<div data-testid="typed">
-					<LinkToMeasurements runId={1} resultId="7" state="default" />
+					<LinkToMeasurements runId={1} resultId={7} state="default" />
 				</div>
 				<LinkWithProject
 					data-testid="string"

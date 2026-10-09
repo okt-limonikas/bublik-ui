@@ -25,12 +25,11 @@ import {
 	Separator
 } from '@/shared/tailwind-ui';
 import { NewBugContainer } from '@/bublik/features/log-preview-drawer';
-import { BublikEmptyState } from '@/bublik/features/ui-state';
 
 const runRoute = getRouteApi('/_app/runs/$runId/');
 
 export interface RunHeaderProps {
-	runId: string;
+	runId: number;
 }
 
 const RunHeader = ({ runId }: RunHeaderProps) => {
@@ -53,10 +52,10 @@ const RunHeader = ({ runId }: RunHeaderProps) => {
 						onToggleClick={handleModeToggle}
 					/>
 					<Separator orientation="vertical" className="h-5 self-center" />
-					<DiffFormContainer defaultValues={{ leftRunId: runId }} />
+					<DiffFormContainer defaultValues={{ leftRunId: String(runId) }} />
 					<LinkToSourceContainer runId={runId} />
 					<DefineCompromiseContainer runId={runId} />
-					<NewBugContainer runId={Number(runId)} resultId={Number(runId)} />
+					<NewBugContainer runId={runId} resultId={runId} />
 					<ApplyRulesButton runId={runId} />
 					<Separator orientation="vertical" className="h-5 self-center" />
 					<CopyShortUrlButtonContainer />
@@ -71,10 +70,6 @@ export const RunPage = () => {
 	const { runId } = runRoute.useParams();
 	usePrefetchLogPage({ runId });
 
-	if (!runId) {
-		return <BublikEmptyState title="No data" description="Run ID is missing" />;
-	}
-
 	return (
 		<div className="flex flex-col gap-1 p-2">
 			<RunHeader runId={runId} />
@@ -83,7 +78,8 @@ export const RunPage = () => {
 				    several tests go into one bulk classification; it is the
 				    run's own, as the run issues page's is. */}
 				<ResultSelectionProvider scope={`run:${runId}`}>
-					<RunTableContainer runId={runId} />
+					{/* The run table, shared with /multiple, takes the ids as strings */}
+					<RunTableContainer runId={String(runId)} />
 				</ResultSelectionProvider>
 			</GlobalRequirementsProvider>
 			<ScrollToTopPage offset={158} />

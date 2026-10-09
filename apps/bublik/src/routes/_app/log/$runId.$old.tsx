@@ -2,8 +2,10 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { createFileRoute, redirect } from '@tanstack/react-router';
 
+import { parseId } from '@/router';
 import { isLogPageMode, LogPageMode } from '@/shared/types';
 
+import { NoMatchFeature } from '../../../pages/not-found-page';
 import { logSearch } from '../../-search/log.search';
 
 // `/log/:runId/:old` predates the `mode` param; the backend still sends
@@ -12,6 +14,10 @@ import { logSearch } from '../../-search/log.search';
 // falls back to the tree, info and log, as these links always opened. The
 // hash is kept and the entry is replaced.
 export const Route = createFileRoute('/_app/log/$runId/$old')({
+	params: {
+		parse: ({ runId, old }) => ({ runId: parseId(runId), old }),
+		stringify: ({ runId, old }) => ({ runId: String(runId), old })
+	},
 	validateSearch: logSearch.validateSearch,
 	search: { middlewares: logSearch.middlewares },
 	beforeLoad: ({ params, search, location }) => {
@@ -26,5 +32,6 @@ export const Route = createFileRoute('/_app/log/$runId/$old')({
 			hash: location.hash,
 			replace: true
 		});
-	}
+	},
+	notFoundComponent: NoMatchFeature
 });
