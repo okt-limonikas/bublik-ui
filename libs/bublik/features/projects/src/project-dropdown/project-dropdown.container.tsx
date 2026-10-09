@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useState } from 'react';
-import { matchPath, useLocation, useNavigate } from '@/router';
+import { useRouter, type AnyRouter } from '@tanstack/react-router';
+
+import { matchPath, useRenderedLocation } from '@/router';
 
 import { bublikAPI } from '@/services/bublik-api';
 import { usePhysicalHotkeys } from '@/shared/hooks';
@@ -9,7 +11,7 @@ import { useSidebar } from '@/shared/tailwind-ui';
 
 import { CreateProjectModal } from '../create-project-modal';
 import { useProjectSearch } from '../hooks';
-import { mergeStringUrlWithSidebarState } from '../lib/sidebar-params.utils';
+import { resolveTargetWithSidebarState } from '../lib/sidebar-params.utils';
 import { ProjectSwitcher } from './project-switcher.component';
 import { ProjectLastRunContainer } from './project-last-run.container';
 
@@ -32,8 +34,8 @@ function ProjectPickerContainer({
 	// Outside the popover: closing it would unmount a dialog opened inside.
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const { projectIds, setProjectsIds } = useProjectSearch();
-	const navigate = useNavigate();
-	const location = useLocation();
+	const router = useRouter<AnyRouter>();
+	const location = useRenderedLocation();
 	// The run report already takes P to toggle its pair-gain columns.
 	const isRunReport =
 		matchPath('/runs/:runId/report', location.pathname) !== null;
@@ -101,13 +103,14 @@ function ProjectPickerContainer({
 					onOpenChange={setIsCreateOpen}
 					// A new project has no configs yet: open them, scoped to it
 					onCreated={(project) =>
-						navigate(
-							mergeStringUrlWithSidebarState(
+						void router.navigate({
+							...resolveTargetWithSidebarState(
 								'/admin/config',
-								new URLSearchParams(location.search),
+								{ pathname: location.pathname, search: location.searchStr },
 								[project.id]
-							)
-						)
+							),
+							resetScroll: false
+						})
 					}
 				/>
 			) : null}
