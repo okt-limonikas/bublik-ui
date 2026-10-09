@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
 	forwardRef,
@@ -9,8 +9,10 @@ import {
 	type CSSProperties,
 	type ReactNode
 } from 'react';
-import { MemoryRouter, type To } from 'react-router-dom';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+import type { To } from '@/router';
+import { renderWithRouter } from '@/router/testing';
 
 import { SidebarProvider, TooltipProvider } from '@/shared/tailwind-ui';
 
@@ -35,7 +37,7 @@ const LINK_ITEMS = [
 	{ id: '2', label: 'Newer report', to: '/report?config=2' }
 ];
 
-function renderSubmenuItem({
+async function renderSubmenuItem({
 	disabled = false,
 	isSidebarOpen = true,
 	withModeSwitch = false,
@@ -78,46 +80,46 @@ function renderSubmenuItem({
 	) as ComponentType<TestLinkProps>;
 
 	const tree = (isOpen: boolean) => (
-		<MemoryRouter>
-			<TooltipProvider>
-				<SidebarProvider isSidebarOpen={isOpen}>
-					<SidebarNavSubmenuItemContainer
-						to="/runs"
-						disabled={disabled}
-						linkComponent={TestLink}
-					>
-						<SidebarNavSubmenuItemContainer.Icon name="Paper" />
-						<SidebarNavSubmenuItemContainer.Label>
-							Details
-						</SidebarNavSubmenuItemContainer.Label>
-						{linkItems ? (
-							<SidebarNavSubmenuItemContainer.LinksMenu
-								aria-label="Reports"
-								items={linkItems}
-								linkComponent={TestLink}
-								testId="details-reports"
-							/>
-						) : withModeSwitch ? (
-							<SidebarNavSubmenuItemContainer.ModeSwitch
-								aria-label="Details layout"
-								items={MODE_ITEMS}
-								value="log"
-								onSelect={handleSelect}
-								testId="details-mode-switch"
-							/>
-						) : (
-							<SidebarNavSubmenuItemContainer.InfoButton
-								href="https://docs.test/details"
-								label="Details"
-							/>
-						)}
-					</SidebarNavSubmenuItemContainer>
-				</SidebarProvider>
-			</TooltipProvider>
-		</MemoryRouter>
+		<TooltipProvider>
+			<SidebarProvider isSidebarOpen={isOpen}>
+				<SidebarNavSubmenuItemContainer
+					to="/runs"
+					disabled={disabled}
+					linkComponent={TestLink}
+				>
+					<SidebarNavSubmenuItemContainer.Icon name="Paper" />
+					<SidebarNavSubmenuItemContainer.Label>
+						Details
+					</SidebarNavSubmenuItemContainer.Label>
+					{linkItems ? (
+						<SidebarNavSubmenuItemContainer.LinksMenu
+							aria-label="Reports"
+							items={linkItems}
+							linkComponent={TestLink}
+							testId="details-reports"
+						/>
+					) : withModeSwitch ? (
+						<SidebarNavSubmenuItemContainer.ModeSwitch
+							aria-label="Details layout"
+							items={MODE_ITEMS}
+							value="log"
+							onSelect={handleSelect}
+							testId="details-mode-switch"
+						/>
+					) : (
+						<SidebarNavSubmenuItemContainer.InfoButton
+							href="https://docs.test/details"
+							label="Details"
+						/>
+					)}
+				</SidebarNavSubmenuItemContainer>
+			</SidebarProvider>
+		</TooltipProvider>
 	);
 
-	const result = render(tree(isSidebarOpen));
+	const result = await renderWithRouter(tree(isSidebarOpen), {
+		path: '/runs'
+	});
 	const setSidebarOpen = (isOpen: boolean) => result.rerender(tree(isOpen));
 
 	return { ...result, handleLinkClick, handleSelect, setSidebarOpen };
@@ -137,8 +139,8 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		);
 	});
 
-	it('shows an active enabled hierarchy guide', () => {
-		const { container } = renderSubmenuItem();
+	it('shows an active enabled hierarchy guide', async () => {
+		const { container } = await renderSubmenuItem();
 		const guide = container.querySelector('[data-sidebar-nav-submenu-guide]');
 
 		expect(guide).toBeInstanceOf(HTMLLIElement);
@@ -150,8 +152,8 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		);
 	});
 
-	it('uses the default hierarchy guide for disabled items', () => {
-		const { container } = renderSubmenuItem({ disabled: true });
+	it('uses the default hierarchy guide for disabled items', async () => {
+		const { container } = await renderSubmenuItem({ disabled: true });
 		const guide = container.querySelector('[data-sidebar-nav-submenu-guide]');
 
 		expect(guide).toBeInstanceOf(HTMLLIElement);
@@ -163,7 +165,7 @@ describe('SidebarNavSubmenuItemContainer', () => {
 	it('opens the docs in a new tab without following the link', async () => {
 		const user = userEvent.setup();
 		const open = vi.spyOn(window, 'open').mockReturnValue(null);
-		const { handleLinkClick } = renderSubmenuItem();
+		const { handleLinkClick } = await renderSubmenuItem();
 
 		await user.click(screen.getByText('Details'));
 		expect(handleLinkClick).toHaveBeenCalledTimes(1);
@@ -180,23 +182,23 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		open.mockRestore();
 	});
 
-	it('keeps the docs button visible on a disabled item', () => {
-		const { container } = renderSubmenuItem({ disabled: true });
+	it('keeps the docs button visible on a disabled item', async () => {
+		const { container } = await renderSubmenuItem({ disabled: true });
 
 		expect(container.querySelector('[data-info-button]')?.className).toContain(
 			'pointer-events-auto visible'
 		);
 	});
 
-	it('hides the docs button while the sidebar is collapsed', () => {
-		const { container } = renderSubmenuItem({ isSidebarOpen: false });
+	it('hides the docs button while the sidebar is collapsed', async () => {
+		const { container } = await renderSubmenuItem({ isSidebarOpen: false });
 
 		expect(container.querySelector('[data-info-button]')).toBeNull();
 	});
 
 	it('switches the mode from its icons without following the link', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick, handleSelect } = renderSubmenuItem({
+		const { handleLinkClick, handleSelect } = await renderSubmenuItem({
 			withModeSwitch: true
 		});
 
@@ -214,14 +216,14 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		expect(handleLinkClick).not.toHaveBeenCalled();
 	});
 
-	it('hides the mode icons while the sidebar is collapsed', () => {
-		renderSubmenuItem({ withModeSwitch: true, isSidebarOpen: false });
+	it('hides the mode icons while the sidebar is collapsed', async () => {
+		await renderSubmenuItem({ withModeSwitch: true, isSidebarOpen: false });
 
 		expect(screen.queryByRole('group', { name: 'Details layout' })).toBeNull();
 	});
 
-	it('marks a collapsed row with a dot per mode, the current one solid', () => {
-		const { container } = renderSubmenuItem({
+	it('marks a collapsed row with a dot per mode, the current one solid', async () => {
+		const { container } = await renderSubmenuItem({
 			withModeSwitch: true,
 			isSidebarOpen: false
 		});
@@ -238,14 +240,14 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		).toBe('log');
 	});
 
-	it('drops the mode dots while the sidebar is open', () => {
-		const { container } = renderSubmenuItem({ withModeSwitch: true });
+	it('drops the mode dots while the sidebar is open', async () => {
+		const { container } = await renderSubmenuItem({ withModeSwitch: true });
 
 		expect(container.querySelector('[data-mode-pips]')).toBeNull();
 	});
 
-	it('draws no mode dots on a disabled collapsed item', () => {
-		const { container } = renderSubmenuItem({
+	it('draws no mode dots on a disabled collapsed item', async () => {
+		const { container } = await renderSubmenuItem({
 			withModeSwitch: true,
 			isSidebarOpen: false,
 			disabled: true
@@ -256,7 +258,7 @@ describe('SidebarNavSubmenuItemContainer', () => {
 
 	it('offers the modes in a hover card while the sidebar is collapsed', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick, handleSelect } = renderSubmenuItem({
+		const { handleLinkClick, handleSelect } = await renderSubmenuItem({
 			withModeSwitch: true,
 			isSidebarOpen: false
 		});
@@ -279,7 +281,7 @@ describe('SidebarNavSubmenuItemContainer', () => {
 
 	it('keeps the mode card up when the row itself is clicked', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick } = renderSubmenuItem({
+		const { handleLinkClick } = await renderSubmenuItem({
 			withModeSwitch: true,
 			isSidebarOpen: false
 		});
@@ -300,7 +302,7 @@ describe('SidebarNavSubmenuItemContainer', () => {
 
 	it('offers no mode card on a disabled collapsed item', async () => {
 		const user = userEvent.setup();
-		renderSubmenuItem({
+		await renderSubmenuItem({
 			withModeSwitch: true,
 			isSidebarOpen: false,
 			disabled: true
@@ -313,8 +315,10 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		expect(screen.queryByRole('group', { name: 'Details layout' })).toBeNull();
 	});
 
-	it('keeps the row mounted when the sidebar toggles', () => {
-		const { setSidebarOpen } = renderSubmenuItem({ withModeSwitch: true });
+	it('keeps the row mounted when the sidebar toggles', async () => {
+		const { setSidebarOpen } = await renderSubmenuItem({
+			withModeSwitch: true
+		});
 		const row = screen.getByRole('link');
 
 		// A remounted row has no padding to transition from, so it jumps.
@@ -325,15 +329,17 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		expect(screen.getByRole('link')).toBe(row);
 	});
 
-	it('hides the mode icons on a disabled item', () => {
-		renderSubmenuItem({ withModeSwitch: true, disabled: true });
+	it('hides the mode icons on a disabled item', async () => {
+		await renderSubmenuItem({ withModeSwitch: true, disabled: true });
 
 		expect(screen.queryByRole('group', { name: 'Details layout' })).toBeNull();
 	});
 
 	it('opens the links menu without following the row', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick } = renderSubmenuItem({ linkItems: LINK_ITEMS });
+		const { handleLinkClick } = await renderSubmenuItem({
+			linkItems: LINK_ITEMS
+		});
 
 		await user.click(screen.getByRole('button', { name: 'Reports' }));
 
@@ -345,7 +351,9 @@ describe('SidebarNavSubmenuItemContainer', () => {
 
 	it('follows the chosen link and not the row it sits in', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick } = renderSubmenuItem({ linkItems: LINK_ITEMS });
+		const { handleLinkClick } = await renderSubmenuItem({
+			linkItems: LINK_ITEMS
+		});
 
 		await user.click(screen.getByRole('button', { name: 'Reports' }));
 		await user.click(
@@ -355,21 +363,21 @@ describe('SidebarNavSubmenuItemContainer', () => {
 		expect(handleLinkClick.mock.calls).toEqual([['/report?config=1']]);
 	});
 
-	it('offers no links menu on a disabled item', () => {
-		renderSubmenuItem({ linkItems: LINK_ITEMS, disabled: true });
+	it('offers no links menu on a disabled item', async () => {
+		await renderSubmenuItem({ linkItems: LINK_ITEMS, disabled: true });
 
 		expect(screen.queryByRole('button', { name: 'Reports' })).toBeNull();
 	});
 
-	it('offers no links menu without links', () => {
-		renderSubmenuItem({ linkItems: [] });
+	it('offers no links menu without links', async () => {
+		await renderSubmenuItem({ linkItems: [] });
 
 		expect(screen.queryByRole('button', { name: 'Reports' })).toBeNull();
 	});
 
 	it('offers the links in a hover card while the sidebar is collapsed', async () => {
 		const user = userEvent.setup();
-		const { handleLinkClick } = renderSubmenuItem({
+		const { handleLinkClick } = await renderSubmenuItem({
 			linkItems: LINK_ITEMS,
 			isSidebarOpen: false
 		});
@@ -389,7 +397,7 @@ describe('SidebarNavSubmenuItemContainer', () => {
 
 	it('offers no links card on a disabled collapsed item', async () => {
 		const user = userEvent.setup();
-		renderSubmenuItem({
+		await renderSubmenuItem({
 			linkItems: LINK_ITEMS,
 			isSidebarOpen: false,
 			disabled: true

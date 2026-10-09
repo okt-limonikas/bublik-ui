@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 
+import { renderWithRouter } from '@/router/testing';
 import { TooltipProvider } from '@/shared/tailwind-ui';
 
 import {
@@ -34,33 +34,31 @@ const PROJECTS = [
 	{ id: 2, name: 'tsf/net-drv' }
 ];
 
-function renderSwitcher(props: Partial<ProjectSwitcherProps> = {}) {
+async function renderSwitcher(props: Partial<ProjectSwitcherProps> = {}) {
 	const onSelect = vi.fn();
 
-	render(
-		<MemoryRouter>
-			<TooltipProvider>
-				<ProjectSwitcher
-					projects={PROJECTS}
-					isOpen
-					onOpenChange={vi.fn()}
-					search=""
-					onSearchChange={vi.fn()}
-					onSelect={onSelect}
-					isSidebarOpen
-					renderMeta={() => null}
-					{...props}
-				/>
-			</TooltipProvider>
-		</MemoryRouter>
+	await renderWithRouter(
+		<TooltipProvider>
+			<ProjectSwitcher
+				projects={PROJECTS}
+				isOpen
+				onOpenChange={vi.fn()}
+				search=""
+				onSearchChange={vi.fn()}
+				onSelect={onSelect}
+				isSidebarOpen
+				renderMeta={() => null}
+				{...props}
+			/>
+		</TooltipProvider>
 	);
 
 	return { onSelect };
 }
 
 describe('ProjectSwitcher', () => {
-	it('lists every project after the all-projects option', () => {
-		renderSwitcher();
+	it('lists every project after the all-projects option', async () => {
+		await renderSwitcher();
 
 		expect(
 			screen
@@ -69,8 +67,8 @@ describe('ProjectSwitcher', () => {
 		).toEqual(['all', '1', '2']);
 	});
 
-	it('marks the current project and names it on the trigger', () => {
-		renderSwitcher({ currentProject: PROJECTS[1] });
+	it('marks the current project and names it on the trigger', async () => {
+		await renderSwitcher({ currentProject: PROJECTS[1] });
 
 		expect(screen.getByTestId('project-picker-trigger').textContent).toContain(
 			'tsf/net-drv'
@@ -85,32 +83,32 @@ describe('ProjectSwitcher', () => {
 	});
 
 	it('picks a project by its row', async () => {
-		const { onSelect } = renderSwitcher();
+		const { onSelect } = await renderSwitcher();
 
 		await userEvent.click(screen.getByText('tsf/dpdk-ethdev'));
 
 		expect(onSelect).toHaveBeenCalledWith(1);
 	});
 
-	it('titles the list Results during a search', () => {
-		renderSwitcher({ search: 'net' });
+	it('titles the list Results during a search', async () => {
+		await renderSwitcher({ search: 'net' });
 		expect(screen.getByText('Results')).toBeTruthy();
 	});
 
-	it('leaves the project actions out without permission', () => {
-		renderSwitcher();
+	it('leaves the project actions out without permission', async () => {
+		await renderSwitcher();
 		expect(screen.queryByTestId('project-picker-actions')).toBeNull();
 	});
 
 	it('offers New Project and Manage to admins', async () => {
 		const onCreateProject = vi.fn();
-		renderSwitcher({ actions: { onCreateProject, onManage: vi.fn() } });
+		await renderSwitcher({ actions: { onCreateProject, onManage: vi.fn() } });
 
 		await userEvent.click(screen.getByRole('button', { name: 'New Project' }));
 
 		expect(onCreateProject).toHaveBeenCalled();
 		expect(
 			screen.getByRole('link', { name: 'Manage' }).getAttribute('href')
-		).toBe('/admin/config');
+		).toBe('/v2/admin/config');
 	});
 });
