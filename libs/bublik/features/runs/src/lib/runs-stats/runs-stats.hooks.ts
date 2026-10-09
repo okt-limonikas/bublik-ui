@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { ECElementEvent } from 'echarts';
 import type ReactEChartsCore from 'echarts-for-react/lib/core';
-import { useQueryParam } from '@/router';
+import { useSearchWriter } from '@/router';
 
 import {
 	RUN_STATUS,
@@ -14,6 +14,7 @@ import { useGetRunsChartsQuery } from '@/services/bublik-api';
 import { parseTimeApi } from '@/shared/utils';
 
 import { useRunsQuery } from '../hooks';
+import { runsRoute } from '../runs-search';
 import { RunIdsByStatus, RunsChartBucket } from './runs-stats.types';
 import { PeriodParam } from './runs-stats.params';
 import {
@@ -58,7 +59,23 @@ const toStats = (
 		? fillBuckets(groupBuckets(mapBuckets(data.buckets), period), period, range)
 		: undefined;
 
-export const useRunsChartPeriod = () => useQueryParam('period', PeriodParam);
+/**
+ * The charts grouping (`period`) and its setter, a replace merged into the
+ * current search.
+ */
+export const useRunsChartPeriod = () => {
+	const period = runsRoute.useSearch({
+		select: (search) => PeriodParam.decode(search.period)
+	});
+	const writeSearch = useSearchWriter();
+	const setPeriod = useCallback(
+		(next: RunsChartPeriod) =>
+			writeSearch({ period: PeriodParam.encode(next) }),
+		[writeSearch]
+	);
+
+	return [period, setPeriod] as const;
+};
 
 export const useRunsStats = () => {
 	const { query: searchQuery } = useRunsQuery();

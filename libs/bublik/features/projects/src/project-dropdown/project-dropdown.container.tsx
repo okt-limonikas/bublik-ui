@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, type AnyRouter } from '@tanstack/react-router';
 
-import { matchPath, useRenderedLocation } from '@/router';
+import { matchRoutePath, useRenderedLocation } from '@/router';
 
 import { bublikAPI } from '@/services/bublik-api';
 import { usePhysicalHotkeys } from '@/shared/hooks';
@@ -38,7 +38,7 @@ function ProjectPickerContainer({
 	const location = useRenderedLocation();
 	// The run report already takes P to toggle its pair-gain columns.
 	const isRunReport =
-		matchPath('/runs/:runId/report', location.pathname) !== null;
+		matchRoutePath({ to: '/runs/$runId/report' }, location.pathname) !== false;
 
 	usePhysicalHotkeys(
 		[

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { PropsWithChildren, useEffect, useState } from 'react';
-import { useSearchParams } from '@/router';
+import { useRouter, type AnyRouter } from '@tanstack/react-router';
+
+import { currentLocation, parseSearch, useRenderedLocation } from '@/router';
 
 import {
 	readLastProjectIds,
@@ -14,16 +16,22 @@ import {
  * holds the page back until then so nothing loads unscoped first.
  */
 function RestoreLastProjectContainer({ children }: PropsWithChildren) {
-	const [searchParams, setSearchParams] = useSearchParams();
+	const router = useRouter<AnyRouter>();
+	const { searchStr } = useRenderedLocation();
 	const [restored] = useState(() =>
-		withLastProjectIds(searchParams, readLastProjectIds())
+		withLastProjectIds(new URLSearchParams(searchStr), readLastProjectIds())
 	);
 	const [isPending, setIsPending] = useState(restored !== null);
 
 	useEffect(() => {
 		if (!restored) return;
 
-		setSearchParams(restored, { replace: true });
+		void router.navigate({
+			to: currentLocation(router).pathname,
+			search: parseSearch(restored.toString()),
+			replace: true,
+			resetScroll: false
+		});
 		setIsPending(false);
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
 	}, []);
