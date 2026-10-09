@@ -2,9 +2,13 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useMemo } from 'react';
 
-import { HistoryMode, LogPageMode, RunDataResults } from '@/shared/types';
+import {
+	HistoryMode,
+	LogPageMode,
+	MeasurementsMode,
+	RunDataResults
+} from '@/shared/types';
 import { usePrefetch } from '@/services/bublik-api';
-import { routes } from '@/router';
 import { ButtonTw, Icon } from '@/shared/tailwind-ui';
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import {
@@ -12,7 +16,7 @@ import {
 	useUserPreferences
 } from '@/bublik/features/user-preferences';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { TypedLinkWithProject } from '@/bublik/features/projects';
 
 import {
 	HistoryLinkContainer,
@@ -62,32 +66,38 @@ export const ResultLinks = (props: ResultLinksProps) => {
 				{showLinkToRun ? (
 					<li>
 						<ButtonTw variant="secondary" size="xss" asChild>
-							<LinkWithProject
+							<TypedLinkWithProject
 								className="gap-1"
-								to={routes.run({ runId, targetIterationId: resultId })}
+								to="/runs/$runId"
+								params={{ runId }}
+								// As `routes.run` wrote it: no key for a zero id
+								search={{ targetIterationId: resultId || undefined }}
 								onClick={() => onLinkClick?.('run')}
 							>
 								<Icon name="Paper" className="size-5" />
 								Run {runId}
-							</LinkWithProject>
+							</TypedLinkWithProject>
 						</ButtonTw>
 					</li>
 				) : null}
 				<li>
 					<ButtonTw variant="secondary" size="xss" asChild>
-						<LinkWithProject
+						<TypedLinkWithProject
 							className="gap-1"
 							onMouseEnter={onLogLinkMouseEnter}
 							onClick={() => onLinkClick?.('log')}
-							to={routes.log({
-								runId,
-								focusId: resultId,
-								mode: userPreferredLogMode
-							})}
+							to="/log/$runId"
+							params={{ runId }}
+							// `routes.log`: the result focused, in the preferred layout or
+							// else the full one
+							search={{
+								focusId: resultId || undefined,
+								mode: userPreferredLogMode ?? LogPageMode.TreeAndInfoAndLog
+							}}
 						>
 							<Icon name="BoxArrowRight" className="grid place-items-center" />
 							Log
-						</LinkWithProject>
+						</TypedLinkWithProject>
 					</ButtonTw>
 				</li>
 				<li>
@@ -103,9 +113,12 @@ export const ResultLinks = (props: ResultLinksProps) => {
 				{hasMeasurements && (
 					<li>
 						<ButtonTw variant="secondary" size="xss" asChild>
-							<LinkWithProject
+							<TypedLinkWithProject
 								className="gap-1"
-								to={routes.measurements({ runId, resultId })}
+								to="/runs/$runId/results/$resultId/measurements"
+								params={{ runId, resultId: String(resultId) }}
+								// Written explicitly, as `routes.measurements` did
+								search={{ mode: MeasurementsMode.Default }}
 								onMouseEnter={onMeasurementLinkMouseEnter}
 								onClick={() => onLinkClick?.('result')}
 							>
@@ -114,7 +127,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 									className="grid place-items-center"
 								/>
 								Result
-							</LinkWithProject>
+							</TypedLinkWithProject>
 						</ButtonTw>
 					</li>
 				)}

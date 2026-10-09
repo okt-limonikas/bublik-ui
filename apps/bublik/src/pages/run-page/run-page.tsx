@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useState } from 'react';
-import { useParams, routes } from '@/router';
+import { getRouteApi } from '@tanstack/react-router';
 
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { DefineCompromiseContainer } from '@/bublik/features/compromised-form';
@@ -24,9 +24,10 @@ import {
 	ScrollToTopPage,
 	Separator
 } from '@/shared/tailwind-ui';
-import { RunPageParams } from '@/shared/types';
 import { NewBugContainer } from '@/bublik/features/log-preview-drawer';
 import { BublikEmptyState } from '@/bublik/features/ui-state';
+
+const runRoute = getRouteApi('/_app/runs/$runId/');
 
 export interface RunHeaderProps {
 	runId: string;
@@ -34,9 +35,6 @@ export interface RunHeaderProps {
 
 const RunHeader = ({ runId }: RunHeaderProps) => {
 	const [isModeFull, setIsModeFull] = useState(false);
-
-	const link = new URL(window.location.href);
-	link.searchParams.delete('rowState');
 
 	const handleModeToggle = () => {
 		trackEvent(analyticsEventNames.runModeToggle, {
@@ -70,7 +68,7 @@ const RunHeader = ({ runId }: RunHeaderProps) => {
 };
 
 export const RunPage = () => {
-	const { runId } = useParams<RunPageParams>();
+	const { runId } = runRoute.useParams();
 	usePrefetchLogPage({ runId });
 
 	if (!runId) {
