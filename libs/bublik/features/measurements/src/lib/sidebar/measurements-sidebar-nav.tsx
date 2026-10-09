@@ -34,7 +34,7 @@ const MEASUREMENTS_SIDEBAR_MODES: readonly MeasurementsSidebarMode[] = [
 ];
 
 const MEASUREMENTS_SIDEBAR_PATTERNS = [
-	{ path: '/runs/:runId/results/:resultId/measurements' }
+	{ to: '/runs/$runId/results/$resultId/measurements' }
 ];
 
 export function MeasurementsSidebarNav() {
@@ -90,7 +90,7 @@ export function MeasurementsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={getModeUrl('default')}
 					pattern={{
-						path: '/runs/:runId/results/:resultId/measurements',
+						to: '/runs/$runId/results/$resultId/measurements',
 						mode: 'default',
 						defaultMode: 'default'
 					}}
@@ -109,7 +109,7 @@ export function MeasurementsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={getModeUrl('split')}
 					pattern={{
-						path: '/runs/:runId/results/:resultId/measurements',
+						to: '/runs/$runId/results/$resultId/measurements',
 						mode: 'split'
 					}}
 					disabled={!isAvailable}
@@ -127,7 +127,7 @@ export function MeasurementsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={getModeUrl('tables')}
 					pattern={{
-						path: '/runs/:runId/results/:resultId/measurements',
+						to: '/runs/$runId/results/$resultId/measurements',
 						mode: 'tables'
 					}}
 					disabled={!isAvailable}
@@ -145,7 +145,7 @@ export function MeasurementsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={getModeUrl('overlay')}
 					pattern={{
-						path: '/runs/:runId/results/:resultId/measurements',
+						to: '/runs/$runId/results/$resultId/measurements',
 						mode: 'overlay'
 					}}
 					disabled={!isAvailable || !hasStackedCharts}

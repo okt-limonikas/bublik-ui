@@ -9,7 +9,7 @@ import type {
 	ReactNode
 } from 'react';
 import { Children, createContext, isValidElement, useContext } from 'react';
-import { useLocation, type To } from '@/router';
+import { useRenderedLocation, type To } from '@/router';
 
 import {
 	cn,
@@ -192,8 +192,10 @@ export function SidebarNavSubmenuItemContainer({
 	pattern,
 	linkComponent
 }: SidebarNavSubmenuItemContainerProps) {
-	const location = useLocation();
-	const isActive = pattern ? getSubmenuIsActive(location, pattern) : true;
+	const { pathname, searchStr } = useRenderedLocation();
+	const isActive = pattern
+		? getSubmenuIsActive({ pathname, search: searchStr }, pattern)
+		: true;
 
 	return (
 		<SidebarNavSubmenuItemComponent

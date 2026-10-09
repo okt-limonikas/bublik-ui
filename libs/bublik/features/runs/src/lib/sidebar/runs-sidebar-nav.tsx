@@ -16,9 +16,9 @@ import {
 import { useRunsSidebarState } from './use-runs-sidebar-state';
 
 const RUNS_SIDEBAR_PATTERNS = [
-	{ path: '/runs' },
-	{ path: '/compare' },
-	{ path: '/multiple' }
+	{ to: '/runs' },
+	{ to: '/compare' },
+	{ to: '/multiple' }
 ];
 
 export function RunsSidebarNav() {
@@ -124,7 +124,7 @@ export function RunsSidebarNav() {
 			<SidebarNavCollapsibleContainer.Submenu>
 				<SidebarNavSubmenuItemContainer
 					to={listUrl}
-					pattern={{ path: '/runs', mode: null, emptyModeMatches: ['table'] }}
+					pattern={{ to: '/runs', mode: null, emptyModeMatches: ['table'] }}
 					linkComponent={LinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
@@ -141,7 +141,7 @@ export function RunsSidebarNav() {
 				</SidebarNavSubmenuItemContainer>
 				<SidebarNavSubmenuItemContainer
 					to={chartsUrl}
-					pattern={{ path: '/runs', mode: 'charts' }}
+					pattern={{ to: '/runs', mode: 'charts' }}
 					linkComponent={LinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
@@ -158,7 +158,7 @@ export function RunsSidebarNav() {
 				</SidebarNavSubmenuItemContainer>
 				<SidebarNavSubmenuItemContainer
 					to={progressUrl}
-					pattern={{ path: '/runs', mode: 'progress' }}
+					pattern={{ to: '/runs', mode: 'progress' }}
 					linkComponent={LinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
@@ -176,7 +176,7 @@ export function RunsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={finalMultipleUrl}
 					disabled={!isMultipleAvailable}
-					pattern={{ path: '/multiple' }}
+					pattern={{ to: '/multiple' }}
 					linkComponent={LinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
@@ -194,7 +194,7 @@ export function RunsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={finalCompareUrl}
 					disabled={!isCompareAvailable}
-					pattern={{ path: '/compare' }}
+					pattern={{ to: '/compare' }}
 					linkComponent={LinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon

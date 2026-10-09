@@ -40,6 +40,7 @@ const PATTERNS: [
 	['/admin/*', { to: '/admin', fuzzy: true }],
 	['/admin/config', { to: '/admin/config' }],
 	['/admin/users', { to: '/admin/users' }],
+	['/admin/tokens', { to: '/admin/tokens' }],
 	['/admin/import', { to: '/admin/import' }],
 	['/admin/flower', { to: '/admin/flower' }],
 	['/admin/analytics', { to: '/admin/analytics' }],
