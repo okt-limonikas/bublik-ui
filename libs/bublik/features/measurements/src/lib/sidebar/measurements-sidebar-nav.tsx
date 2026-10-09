@@ -9,7 +9,7 @@ import { useGetSingleMeasurementQuery } from '@/services/bublik-api';
 import { Icon } from '@/shared/tailwind-ui';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { RouterLinkWithProject } from '@/bublik/features/projects';
 import {
 	SidebarNavLinkWrapper,
 	SidebarNavInternalLink,
@@ -71,7 +71,7 @@ export function MeasurementsSidebarNav() {
 				<SidebarNavLinkWrapper label="Result">
 					<SidebarNavInternalLink
 						to={mainLinkUrl}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 						disabled={!isAvailable}
 					>
 						<SidebarNavInternalLink.Icon name="LineGraph" />
@@ -95,7 +95,7 @@ export function MeasurementsSidebarNav() {
 						defaultMode: 'default'
 					}}
 					disabled={!isAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChart" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -113,7 +113,7 @@ export function MeasurementsSidebarNav() {
 						mode: 'split'
 					}}
 					disabled={!isAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LayoutSidebarHeader" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -131,7 +131,7 @@ export function MeasurementsSidebarNav() {
 						mode: 'tables'
 					}}
 					disabled={!isAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="PaperListText" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -149,7 +149,7 @@ export function MeasurementsSidebarNav() {
 						mode: 'overlay'
 					}}
 					disabled={!isAvailable || !hasStackedCharts}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChartMultiple" />
 					<SidebarNavSubmenuItemContainer.Label>

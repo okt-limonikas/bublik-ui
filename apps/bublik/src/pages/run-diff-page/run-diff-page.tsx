@@ -3,8 +3,6 @@
 import { memo, useState } from 'react';
 import { getRouteApi } from '@tanstack/react-router';
 
-import { routes } from '@/router';
-
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { usePrefetchImmediately } from '@/services/bublik-api';
 import {
@@ -22,7 +20,6 @@ import {
 } from '@/bublik/features/run-diff';
 import {
 	LinkWithProject,
-	TypedLinkWithProject,
 	useTabTitleWithPrefix
 } from '@/bublik/features/projects';
 import { useDefaultLogMode } from '@/bublik/features/user-preferences';
@@ -74,7 +71,8 @@ const RunDiffHeader = memo(({ leftRunId, rightRunId }: RunDiffHeaderProps) => {
 				<div className="flex items-center gap-4 px-4 border-r border-border-primary">
 					<ButtonTw size="xss" asChild variant="secondary">
 						<LinkWithProject
-							to={routes.run({ runId: leftRunId })}
+							to="/runs/$runId"
+							params={{ runId: Number(leftRunId) }}
 							onClick={() => handleNavigationClick('run', 'left')}
 						>
 							<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -83,7 +81,9 @@ const RunDiffHeader = memo(({ leftRunId, rightRunId }: RunDiffHeaderProps) => {
 					</ButtonTw>
 					<ButtonTw size="xss" asChild variant="secondary">
 						<LinkWithProject
-							to={routes.log({ runId: leftRunId, mode: logMode })}
+							to="/log/$runId"
+							params={{ runId: Number(leftRunId) }}
+							search={{ mode: logMode }}
 							onClick={() => handleNavigationClick('log', 'left')}
 						>
 							<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -121,7 +121,8 @@ const RunDiffHeader = memo(({ leftRunId, rightRunId }: RunDiffHeaderProps) => {
 				<div className="flex items-center gap-4 px-4 border-l border-border-primary">
 					<ButtonTw variant="secondary" size="xss" asChild>
 						<LinkWithProject
-							to={routes.run({ runId: rightRunId })}
+							to="/runs/$runId"
+							params={{ runId: Number(rightRunId) }}
 							onClick={() => handleNavigationClick('run', 'right')}
 						>
 							<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -130,7 +131,9 @@ const RunDiffHeader = memo(({ leftRunId, rightRunId }: RunDiffHeaderProps) => {
 					</ButtonTw>
 					<ButtonTw variant="secondary" size="xss" asChild>
 						<LinkWithProject
-							to={routes.log({ runId: rightRunId, mode: logMode })}
+							to="/log/$runId"
+							params={{ runId: Number(rightRunId) }}
+							search={{ mode: logMode }}
 							onClick={() => handleNavigationClick('log', 'right')}
 						>
 							<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -198,7 +201,7 @@ export const RunDiffPage = () => {
 						rounded="lg"
 						className="w-full py-2.5"
 					>
-						<TypedLinkWithProject to="/runs">Go to runs</TypedLinkWithProject>
+						<LinkWithProject to="/runs">Go to runs</LinkWithProject>
 					</ButtonTw>
 				}
 			/>

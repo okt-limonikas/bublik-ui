@@ -7,8 +7,8 @@ import { isIdSegment, matchRoutePath, useRenderedLocation } from '@/router';
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
 import { Icon } from '@/shared/tailwind-ui';
 import {
-	LinkWithProject,
-	useNavigateWithProject
+	RouterLinkWithProject,
+	useRouterNavigateWithProject
 } from '@/bublik/features/projects';
 import {
 	getModeFromSearch,
@@ -64,7 +64,7 @@ function runOpenIssuesTooltip(openCount: number, totalCount: number): string {
 
 export function RunSidebarNav() {
 	const { pathname, searchStr } = useRenderedLocation();
-	const navigate = useNavigateWithProject();
+	const navigate = useRouterNavigateWithProject();
 	const {
 		isDetailsAvailable,
 		isReportAvailable,
@@ -123,7 +123,7 @@ export function RunSidebarNav() {
 				<SidebarNavLinkWrapper label="Run">
 					<SidebarNavInternalLink
 						to={mainLinkUrl}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 						disabled={!isMainLinkAvailable}
 					>
 						<SidebarNavInternalLink.Icon name="PieChart" />
@@ -160,7 +160,7 @@ export function RunSidebarNav() {
 					to={detailsUrl}
 					pattern={{ to: '/runs/$runId' }}
 					disabled={!isDetailsAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="Paper"
@@ -178,7 +178,7 @@ export function RunSidebarNav() {
 					to={logUrl}
 					pattern={{ to: '/log/$runId' }}
 					disabled={!isLogAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="PaperText" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -196,7 +196,7 @@ export function RunSidebarNav() {
 					to={reportUrl ?? '/runs'}
 					pattern={{ to: '/runs/$runId/report' }}
 					disabled={!isReportAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChart" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -211,7 +211,7 @@ export function RunSidebarNav() {
 						<SidebarNavSubmenuItemContainer.LinksMenu
 							aria-label="Reports"
 							items={reportMenuItems}
-							linkComponent={LinkWithProject}
+							linkComponent={RouterLinkWithProject}
 							testId="run-sidebar-reports"
 						/>
 					) : (
@@ -225,7 +225,7 @@ export function RunSidebarNav() {
 					to={issuesUrl}
 					pattern={{ to: '/runs/$runId/issues' }}
 					disabled={!isIssuesAvailable}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="IssueIcon"

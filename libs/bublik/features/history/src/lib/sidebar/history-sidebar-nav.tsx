@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { matchRoutePath, useRenderedLocation } from '@/router';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { RouterLinkWithProject } from '@/bublik/features/projects';
 import { addModeToUrl, getBaseUrl } from '@/bublik/features/sidebar';
 import {
 	SidebarNavLinkWrapper,
@@ -76,7 +76,7 @@ export function HistorySidebarNav() {
 				<SidebarNavLinkWrapper label="History">
 					<SidebarNavInternalLink
 						to={mainLinkUrl}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 					>
 						<SidebarNavInternalLink.Icon name="TimeCircle" />
 						<SidebarNavInternalLink.Label>History</SidebarNavInternalLink.Label>
@@ -93,7 +93,7 @@ export function HistorySidebarNav() {
 						mode: 'linear',
 						emptyModeMatches: ['linear']
 					}}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="PaperListText" size={22} />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -107,7 +107,7 @@ export function HistorySidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={finalAggregationUrl}
 					pattern={{ to: '/history', mode: 'aggregation' }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="Aggregation" size={22} />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -122,7 +122,7 @@ export function HistorySidebarNav() {
 					to={trendUrl}
 					pattern={{ to: '/history', mode: 'measurements' }}
 					disabled={!hasTrendUrl}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChartSingle" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -144,7 +144,7 @@ export function HistorySidebarNav() {
 					to={seriesUrl}
 					pattern={{ to: '/history', mode: 'measurements-by-iteration' }}
 					disabled={!hasSeriesUrl}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChartSingle" />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -166,7 +166,7 @@ export function HistorySidebarNav() {
 					to={finalStackedUrl}
 					pattern={{ to: '/history', mode: 'measurements-combined' }}
 					disabled={!hasStackedUrl}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="LineChartMultiple" />
 					<SidebarNavSubmenuItemContainer.Label>

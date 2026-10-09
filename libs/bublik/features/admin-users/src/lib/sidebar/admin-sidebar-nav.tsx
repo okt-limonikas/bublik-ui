@@ -3,7 +3,7 @@
 import { linkOptions } from '@tanstack/react-router';
 
 import { useAuth } from '@/bublik/features/auth';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { RouterLinkWithProject } from '@/bublik/features/projects';
 import {
 	SidebarNavCollapsibleContainer,
 	SidebarNavInternalLink,
@@ -19,6 +19,7 @@ const ADMIN_SIDEBAR_PATTERNS = [{ to: '/admin', fuzzy: true }];
 const ADMIN_LINKS = {
 	config: linkOptions({ to: '/admin/config' }).to,
 	users: linkOptions({ to: '/admin/users' }).to,
+	tokens: linkOptions({ to: '/admin/tokens' }).to,
 	import: linkOptions({ to: '/admin/import' }).to,
 	flower: linkOptions({ to: '/admin/flower' }).to,
 	analytics: linkOptions({ to: '/admin/analytics' }).to
@@ -35,7 +36,7 @@ export function AdminSidebarNav() {
 				<SidebarNavLinkWrapper label="Admin">
 					<SidebarNavInternalLink
 						to={ADMIN_LINKS.import}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 					>
 						<SidebarNavInternalLink.Icon name="Edit" />
 						<SidebarNavInternalLink.Label>Admin</SidebarNavInternalLink.Label>
@@ -48,7 +49,7 @@ export function AdminSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={ADMIN_LINKS.config}
 					pattern={{ to: ADMIN_LINKS.config }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="SettingsSliders"
@@ -61,7 +62,7 @@ export function AdminSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={ADMIN_LINKS.users}
 					pattern={{ to: ADMIN_LINKS.users }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="TwoUsers" size={24} />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -70,9 +71,9 @@ export function AdminSidebarNav() {
 				</SidebarNavSubmenuItemContainer>
 				{isAdmin ? (
 					<SidebarNavSubmenuItemContainer
-						to="/admin/tokens"
-						pattern={{ to: '/admin/tokens' }}
-						linkComponent={LinkWithProject}
+						to={ADMIN_LINKS.tokens}
+						pattern={{ to: ADMIN_LINKS.tokens }}
+						linkComponent={RouterLinkWithProject}
 					>
 						<SidebarNavSubmenuItemContainer.Icon name="Paper" size={24} />
 						<SidebarNavSubmenuItemContainer.Label>
@@ -83,7 +84,7 @@ export function AdminSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={ADMIN_LINKS.import}
 					pattern={{ to: ADMIN_LINKS.import }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon name="Import" size={24} />
 					<SidebarNavSubmenuItemContainer.Label>
@@ -93,7 +94,7 @@ export function AdminSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={ADMIN_LINKS.flower}
 					pattern={{ to: ADMIN_LINKS.flower }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="LineChartOnline"
@@ -107,7 +108,7 @@ export function AdminSidebarNav() {
 					<SidebarNavSubmenuItemContainer
 						to={ADMIN_LINKS.analytics}
 						pattern={{ to: ADMIN_LINKS.analytics }}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 					>
 						<SidebarNavSubmenuItemContainer.Icon
 							name="LineChartOnline"

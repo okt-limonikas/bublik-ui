@@ -44,8 +44,6 @@ import { useDefaultLogMode } from '@/bublik/features/user-preferences';
 
 import { formatImportLog } from './import-log.utils';
 
-import { routes } from '@/router';
-
 import { useImportTaskLogSearch } from './import-search.hooks';
 
 interface ImportLogContext {
@@ -343,7 +341,9 @@ function HeaderLinks({ runId }: HeaderLinksProps) {
 		<>
 			<ButtonTw asChild variant="secondary" size="xss">
 				<LinkWithProject
-					to={routes.log({ runId, mode: logMode })}
+					to="/log/$runId"
+					params={{ runId }}
+					search={{ mode: logMode }}
 					target="_blank"
 				>
 					<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -351,7 +351,7 @@ function HeaderLinks({ runId }: HeaderLinksProps) {
 				</LinkWithProject>
 			</ButtonTw>
 			<ButtonTw asChild variant="secondary" size="xss">
-				<LinkWithProject to={routes.run({ runId })} target="_blank">
+				<LinkWithProject to="/runs/$runId" params={{ runId }} target="_blank">
 					<Icon name="BoxArrowRight" className="mr-1.5" />
 					Run
 				</LinkWithProject>

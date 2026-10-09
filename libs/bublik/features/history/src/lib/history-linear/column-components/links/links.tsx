@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { HistoryDataLinear } from '@/shared/types';
+import { HistoryDataLinear, MeasurementsMode } from '@/shared/types';
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
-import { routes } from '@/router';
 import { ButtonTw, Icon, SplitButton, Tooltip } from '@/shared/tailwind-ui';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { useDefaultLogMode } from '@/bublik/features/user-preferences';
+import { parseSearch } from '@/router';
 
 import { useHistorySearch } from '../../../hooks';
 import { getHistoryShortcuts } from './links.utils';
@@ -31,11 +31,12 @@ export const Links = ({ row }: LinksProps) => {
 		<div className="flex flex-col items-start gap-1">
 			<ButtonTw asChild size="xss" variant="secondary">
 				<LinkWithProject
-					to={routes.log({
-						runId: row.run_id,
-						focusId: row.result_id,
+					to="/log/$runId"
+					params={{ runId: row.run_id }}
+					search={{
+						focusId: row.result_id || undefined,
 						mode: logMode
-					})}
+					}}
 					onClick={() => handleLinkClick('log')}
 				>
 					<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -44,10 +45,9 @@ export const Links = ({ row }: LinksProps) => {
 			</ButtonTw>
 			<ButtonTw asChild size="xss" variant="secondary">
 				<LinkWithProject
-					to={routes.run({
-						runId: row.run_id,
-						targetIterationId: row.result_id
-					})}
+					to="/runs/$runId"
+					params={{ runId: row.run_id }}
+					search={{ targetIterationId: row.result_id || undefined }}
 					onClick={() => handleLinkClick('run')}
 				>
 					<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -57,10 +57,9 @@ export const Links = ({ row }: LinksProps) => {
 			{row.report_config_id != null && (
 				<ButtonTw asChild size="xss" variant="secondary">
 					<LinkWithProject
-						to={{
-							pathname: `/runs/${row.run_id}/report`,
-							search: `config=${row.report_config_id}`
-						}}
+						to="/runs/$runId/report"
+						params={{ runId: row.run_id }}
+						search={{ config: row.report_config_id }}
 						onClick={() => handleLinkClick('report')}
 					>
 						<Icon name="BoxArrowRight" className="mr-1.5" />
@@ -71,7 +70,8 @@ export const Links = ({ row }: LinksProps) => {
 			<SplitButton.Root variant="secondary" size="xss">
 				<SplitButton.Button asChild>
 					<LinkWithProject
-						to={{ pathname: '/history', search: shortcuts.historyQuery }}
+						to="/history"
+						search={parseSearch(shortcuts.historyQuery)}
 						onClick={() => handleLinkClick('history_default')}
 					>
 						<Icon
@@ -96,7 +96,8 @@ export const Links = ({ row }: LinksProps) => {
 					>
 						<SplitButton.Item asChild>
 							<LinkWithProject
-								to={{ pathname: '/history', search: shortcuts.allUnexpected }}
+								to="/history"
+								search={parseSearch(shortcuts.allUnexpected)}
 								target="_blank"
 								onClick={() => handleLinkClick('history_all_unexpected')}
 							>
@@ -113,10 +114,8 @@ export const Links = ({ row }: LinksProps) => {
 					>
 						<SplitButton.Item asChild>
 							<LinkWithProject
-								to={{
-									pathname: '/history',
-									search: shortcuts.similarUnexpected
-								}}
+								to="/history"
+								search={parseSearch(shortcuts.similarUnexpected)}
 								target="_blank"
 								onClick={() => handleLinkClick('history_similar_unexpected')}
 							>
@@ -130,10 +129,9 @@ export const Links = ({ row }: LinksProps) => {
 			{row.has_measurements && (
 				<ButtonTw asChild size="xss" variant="secondary">
 					<LinkWithProject
-						to={routes.measurements({
-							runId: row.run_id,
-							resultId: row.result_id
-						})}
+						to="/runs/$runId/results/$resultId/measurements"
+						params={{ runId: row.run_id, resultId: row.result_id }}
+						search={{ mode: MeasurementsMode.Default }}
 						onClick={() => handleLinkClick('result')}
 					>
 						<Icon name="BoxArrowRight" className="mr-1.5" />

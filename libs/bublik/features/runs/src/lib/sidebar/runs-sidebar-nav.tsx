@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { matchRoutePath, useRenderedLocation } from '@/router';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { RouterLinkWithProject } from '@/bublik/features/projects';
 import {
 	SidebarNavLinkWrapper,
 	SidebarNavInternalLink,
@@ -113,7 +113,7 @@ export function RunsSidebarNav() {
 				<SidebarNavLinkWrapper label="Runs">
 					<SidebarNavInternalLink
 						to={mainLinkUrl}
-						linkComponent={LinkWithProject}
+						linkComponent={RouterLinkWithProject}
 					>
 						<SidebarNavInternalLink.Icon name="Play" />
 						<SidebarNavInternalLink.Label>Runs</SidebarNavInternalLink.Label>
@@ -126,7 +126,7 @@ export function RunsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={listUrl}
 					pattern={{ to: '/runs', mode: null, emptyModeMatches: ['table'] }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="PaperListText"
@@ -143,7 +143,7 @@ export function RunsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={chartsUrl}
 					pattern={{ to: '/runs', mode: 'charts' }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="LineChartMultiple"
@@ -160,7 +160,7 @@ export function RunsSidebarNav() {
 				<SidebarNavSubmenuItemContainer
 					to={progressUrl}
 					pattern={{ to: '/runs', mode: 'progress' }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="Aggregation"
@@ -178,7 +178,7 @@ export function RunsSidebarNav() {
 					to={finalMultipleUrl}
 					disabled={!isMultipleAvailable}
 					pattern={{ to: '/multiple' }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="PaperStack"
@@ -196,7 +196,7 @@ export function RunsSidebarNav() {
 					to={finalCompareUrl}
 					disabled={!isCompareAvailable}
 					pattern={{ to: '/compare' }}
-					linkComponent={LinkWithProject}
+					linkComponent={RouterLinkWithProject}
 				>
 					<SidebarNavSubmenuItemContainer.Icon
 						name="SwapArrows"

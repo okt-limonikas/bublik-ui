@@ -13,7 +13,6 @@ import {
 	VerdictResult,
 	VerdictVariant
 } from '@/shared/tailwind-ui';
-import { routes } from '@/router';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { useDefaultLogMode } from '@/bublik/features/user-preferences';
 import {
@@ -97,12 +96,6 @@ export const LinkList = ({ results, hasError = false }: LinkListProps) => {
 	return (
 		<div className="flex flex-wrap gap-1">
 			{results.map((resultData, idx) => {
-				const to = routes.log({
-					runId: resultData.run_id,
-					focusId: resultData.result_id,
-					mode: logMode
-				});
-
 				return (
 					<AggregationTooltip
 						key={resultData.result_id}
@@ -122,7 +115,12 @@ export const LinkList = ({ results, hasError = false }: LinkListProps) => {
 						}
 					>
 						<LinkWithProject
-							to={to}
+							to="/log/$runId"
+							params={{ runId: resultData.run_id }}
+							search={{
+								focusId: resultData.result_id || undefined,
+								mode: logMode
+							}}
 							className={cn(
 								badgeBaseStyles(),
 								badgeVariantStyles({

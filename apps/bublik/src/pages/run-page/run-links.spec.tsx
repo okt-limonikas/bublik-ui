@@ -3,11 +3,10 @@
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { routes } from '@/router';
 import { renderWithRouter } from '@/router/testing';
 import { RunDataResults } from '@/shared/types';
 import { TooltipProvider } from '@/shared/tailwind-ui';
-import { LinkWithProject } from '@/bublik/features/projects';
+import { RouterLinkWithProject } from '@/bublik/features/projects';
 import { ResultLinks } from '@/bublik/features/result-links';
 import { RunReportConfigLink } from '@/bublik/features/run-report';
 
@@ -59,7 +58,10 @@ describe('the run header links', () => {
 				<RunReportConfigLink data-testid="typed" runId={1} configId={11}>
 					Report
 				</RunReportConfigLink>
-				<LinkWithProject data-testid="string" to="/runs/1/report?config=11" />
+				<RouterLinkWithProject
+					data-testid="string"
+					to="/runs/1/report?config=11"
+				/>
 			</>
 		);
 
@@ -75,10 +77,10 @@ describe('the result links', () => {
 	} as unknown as RunDataResults;
 
 	it.each([
-		['Run', 'Run 1', routes.run({ runId: '1', targetIterationId: 7 })],
-		['Log', 'Log', routes.log({ runId: '1', focusId: 7 })],
-		['Result', 'Result', routes.measurements({ runId: '1', resultId: 7 })]
-	])('"%s" builds the link the routes.* builder did', async (_, name, to) => {
+		['Run', 'Run 1', '/runs/1?targetIterationId=7'],
+		['Log', 'Log', '/log/1?focusId=7&mode=treeAndinfoAndlog'],
+		['Result', 'Result', '/runs/1/results/7/measurements?mode=default']
+	])('"%s" builds the link the string target did', async (_, name, to) => {
 		await renderOnRunPage(
 			<>
 				<ResultLinks
@@ -88,7 +90,7 @@ describe('the result links', () => {
 					hasMeasurements
 					showLinkToRun
 				/>
-				<LinkWithProject data-testid="string" to={to} />
+				<RouterLinkWithProject data-testid="string" to={to} />
 			</>
 		);
 

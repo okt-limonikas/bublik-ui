@@ -16,7 +16,6 @@ import {
 	useTabTitleWithPrefix
 } from '@/bublik/features/projects';
 import { CopyShortUrlButtonContainer } from '@/bublik/features/copy-url';
-import { routes } from '@/router';
 import { useGetIssueQuery } from '@/services/bublik-api';
 
 interface IssueResultsHeaderProps {
@@ -32,7 +31,7 @@ function IssueResultsHeader({ issueId, projectId }: IssueResultsHeaderProps) {
 			<IssueHeaderBar
 				issueId={issueId}
 				projectId={projectId}
-				onDeleted={() => navigate(routes.issues({}))}
+				onDeleted={() => navigate({ to: '/issues' })}
 			>
 				<CopyShortUrlButtonContainer />
 			</IssueHeaderBar>

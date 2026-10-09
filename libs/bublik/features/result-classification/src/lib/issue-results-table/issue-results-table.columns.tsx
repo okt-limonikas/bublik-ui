@@ -2,7 +2,6 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { ColumnDef } from '@tanstack/react-table';
 
-import { routes } from '@/router';
 import { LinkWithProject } from '@/bublik/features/projects';
 import { HistoryLinkContainer } from '@/bublik/features/history-link';
 import { ButtonTw, Icon, VerdictList } from '@/shared/tailwind-ui';
@@ -33,7 +32,9 @@ function ResultLinks({ runId, row, renderPreview }: ResultLinksProps) {
 			<li>
 				<ButtonTw asChild variant="secondary" size="xss">
 					<LinkWithProject
-						to={routes.run({ runId, targetIterationId: row.result_id })}
+						to="/runs/$runId"
+						params={{ runId: Number(runId) }}
+						search={{ targetIterationId: row.result_id || undefined }}
 					>
 						<Icon name="Paper" size={20} className="mr-1" />
 						Run {runId}
@@ -43,7 +44,12 @@ function ResultLinks({ runId, row, renderPreview }: ResultLinksProps) {
 			<li>
 				<ButtonTw asChild variant="secondary" size="xss">
 					<LinkWithProject
-						to={routes.log({ runId, focusId: row.result_id, mode: logMode })}
+						to="/log/$runId"
+						params={{ runId: Number(runId) }}
+						search={{
+							focusId: row.result_id || undefined,
+							mode: logMode
+						}}
 					>
 						<Icon
 							name="BoxArrowRight"

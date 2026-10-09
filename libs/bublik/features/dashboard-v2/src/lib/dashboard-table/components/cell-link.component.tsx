@@ -10,8 +10,8 @@ import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { DashboardCellData } from '@/shared/types';
 import { cn, cva, Tooltip } from '@/shared/tailwind-ui';
 import {
-	LinkWithProject,
-	useNavigateWithProject
+	RouterLinkWithProject,
+	useRouterNavigateWithProject
 } from '@/bublik/features/projects';
 import { useDefaultLogMode } from '@/bublik/features/user-preferences';
 
@@ -114,7 +114,7 @@ export function CellLink({
 	// 3. Relative URL
 	return (
 		<LinkHintCard destination={destination}>
-			<LinkWithProject
+			<RouterLinkWithProject
 				{...cellAttributes(cellKey)}
 				to={to}
 				onClick={() => {
@@ -126,7 +126,7 @@ export function CellLink({
 				className={cn(linkStyles(), bgColor)}
 			>
 				{cellString}
-			</LinkWithProject>
+			</RouterLinkWithProject>
 		</LinkHintCard>
 	);
 }
@@ -154,11 +154,11 @@ interface LinkToRunProps {
 function LinkToRun(props: LinkToRunProps) {
 	const { cellString, cellKey, link, bgColor, destination } = props;
 	const { to } = link;
-	const navigate = useNavigateWithProject();
+	const navigate = useRouterNavigateWithProject();
 
 	return (
 		<LinkHintCard destination={destination}>
-			<LinkWithProject
+			<RouterLinkWithProject
 				{...cellAttributes(cellKey)}
 				{...link}
 				onClick={(e) => {
@@ -198,7 +198,7 @@ function LinkToRun(props: LinkToRunProps) {
 				className={cn(linkStyles(), bgColor)}
 			>
 				{cellString}
-			</LinkWithProject>
+			</RouterLinkWithProject>
 		</LinkHintCard>
 	);
 }
