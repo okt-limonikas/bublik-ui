@@ -1,8 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useEffect } from 'react';
+import { linkOptions } from '@tanstack/react-router';
 
-import { isIdSegment, matchRoutePath, useRenderedLocation } from '@/router';
+import {
+	isIdSegment,
+	matchRoutePath,
+	useRenderedLocation,
+	type RoutePathPattern
+} from '@/router';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
 import { Icon } from '@/shared/tailwind-ui';
@@ -34,7 +40,10 @@ import { LOG_MODES, useRunSidebarState } from './use-run-sidebar-state';
 const INFO_BUTTON_PLACEMENT =
 	'absolute right-full top-1/2 mr-0.5 -translate-y-1/2';
 
-const RUN_SIDEBAR_PATTERNS = [
+/** Where the disabled report item points: the run list. */
+const RUNS = linkOptions({ to: '/runs' }).to;
+
+const RUN_SIDEBAR_PATTERNS: RoutePathPattern[] = [
 	{ to: '/runs/$runId' },
 	{ to: '/runs/$runId/report' },
 	{ to: '/runs/$runId/issues' },
@@ -193,7 +202,7 @@ export function RunSidebarNav() {
 					/>
 				</SidebarNavSubmenuItemContainer>
 				<SidebarNavSubmenuItemContainer
-					to={reportUrl ?? '/runs'}
+					to={reportUrl ?? RUNS}
 					pattern={{ to: '/runs/$runId/report' }}
 					disabled={!isReportAvailable}
 					linkComponent={RouterLinkWithProject}

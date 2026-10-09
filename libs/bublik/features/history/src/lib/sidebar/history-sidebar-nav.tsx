@@ -2,7 +2,11 @@
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useEffect } from 'react';
 
-import { matchRoutePath, useRenderedLocation } from '@/router';
+import {
+	matchRoutePath,
+	useRenderedLocation,
+	type RoutePathPattern
+} from '@/router';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
 import { RouterLinkWithProject } from '@/bublik/features/projects';
@@ -18,10 +22,10 @@ import { useHistorySidebarState } from './use-history-sidebar-state';
 
 import { Icon } from '@/shared/tailwind-ui';
 
-const HISTORY_SIDEBAR_PATTERNS = [{ to: '/history' }];
+const HISTORY_SIDEBAR_PATTERNS: RoutePathPattern[] = [{ to: '/history' }];
 
 /** The canonical history route; the `/history/v2` alias is not recorded. */
-const HISTORY_ROUTE = { to: '/history' };
+const HISTORY_ROUTE: RoutePathPattern = { to: '/history' };
 
 export function HistorySidebarNav() {
 	const { pathname, searchStr } = useRenderedLocation();

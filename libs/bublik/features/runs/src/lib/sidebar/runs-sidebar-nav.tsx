@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
 import { useEffect } from 'react';
+import { linkOptions } from '@tanstack/react-router';
 
-import { matchRoutePath, useRenderedLocation } from '@/router';
+import {
+	matchRoutePath,
+	useRenderedLocation,
+	type RoutePathPattern
+} from '@/router';
 
 import { docsUrl, USER_GUIDE } from '@/bublik/config';
 import { RouterLinkWithProject } from '@/bublik/features/projects';
@@ -16,7 +21,11 @@ import {
 
 import { useRunsSidebarState } from './use-runs-sidebar-state';
 
-const RUNS_SIDEBAR_PATTERNS = [
+/** Where an item points before a page of its own was visited. */
+const COMPARE = linkOptions({ to: '/compare' }).to;
+const MULTIPLE = linkOptions({ to: '/multiple' }).to;
+
+const RUNS_SIDEBAR_PATTERNS: RoutePathPattern[] = [
 	{ to: '/runs' },
 	{ to: '/compare' },
 	{ to: '/multiple' }
@@ -101,11 +110,11 @@ export function RunsSidebarNav() {
 	}, [pathname, searchStr, setLastVisited]);
 
 	const finalCompareUrl = hasSameSelectedRunsInLastCompareUrl
-		? lastCompareUrl ?? '/compare'
-		: compareUrl || lastCompareUrl || '/compare';
+		? lastCompareUrl ?? COMPARE
+		: compareUrl || lastCompareUrl || COMPARE;
 	const finalMultipleUrl = hasSameSelectedRunsInLastMultipleUrl
-		? lastMultipleUrl ?? '/multiple'
-		: multipleUrl || lastMultipleUrl || '/multiple';
+		? lastMultipleUrl ?? MULTIPLE
+		: multipleUrl || lastMultipleUrl || MULTIPLE;
 
 	return (
 		<SidebarNavCollapsibleContainer patterns={RUNS_SIDEBAR_PATTERNS}>
