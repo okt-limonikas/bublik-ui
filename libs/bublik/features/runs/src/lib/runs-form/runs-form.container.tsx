@@ -2,22 +2,18 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getLocalTimeZone, parseDate } from '@internationalized/date';
-import { formatISODuration, intervalToDuration, sub } from 'date-fns';
-
-import { useSearchParams } from '@/router';
+import { parseDate } from '@internationalized/date';
+import { sub } from 'date-fns';
 
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
-import { formatTimeToAPI, parseISODuration } from '@/shared/utils';
+import { parseISODuration } from '@/shared/utils';
 import { BUBLIK_TAG, bublikAPI } from '@/services/bublik-api';
 import { BoxValue } from '@/shared/tailwind-ui';
 import { useMount } from '@/shared/hooks';
-import { useNavigateWithProject } from '@/bublik/features/projects';
 
 import { RunsForm, RunsFormValues } from './runs-form.component';
 import {
-	applyRunDataToSearchParams,
-	createRunsSearchParamsFiltersSnapshot,
+	createRunsSearchFiltersSnapshot,
 	getSelectedRunData
 } from './runs-form.utils';
 import { useRunsMetaSuggestions } from './runs-form.suggestions.hooks';
@@ -25,37 +21,36 @@ import {
 	RUN_EXPRESSION_KINDS,
 	RUN_EXPRESSION_PARAM,
 	hasRunExpression,
-	readRunExpressions,
-	writeRunExpressions
+	readRunExpressions
 } from './runs-expressions';
 import { updateGlobalFilter } from '../runs-slice';
 import { selectAllTags } from '../runs-slice.selectors';
 import { normalizeRunDataList, normalizeRunDataValue } from '../runs-key-value';
+import { runsRoute, type RunsSearchValues } from '../runs-search';
+import { useRunsFormWriter } from '../hooks';
 
 function RunsFormContainer() {
 	const dispatch = useDispatch();
-	// No default init: it would put back the params of the first render
-	// that the URL no longer has, such as the dates a reset dropped.
-	const [searchParams] = useSearchParams();
-	const navigateWithProject = useNavigateWithProject();
+	const search = runsRoute.useSearch();
+	const writeRunsForm = useRunsFormWriter();
 	const allTags = useSelector(selectAllTags);
 	const metaSuggestions = useRunsMetaSuggestions(allTags);
 
 	useMount(() => {
 		const initialGlobalFilter = normalizeRunDataList(
-			searchParams.get('runData')?.split(';')?.filter(Boolean) || []
+			search.runData?.filter(Boolean) ?? []
 		);
 
 		dispatch(updateGlobalFilter(initialGlobalFilter));
 	});
 
 	const defaultValues = useMemo<RunsFormValues>(
-		() => searchParamsToForm(searchParams, allTags),
-		[allTags, searchParams]
+		() => searchToForm(search, allTags),
+		[allTags, search]
 	);
 	const appliedFilters = useMemo(
-		() => createRunsSearchParamsFiltersSnapshot(searchParams),
-		[searchParams]
+		() => createRunsSearchFiltersSnapshot(search),
+		[search]
 	);
 
 	function handleFormSubmit(newForm: RunsFormValues) {
@@ -73,15 +68,9 @@ function RunsFormContainer() {
 			selectedRunDataCount: selectedRunData.length
 		});
 
-		const params = formToSearchParams(searchParams, newForm);
-		const searchString = params.toString();
-		const isRefresh = searchString === searchParams.toString();
-		navigateWithProject(
-			{ pathname: '/runs', search: searchString ? `?${searchString}` : '' },
-			{ replace: true }
-		);
+		const isChanged = writeRunsForm(newForm);
 		dispatch(updateGlobalFilter(selectedRunData));
-		refreshUnlessChanged(isRefresh);
+		refreshUnlessChanged(isChanged);
 	}
 
 	/**
@@ -89,33 +78,23 @@ function RunsFormContainer() {
 	 * fetch by themselves; invalidating too would first refetch the old ones,
 	 * before the new URL is read.
 	 */
-	function refreshUnlessChanged(isRefresh: boolean) {
-		if (!isRefresh) return;
+	function refreshUnlessChanged(isChanged: boolean) {
+		if (isChanged) return;
 		dispatch(bublikAPI.util.invalidateTags([BUBLIK_TAG.SessionList]));
 	}
 
 	function handleResetFormClick(resettedForm: RunsFormValues) {
 		trackEvent(analyticsEventNames.runsFormReset, {
 			calendarMode: resettedForm.calendarMode,
-			hadDateRange:
-				Boolean(searchParams.get('startDate')) ||
-				Boolean(searchParams.get('finishDate')),
-			hadTagExpr: Boolean(searchParams.get('tagExpr')),
-			hadExpression: hasRunExpression(readRunExpressions(searchParams)),
-			hadSelectedRunData: Boolean(searchParams.get('runData'))
+			hadDateRange: Boolean(search.startDate) || Boolean(search.finishDate),
+			hadTagExpr: Boolean(search.tagExpr),
+			hadExpression: hasRunExpression(readRunExpressions(search)),
+			hadSelectedRunData: Boolean(search.runData?.length)
 		});
 
-		const params = formToSearchParams(searchParams, resettedForm);
-		params.delete('duration');
-
-		const searchString = params.toString();
-		const isRefresh = searchString === searchParams.toString();
 		dispatch(updateGlobalFilter([]));
-		navigateWithProject(
-			{ pathname: '/runs', search: searchString ? `?${searchString}` : '' },
-			{ replace: true }
-		);
-		refreshUnlessChanged(isRefresh);
+		const isChanged = writeRunsForm(resettedForm, { dropDuration: true });
+		refreshUnlessChanged(isChanged);
 	}
 
 	return (
@@ -131,8 +110,8 @@ function RunsFormContainer() {
 	);
 }
 
-function searchParamsToForm(
-	searchParams: URLSearchParams,
+function searchToForm(
+	search: RunsSearchValues,
 	allTags: BoxValue[]
 ): RunsFormValues {
 	const normalizedAllTags = allTags.map((tag) => {
@@ -145,16 +124,16 @@ function searchParamsToForm(
 		};
 	});
 
-	const rawStart = searchParams.get('startDate');
-	const rawEnd = searchParams.get('finishDate');
-	const calendarMode = (searchParams.get('calendarMode') ??
+	const rawStart = search.startDate;
+	const rawEnd = search.finishDate;
+	const calendarMode = (search.calendarMode ??
 		'default') as RunsFormValues['calendarMode'];
-	const searchDuration = searchParams.get('duration');
+	const searchDuration = search.duration;
 
 	const defaultValues: RunsFormValues = {
 		calendarMode,
 		runData: normalizedAllTags,
-		...readRunExpressions(searchParams),
+		...readRunExpressions(search),
 		dates: null
 	};
 
@@ -182,50 +161,6 @@ function searchParamsToForm(
 	}
 
 	return defaultValues;
-}
-
-function formToSearchParams(
-	initialSearchParams: URLSearchParams,
-	form: RunsFormValues
-): URLSearchParams {
-	const { runData, dates, calendarMode } = form;
-	const params = new URLSearchParams(initialSearchParams);
-
-	params.set('calendarMode', calendarMode);
-
-	const startDate = dates?.start
-		? formatTimeToAPI(dates?.start.toDate(getLocalTimeZone()))
-		: null;
-
-	const finishDate = dates?.end
-		? formatTimeToAPI(dates?.end.toDate(getLocalTimeZone()))
-		: null;
-
-	if (startDate && finishDate) {
-		params.set('startDate', startDate);
-		params.set('finishDate', finishDate);
-	} else {
-		params.delete('startDate');
-		params.delete('finishDate');
-	}
-
-	if (calendarMode === 'duration' && dates?.start && dates?.end) {
-		params.set(
-			'duration',
-			formatISODuration(
-				intervalToDuration({
-					start: dates.start.toDate(getLocalTimeZone()),
-					end: dates.end.toDate(getLocalTimeZone())
-				})
-			)
-		);
-	}
-
-	const selectedRunData = normalizeRunDataList(getSelectedRunData(runData));
-
-	writeRunExpressions(params, form);
-
-	return applyRunDataToSearchParams(params, selectedRunData);
 }
 
 export { RunsFormContainer };

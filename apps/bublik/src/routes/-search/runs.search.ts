@@ -14,6 +14,8 @@ import { config } from '@/bublik/config';
  * the form writes or deletes both together and the backend window applies
  * when they are absent. `duration` is an ISO 8601 duration in duration
  * calendar mode. `runData` is written sorted and deduplicated by the form.
+ * `tagExpr`, `labelExpr`, `branchExpr` and `revisionExpr` each carry the
+ * expression over one kind of meta.
  */
 const runsSearch = defineSearch(
 	{
@@ -25,7 +27,12 @@ const runsSearch = defineSearch(
 		finishDate: str(),
 		duration: str(),
 		tagExpr: str(),
-		runData: delimited(config.queryDelimiter)
+		labelExpr: str(),
+		branchExpr: str(),
+		revisionExpr: str(),
+		runData: delimited(config.queryDelimiter),
+		// The charts grouping, `day | week | month`; week is never written.
+		period: str()
 	},
 	{ mode: 'table', page: '1', pageSize: '25', calendarMode: 'default' }
 );

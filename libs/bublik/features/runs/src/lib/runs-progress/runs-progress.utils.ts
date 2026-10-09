@@ -5,6 +5,7 @@ import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { RunData, RunsData, RunStats } from '@/shared/types';
 import { formatTimeToAPI } from '@/shared/utils';
 
+import type { RunsSearchValues } from '../runs-search';
 import {
 	RunsProgressFilterSummary,
 	RunsProgressGroup,
@@ -14,7 +15,10 @@ import {
 	RunsProgressTrend,
 	RunsProgressTrendDirection
 } from './runs-progress.types';
-import { RUN_EXPRESSION_PARAM } from '../runs-form/runs-expressions';
+import {
+	RUN_EXPRESSION_PARAM,
+	readRunExpressions
+} from '../runs-form/runs-expressions';
 
 const OTHER_GROUP_ID = '__other__';
 
@@ -556,19 +560,18 @@ function getMetricDelta(
 }
 
 function buildFilterSummary(
-	searchParams: URLSearchParams
+	search: RunsSearchValues
 ): RunsProgressFilterSummary[] {
 	const summary: RunsProgressFilterSummary[] = [];
-	const runData = searchParams.get('runData');
-	const calendarMode = searchParams.get('calendarMode');
-	const duration = searchParams.get('duration');
-	const startDate = searchParams.get('startDate');
-	const finishDate = searchParams.get('finishDate');
+	const { runData, calendarMode, duration, startDate, finishDate } = search;
 
-	if (runData)
-		summary.push({ label: 'Metas', value: runData.split(';').join(', ') });
+	// `runData=` is an empty list and shows nothing, as the empty string did.
+	if (runData?.length) {
+		summary.push({ label: 'Metas', value: runData.join(', ') });
+	}
+	const expressions = readRunExpressions(search);
 	for (const [kind, param] of Object.entries(RUN_EXPRESSION_PARAM)) {
-		const expression = searchParams.get(param);
+		const expression = expressions[param];
 		if (expression) {
 			summary.push({
 				label: `${kind.charAt(0).toUpperCase()}${kind.slice(1)} expression`,

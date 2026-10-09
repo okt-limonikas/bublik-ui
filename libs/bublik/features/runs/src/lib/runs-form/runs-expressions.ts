@@ -44,10 +44,25 @@ function isRunExpressionKind(kind: unknown): kind is RunExpressionKind {
 	return RUN_EXPRESSION_KINDS.includes(kind as RunExpressionKind);
 }
 
+/** A query string, or the `/runs` route's decoded search. */
+type RunExpressionsSource =
+	| URLSearchParams
+	| Partial<Record<RunExpressionParam, string | null>>;
+
+function getRunExpression(
+	source: RunExpressionsSource,
+	param: RunExpressionParam
+): string | null | undefined {
+	return source instanceof URLSearchParams ? source.get(param) : source[param];
+}
+
 /** The expression of each kind the URL carries, `''` for none. */
-function readRunExpressions(searchParams: URLSearchParams): RunExpressions {
+function readRunExpressions(source: RunExpressionsSource): RunExpressions {
 	return Object.fromEntries(
-		RUN_EXPRESSION_PARAMS.map((param) => [param, searchParams.get(param) ?? ''])
+		RUN_EXPRESSION_PARAMS.map((param) => [
+			param,
+			getRunExpression(source, param) ?? ''
+		])
 	) as RunExpressions;
 }
 
@@ -56,11 +71,11 @@ function readRunExpressions(searchParams: URLSearchParams): RunExpressions {
  * left out, so the request only carries the expressions that filter.
  */
 function queryRunExpressions(
-	searchParams: URLSearchParams
+	source: RunExpressionsSource
 ): Partial<RunExpressions> {
 	return Object.fromEntries(
 		RUN_EXPRESSION_PARAMS.flatMap((param) => {
-			const value = searchParams.get(param);
+			const value = getRunExpression(source, param);
 			return value ? [[param, value]] : [];
 		})
 	);
@@ -102,4 +117,9 @@ export {
 	writeRunExpressions,
 	hasRunExpression
 };
-export type { RunExpressionKind, RunExpressionParam, RunExpressions };
+export type {
+	RunExpressionKind,
+	RunExpressionParam,
+	RunExpressions,
+	RunExpressionsSource
+};

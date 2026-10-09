@@ -2,12 +2,12 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useCallback } from 'react';
 import { OnChangeFn } from '@tanstack/react-table';
-import { useSearchParams } from '@/router';
 
 import { useGetRunsTablePageQuery } from '@/services/bublik-api';
 import { useUserPreferences } from '@/bublik/features/user-preferences';
 
 import {
+	useRunDataWriter,
 	useRunsGlobalFilter,
 	useRunsPagination,
 	useRunsQuery,
@@ -19,10 +19,9 @@ import {
 	RunsTableError,
 	RunsTableEmpty
 } from './runs-table.component';
-import { applyRunDataToSearchParams } from '../runs-form/runs-form.utils';
 
 export const RunsTableContainer = () => {
-	const [searchParams, setSearchParams] = useSearchParams();
+	const writeRunData = useRunDataWriter();
 	const { userPreferences } = useUserPreferences();
 	const { pagination, handlePaginationChange } = useRunsPagination();
 	const { localGlobalFilter, handleGlobalFilterChange } = useRunsGlobalFilter();
@@ -45,19 +44,13 @@ export const RunsTableContainer = () => {
 
 			// The new run data fetch by themselves; invalidating too would first
 			// refetch the old ones, before the new URL is read.
-			setSearchParams(
-				applyRunDataToSearchParams(searchParams, nextGlobalFilter),
-				{
-					replace: true
-				}
-			);
+			writeRunData(nextGlobalFilter);
 		},
 		[
 			autoApplyBadgeFilters,
 			handleGlobalFilterChange,
 			localGlobalFilter,
-			searchParams,
-			setSearchParams
+			writeRunData
 		]
 	);
 
