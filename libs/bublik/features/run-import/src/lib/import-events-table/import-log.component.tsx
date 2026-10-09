@@ -15,7 +15,6 @@ import { PauseIcon, RocketIcon } from '@radix-ui/react-icons';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { useGetImportLogQuery } from '@/services/bublik-api';
 import {
 	ButtonTw,
@@ -45,13 +44,9 @@ import { useDefaultLogMode } from '@/bublik/features/user-preferences';
 
 import { formatImportLog } from './import-log.utils';
 
-import {
-	BooleanParam,
-	StringParam,
-	useQueryParam,
-	withDefault,
-	routes
-} from '@/router';
+import { routes } from '@/router';
+
+import { useImportTaskLogSearch } from './import-search.hooks';
 
 interface ImportLogContext {
 	toggle: (taskId: string, enablePolling?: boolean) => () => void;
@@ -72,30 +67,15 @@ function useImportLog() {
 }
 
 function ImportLogProvider({ children }: PropsWithChildren) {
-	const [taskId, setTaskId] = useQueryParam('taskId', StringParam);
-	const [enablePolling = false, setEnablePolling] = useQueryParam(
-		'poll',
-		withDefault(BooleanParam, false)
-	);
+	const {
+		taskId,
+		enablePolling,
+		toggle: toggleTaskLog,
+		close
+	} = useImportTaskLogSearch();
 
 	function toggle(task: string, enablePolling?: boolean) {
-		return () => {
-			trackEvent(analyticsEventNames.importTaskLogOpen, {
-				action: taskId ? 'close' : 'open',
-				hasTaskId: Boolean(task)
-			});
-
-			setTaskId((t) => (t ? null : task));
-
-			if (typeof enablePolling !== 'undefined') {
-				setEnablePolling(enablePolling);
-			}
-		};
-	}
-
-	function close() {
-		setTaskId(null);
-		setEnablePolling(null);
+		return () => toggleTaskLog(task, enablePolling);
 	}
 
 	return (
