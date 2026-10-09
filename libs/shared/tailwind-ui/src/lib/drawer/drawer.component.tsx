@@ -31,11 +31,11 @@ export const DrawerContent = forwardRef<
 	// portal escapes the trigger's stacking context (e.g. a table row) so rows
 	// can't paint over the drawer. Opt-in to keep the inline behavior other
 	// callers rely on.
-	DialogContentProps & { portal?: boolean }
->(({ className, children, portal, ...props }, ref) => {
+	DialogContentProps & { portal?: boolean; overlayClassName?: string }
+>(({ className, children, portal, overlayClassName, ...props }, ref) => {
 	const content = (
 		<>
-			<DialogOverlay className={dialogOverlayStyles()} />
+			<DialogOverlay className={cn(dialogOverlayStyles(), overlayClassName)} />
 			<DialogContent
 				{...props}
 				className={cn(
