@@ -5,6 +5,8 @@
 #
 # Read-only: the scenarios inspect the table rather than revoking anyone's
 # token, so the suite stays idempotent.
+#
+# Route: /admin/tokens
 
 Feature: Access token administration
 
