@@ -33,7 +33,11 @@ import {
 	cn,
 	Tooltip
 } from '@/shared/tailwind-ui';
-import { parseParameter } from '@/shared/utils';
+import {
+	formatTimeToDot,
+	formatTimestampToFull,
+	parseParameter
+} from '@/shared/utils';
 
 import { KeyList } from './key-list';
 import { getCommonParameters } from './matcher';
@@ -56,16 +60,38 @@ interface GetColumnsOptions {
 	rowId: string;
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
+	/**
+	 * Lead with the test each row belongs to. Off under the run table, where
+	 * every row is the one test the table was opened from; on when the rows
+	 * span tests and runs, as an issue's results do.
+	 */
+	showTest?: boolean;
 	showToolbar?: boolean;
+	/** The Filters toggle in the Requirements header; off when the host renders the filters itself. */
+	showFilterToggle?: boolean;
 	setShowToolbar: (showToolbar: boolean) => void;
+	/** The test path shared by every row. Omit it and each row's own is used. */
 	path?: string;
+}
+
+/**
+ * The package chain above the test, e.g. `pkg1/pkg2` for
+ * `pkg1/pkg2/testpmd_txonly` — what tells apart two tests sharing a name.
+ */
+function packagePathOf(path: string | null | undefined, name: string): string {
+	if (!path) return '';
+	if (name && path.endsWith(`/${name}`)) return path.slice(0, -name.length - 1);
+
+	return path === name ? '' : path;
 }
 
 export const getColumns = ({
 	rowId,
 	data,
 	showLinkToRun = false,
+	showTest = false,
 	showToolbar = false,
+	showFilterToggle = true,
 	setShowToolbar,
 	path
 }: GetColumnsOptions) => {
@@ -77,6 +103,56 @@ export const getColumns = ({
 		data.map((item) => item.parameters ?? [])
 	);
 
+	// The obtained result's first line is as tall as the Classify button on
+	// it, with the result badge centred in that. The first line of the
+	// columns before it is given the same height, so the run link, the test
+	// name and the badge read as one line across the row.
+	const FIRST_LINE_CLASS = 'flex items-center min-h-[26px]';
+
+	const testColumn = helper.accessor((data) => data, {
+		header: 'Test',
+		id: 'test',
+		cell: (cell) => {
+			const { name, path: rowPath, start } = cell.getValue();
+			const packagePath = packagePathOf(rowPath, name);
+
+			// The rows are tall anyway, so the name and the path wrap rather
+			// than truncate: cut from the right, a path would keep its root and
+			// lose the leaf package, which is what tells tests apart. The path
+			// breaks only at its slashes, dimmed so the segments read as a trail.
+			return (
+				<div className="flex flex-col min-w-0 gap-1" title={rowPath || name}>
+					<div className={FIRST_LINE_CLASS}>
+						<span className="min-w-0 font-medium">{name}</span>
+					</div>
+					{packagePath ? (
+						<span className="text-[0.6875rem] text-text-menu">
+							{packagePath.split('/').map((segment, idx) => (
+								<Fragment key={idx}>
+									{idx > 0 ? (
+										<>
+											<span className="text-text-menu/50">/</span>
+											<wbr />
+										</>
+									) : null}
+									{segment}
+								</Fragment>
+							))}
+						</span>
+					) : null}
+					<Tooltip content={formatTimestampToFull(start)}>
+						<span className="w-fit text-[0.6875rem] text-text-menu tabular-nums">
+							{formatTimeToDot(start)}
+						</span>
+					</Tooltip>
+				</div>
+			);
+		},
+		// As wide as its longest name, up to a cap the name then wraps at;
+		// not a share of the free space, which the result columns need.
+		meta: { width: 'fit-content(14rem)', headerCellClassName: 'pl-[12px]' }
+	});
+
 	return [
 		helper.accessor((data) => data, {
 			header: 'Actions',
@@ -85,19 +161,20 @@ export const getColumns = ({
 				const value = cell.getValue();
 
 				return (
-					<div className="flex items-center gap-2 h-full">
+					<div className="flex items-start gap-2">
 						<ResultLinksContainer
 							runId={String(value.run_id)}
 							resultId={value.result_id}
 							result={value}
 							showLinkToRun={showLinkToRun}
-							path={path}
+							path={path ?? value.path ?? undefined}
 						/>
 					</div>
 				);
 			},
 			meta: { width: 'max-content', headerCellClassName: 'pl-9' }
 		}),
+		...(showTest ? [testColumn] : []),
 		helper.accessor(
 			(data) => ({
 				isNotExpected: data.has_error,
@@ -362,7 +439,10 @@ export const getColumns = ({
 					</div>
 				);
 			},
-			meta: { headerCellClassName: 'pl-[12px]' }
+			// Sized to its content, capped: most rows expect one badge, and
+			// the slack is better spent on the obtained result beside it, which
+			// carries the verdicts, the stamps and the Classify trigger.
+			meta: { width: 'fit-content(20rem)', headerCellClassName: 'pl-[12px]' }
 		}),
 		helper.accessor('artifacts', {
 			header: 'Artifacts',
@@ -435,22 +515,24 @@ export const getColumns = ({
 			header: () => (
 				<div className="flex items-center justify-between gap-2 w-full">
 					<span>Requirements</span>
-					<Tooltip content={showToolbar ? 'Hide filters' : 'Show filters'}>
-						<ButtonTw
-							variant={showToolbar ? 'primary' : 'secondary'}
-							size="xss"
-							onClick={() => setShowToolbar(!showToolbar)}
-							className={cn(
-								'border ml-auto',
-								showToolbar
-									? 'border-primary hover:border-[#94b0ff]'
-									: 'border-border-primary hover:shadow-none hover:border-primary'
-							)}
-						>
-							<Icon name="Filter" size={16} className="mr-1.5" />
-							<span>Filters</span>
-						</ButtonTw>
-					</Tooltip>
+					{showFilterToggle ? (
+						<Tooltip content={showToolbar ? 'Hide filters' : 'Show filters'}>
+							<ButtonTw
+								variant={showToolbar ? 'primary' : 'secondary'}
+								size="xss"
+								onClick={() => setShowToolbar(!showToolbar)}
+								className={cn(
+									'border ml-auto',
+									showToolbar
+										? 'border-primary hover:border-[#94b0ff]'
+										: 'border-border-primary hover:shadow-none hover:border-primary'
+								)}
+							>
+								<Icon name="Filter" size={16} className="mr-1.5" />
+								<span>Filters</span>
+							</ButtonTw>
+						</Tooltip>
+					) : null}
 				</div>
 			),
 			id: COLUMN_ID.REQUIREMENTS,

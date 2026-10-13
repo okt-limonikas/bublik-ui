@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { HistoryMode, RunDataResults } from '@/shared/types';
 import { usePrefetch } from '@/services/bublik-api';
 import { routes } from '@/router';
-import { Icon } from '@/shared/tailwind-ui';
+import { ButtonTw, Icon } from '@/shared/tailwind-ui';
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { useUserPreferences } from '@/bublik/features/user-preferences';
 import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
@@ -46,63 +46,79 @@ export const ResultLinks = (props: ResultLinksProps) => {
 		historyIssues
 	} = props;
 
+	// Every link is the button the History link is, so they all answer a
+	// hover the same way and stand the same height; the extra-small button
+	// is as tall as the result badge's line, which keeps the first link
+	// level with the test name and the badge across the row.
 	return (
 		<div className="flex flex-col justify-start gap-3 text-primary text-[0.6875rem] font-semibold leading-[0.875rem]">
-			<ul className="flex flex-col items-start gap-3">
+			<ul className="flex flex-col items-start gap-2 pl-0.5">
 				{showLinkToRun ? (
-					<li className="pl-2">
-						<LinkWithProject
-							className="flex items-center w-full gap-1"
-							to={routes.run({ runId, targetIterationId: resultId })}
-							onClick={() => onLinkClick?.('run')}
-						>
-							<Icon name="Paper" className="size-5" />
-							Run {runId}
-						</LinkWithProject>
+					<li>
+						<ButtonTw variant="secondary" size="xss" asChild>
+							<LinkWithProject
+								className="gap-1"
+								to={routes.run({ runId, targetIterationId: resultId })}
+								onClick={() => onLinkClick?.('run')}
+							>
+								<Icon name="Paper" className="size-5" />
+								Run {runId}
+							</LinkWithProject>
+						</ButtonTw>
 					</li>
 				) : null}
-				<li className="pl-2">
-					<LinkWithProject
-						className="flex items-center w-full gap-1"
-						onMouseEnter={onLogLinkMouseEnter}
-						onClick={() => onLinkClick?.('log')}
-						to={routes.log({ runId, focusId: resultId })}
-					>
-						<Icon name="BoxArrowRight" className="grid place-items-center" />
-						Log
-					</LinkWithProject>
+				<li>
+					<ButtonTw variant="secondary" size="xss" asChild>
+						<LinkWithProject
+							className="gap-1"
+							onMouseEnter={onLogLinkMouseEnter}
+							onClick={() => onLinkClick?.('log')}
+							to={routes.log({ runId, focusId: resultId })}
+						>
+							<Icon name="BoxArrowRight" className="grid place-items-center" />
+							Log
+						</LinkWithProject>
+					</ButtonTw>
 				</li>
-				<li className="pl-0.5">
+				<li>
 					<HistoryLinkContainer
 						runId={Number(runId)}
 						result={result}
+						runTags={result.run_tags}
 						userPreferredHistoryMode={userPreferredHistoryMode}
 						path={path}
 						issues={historyIssues}
 					/>
 				</li>
 				{hasMeasurements && (
-					<li className="pl-2">
-						<LinkWithProject
-							className="flex items-center gap-1"
-							to={routes.measurements({ runId, resultId })}
-							onMouseEnter={onMeasurementLinkMouseEnter}
-							onClick={() => onLinkClick?.('result')}
-						>
-							<Icon name="BoxArrowRight" className="grid place-items-center" />
-							Result
-						</LinkWithProject>
+					<li>
+						<ButtonTw variant="secondary" size="xss" asChild>
+							<LinkWithProject
+								className="gap-1"
+								to={routes.measurements({ runId, resultId })}
+								onMouseEnter={onMeasurementLinkMouseEnter}
+								onClick={() => onLinkClick?.('result')}
+							>
+								<Icon
+									name="BoxArrowRight"
+									className="grid place-items-center"
+								/>
+								Result
+							</LinkWithProject>
+						</ButtonTw>
 					</li>
 				)}
-				<li className="pl-2">
+				<li>
 					<LogPreviewContainer
 						logName={result.name}
 						resultId={resultId}
 						runId={Number(runId)}
 						measurementId={hasMeasurements ? Number(resultId) : undefined}
 					>
-						<button
-							className="flex items-center w-full gap-1"
+						<ButtonTw
+							variant="secondary"
+							size="xss"
+							className="gap-1"
 							onClick={() => onLinkClick?.('preview')}
 						>
 							<Icon
@@ -111,7 +127,7 @@ export const ResultLinks = (props: ResultLinksProps) => {
 								className="grid place-items-center"
 							/>
 							<span>Preview</span>
-						</button>
+						</ButtonTw>
 					</LogPreviewContainer>
 				</li>
 			</ul>

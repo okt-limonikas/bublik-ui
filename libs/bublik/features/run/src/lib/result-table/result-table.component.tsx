@@ -4,8 +4,11 @@ import {
 	CSSProperties,
 	Fragment,
 	MouseEvent as ReactMouseEvent,
+	ReactNode,
+	RefObject,
 	memo,
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 	useState
@@ -15,7 +18,10 @@ import {
 	flexRender,
 	getCoreRowModel,
 	getFilteredRowModel,
+	getPaginationRowModel,
 	getSortedRowModel,
+	OnChangeFn,
+	PaginationState,
 	Row,
 	Updater,
 	useReactTable
@@ -27,6 +33,7 @@ import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { useIsSticky, useMount } from '@/shared/hooks';
 import {
 	type IssueCategory,
+	type IssueResultsFacets,
 	RESULT_PROPERTIES,
 	RESULT_TYPE,
 	RunDataResults
@@ -36,9 +43,12 @@ import {
 	cn,
 	Skeleton,
 	TwTableProps,
+	Badge,
+	BadgeVariants,
 	ButtonTw,
 	Icon,
 	DataTableFacetedFilter,
+	Separator,
 	Tooltip
 } from '@/shared/tailwind-ui';
 import {
@@ -74,13 +84,48 @@ import {
 import { useTargetIterationId } from '../run-table/run-table.hooks';
 import { RowState, useGlobalRequirements } from '../hooks';
 
+/** The run table's own sticky header, which this table's header pins under. */
 const HEADER_HEIGHT = 102;
-const STICKY_OFFSET = HEADER_HEIGHT + 1;
 const RESULT_PROPERTIES_LABEL: Record<RESULT_PROPERTIES, string> = {
 	[RESULT_PROPERTIES.Expected]: 'Expected',
 	[RESULT_PROPERTIES.Unexpected]: 'Unexpected',
 	[RESULT_PROPERTIES.NotRun]: 'Not Run'
 };
+
+/**
+ * The colour a result property carries in the cells: a result is green when
+ * it is what was expected and red when it is not, so the filter that picks
+ * by expectation shows the same two.
+ */
+const RESULT_PROPERTIES_BADGE_VARIANT: Record<
+	RESULT_PROPERTIES,
+	BadgeVariants
+> = {
+	[RESULT_PROPERTIES.Expected]: BadgeVariants.Expected,
+	[RESULT_PROPERTIES.Unexpected]: BadgeVariants.Unexpected,
+	[RESULT_PROPERTIES.NotRun]: BadgeVariants.Neutral
+};
+
+/**
+ * A highlighted row in the filter's list inks its text primary, and a badge
+ * with no colour of its own would take it. The coloured variants carry
+ * theirs; the plain chips are told to keep the body colour.
+ */
+const FACET_CHIP_CLASS = 'text-text-primary';
+
+/**
+ * Facet options drawn as the badges their column's cells draw, so every filter
+ * in the bar reads in the vocabulary of what it filters: Category and
+ * Classification already did, through `withFacetBadges`; this does the same
+ * for the open-vocabulary facets, which carry no count to put in `detail`.
+ * The label stays, so the search still finds an option by its words.
+ */
+function withBadges<O extends { label: string; value: string }>(
+	options: O[],
+	badgeFor: (option: O) => ReactNode
+): (O & { render: ReactNode })[] {
+	return options.map((option) => ({ ...option, render: badgeFor(option) }));
+}
 
 export interface SkeletonProps {
 	rowCount?: number;
@@ -116,11 +161,59 @@ export const ResultTableEmpty = () => {
 	);
 };
 
+export interface ResultTablePagingInfo {
+	/** Rows that pass the filters, across every page. */
+	matchedCount: number;
+	pageCount: number;
+}
+
 export interface ResultTableProps {
 	rowId: string;
 	data: RunDataResults[];
 	showLinkToRun?: boolean;
+	/** Lead with a Test column; for rows that span tests and runs. */
+	showTest?: boolean;
+	/**
+	 * The height of the run table row this table hangs under; the header
+	 * pins below it and the run table's own header.
+	 */
 	height: number;
+	/**
+	 * Where the header pins instead, in px from the top of the scroller, when
+	 * the table is not under the run table at all.
+	 */
+	stickyTop?: number;
+	/**
+	 * The scroller the header pins inside, when it is not the page: the
+	 * header's shadow is judged against it.
+	 */
+	scrollRef?: RefObject<HTMLElement>;
+	/**
+	 * Where the filters live. `inline` is the run table's way: a bar under
+	 * the header, shown by the Filters toggle or by an applied filter.
+	 * `external` leaves both out, for a host that renders
+	 * `ResultTableToolbar` itself, beside its own heading.
+	 */
+	toolbar?: 'inline' | 'external';
+	/**
+	 * Page the filtered rows client-side. Absent under the run table, where
+	 * one test's results in one run are shown whole; the host owns the state
+	 * so it can keep it in the URL.
+	 */
+	pagination?: PaginationState;
+	onPaginationChange?: OnChangeFn<PaginationState>;
+	/**
+	 * Told the counts a pager needs whenever they change, so the host can
+	 * draw its footer outside the table, pinned under the scroller.
+	 */
+	onPagingInfoChange?: (info: ResultTablePagingInfo) => void;
+	/**
+	 * The rows arrive already narrowed, by a server reading the same filter
+	 * state: the table keeps the state, so chips still light up, but filters
+	 * nothing itself. Goes with `pageCount`, the server's page count.
+	 */
+	manualFiltering?: boolean;
+	pageCount?: number;
 	showToolbar: boolean;
 	setShowToolbar: (showToolbar: boolean) => void;
 	targetIterationId?: number;
@@ -136,7 +229,16 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		data = [],
 		rowId,
 		showLinkToRun = false,
+		showTest = false,
 		height,
+		stickyTop = height + HEADER_HEIGHT,
+		scrollRef,
+		toolbar = 'inline',
+		pagination,
+		onPaginationChange,
+		onPagingInfoChange,
+		manualFiltering = false,
+		pageCount: manualPageCount,
 		showToolbar,
 		setShowToolbar,
 		targetIterationId,
@@ -150,63 +252,77 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		setColumnFilters,
 		hasFilters: hasColumnFilters
 	} = useColumnFilters(rowId);
-	const {
-		parameters,
-		verdicts,
-		results,
-		resultProperties,
-		categories,
-		classifications,
-		artifacts,
-		requirementsFilter,
-		parametersFilter,
-		verdictsFilter,
-		resultsFilter,
-		resultPropertiesFilter,
-		categoriesFilter,
-		classificationsFilter,
-		artifactsFilter,
-		onClearFilters,
-		onFilterChange,
-		onVerdictsFilterChange,
-		onResultsFilterChange,
-		onResultPropertiesFilterChange,
-		onCategoriesFilterChange,
-		onClassificationsFilterChange
-	} = useDataTableFilters(rowId, data);
+	const filters = useDataTableFilters(rowId, data);
 	const { hasGlobalRequirements } = useGlobalRequirementsFilters({
-		localRequirements: requirementsFilter
+		localRequirements: filters.requirementsFilter
 	});
 	const hasFilters = hasColumnFilters || hasGlobalRequirements;
-	const hasToolbar = showToolbar || hasFilters;
+	const showFilterToggle = toolbar === 'inline';
+	const hasToolbar = showFilterToggle && (showToolbar || hasFilters);
 
 	const columns = useMemo(
 		() =>
 			getColumns({
 				rowId,
 				showLinkToRun,
+				showTest,
 				data,
 				showToolbar: hasToolbar,
+				showFilterToggle,
 				setShowToolbar,
 				path
 			}),
-		[rowId, showLinkToRun, data, hasToolbar, setShowToolbar, path]
+		[
+			rowId,
+			showLinkToRun,
+			showTest,
+			data,
+			hasToolbar,
+			showFilterToggle,
+			setShowToolbar,
+			path
+		]
 	);
 
-	const { stickyOffset } = useStickyHeader({ height });
+	const { stickyOffset } = useStickyHeader({ stickyTop });
 
 	const table = useReactTable<RunDataResults>({
 		data,
 		getRowId: (row) => String(row.result_id),
 		columns,
-		manualPagination: true,
+		manualFiltering,
+		// Paged by the server: one page arrives, and it is shown whole.
+		manualPagination: !pagination || manualFiltering,
+		pageCount: manualFiltering ? manualPageCount : undefined,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
+		getPaginationRowModel:
+			pagination && !manualFiltering ? getPaginationRowModel() : undefined,
 		enableSorting: false,
-		state: { columnFilters },
-		onColumnFiltersChange: setColumnFilters
+		state: { columnFilters, ...(pagination ? { pagination } : {}) },
+		onColumnFiltersChange: setColumnFilters,
+		onPaginationChange,
+		// The page lives with the host; TanStack's own reset fires whenever a
+		// row model recomputes, which a filter change does, and would undo a
+		// page change the host just made.
+		autoResetPageIndex: false
 	});
+
+	const matchedCount = table.getFilteredRowModel().rows.length;
+	const pageCount = table.getPageCount();
+
+	useEffect(() => {
+		onPagingInfoChange?.({ matchedCount, pageCount });
+	}, [onPagingInfoChange, matchedCount, pageCount]);
+
+	// A filter that narrows the rows can leave the page past the end.
+	useEffect(() => {
+		if (!pagination || !onPaginationChange) return;
+		if (pageCount > 0 && pagination.pageIndex >= pageCount) {
+			onPaginationChange((prev) => ({ ...prev, pageIndex: pageCount - 1 }));
+		}
+	}, [pagination, onPaginationChange, pageCount]);
 
 	const gridTemplateColumns = columns
 		.map((col) => col.meta?.['width'] || 'minmax(0, 1fr)')
@@ -214,10 +330,15 @@ export const ResultTable = memo((props: ResultTableProps) => {
 
 	const headerRef = useRef<HTMLDivElement | null>(null);
 	const { isSticky } = useIsSticky(headerRef, {
-		offset: stickyOffset
+		offset: stickyOffset,
+		rootRef: scrollRef
 	});
 
-	const HEADER_ROW_HEIGHT = 42;
+	const HEADER_ROW_HEIGHT = 32;
+	// A header pinned below the top of its scroller sits under another
+	// table's row or header; one pinned at the top sits under its own toolbar,
+	// whose bottom border would be doubled.
+	const marksPinnedEdge = stickyTop > 0;
 	const columnCount = columns.length;
 
 	return (
@@ -240,9 +361,19 @@ export const ResultTable = memo((props: ResultTableProps) => {
 									<div
 										key={header.id}
 										className={cn(
-											'px-1 py-2 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
+											'px-1 text-left text-[0.6875rem] font-semibold leading-[0.875rem] z-20',
+											// The 32px the classification tables' headers take; the
+											// Filters toggle in the Requirements header fits inside.
+											'h-8 py-0',
 											'bg-primary-wash sticky',
 											'flex items-center',
+											// Pinned under another table's row or header, the edge that
+											// separated them scrolls away beneath it, so the header draws
+											// that edge itself once it is stuck. Always bordered,
+											// transparently, so nothing shifts when it shows.
+											marksPinnedEdge &&
+												'border-t border-t-transparent transition-colors',
+											marksPinnedEdge && isSticky && 'border-t-border-primary',
 											idx === 0 && !hasToolbar && 'rounded-bl-md',
 											idx === headers.length - 1 &&
 												!hasToolbar &&
@@ -252,7 +383,7 @@ export const ResultTable = memo((props: ResultTableProps) => {
 											headerCellClassName
 										)}
 										style={{
-											top: height + HEADER_HEIGHT,
+											top: stickyTop,
 											boxShadow:
 												isSticky && !hasToolbar
 													? `rgba(0, 0, 0, 0.1) ${idx === 0 ? 0 : 7}px 2px 10px`
@@ -284,87 +415,10 @@ export const ResultTable = memo((props: ResultTableProps) => {
 							)}
 							style={{
 								gridColumn: `1 / ${columnCount + 1}`,
-								top: `${height + HEADER_HEIGHT + HEADER_ROW_HEIGHT}px`
+								top: `${stickyTop + HEADER_ROW_HEIGHT}px`
 							}}
 						>
-							<div className="flex gap-2 items-center">
-								<DataTableFacetedFilter
-									title="Obtained Result"
-									size="xss"
-									options={results}
-									value={resultsFilter}
-									onChange={onResultsFilterChange}
-									disabled={!results.length}
-								/>
-								<DataTableFacetedFilter
-									title="Result Type"
-									size="xss"
-									options={resultProperties}
-									value={resultPropertiesFilter}
-									onChange={onResultPropertiesFilterChange}
-									disabled={!resultProperties.length}
-								/>
-								<DataTableFacetedFilter
-									title="Verdicts"
-									size="xss"
-									options={verdicts}
-									value={verdictsFilter}
-									onChange={onVerdictsFilterChange}
-									disabled={!verdicts.length}
-								/>
-								{/* Beside Verdicts, because it answers the same question one step
-								    further on: the verdict says what went wrong, the category says
-								    what it was decided to be. */}
-								<DataTableFacetedFilter
-									title="Category"
-									size="xss"
-									options={categories}
-									value={categoriesFilter}
-									onChange={onCategoriesFilterChange}
-									disabled={!categories.length}
-								/>
-								{/* After Category, completing the thought: the category
-								    says what a failure was decided to be, this says what
-								    that decision did to the run's unexpected count. */}
-								<DataTableFacetedFilter
-									title="Classification"
-									size="xss"
-									options={classifications}
-									value={classificationsFilter}
-									onChange={onClassificationsFilterChange}
-									disabled={!classifications.length}
-								/>
-								<DataTableFacetedFilter
-									title="Artifacts"
-									size="xss"
-									options={artifacts}
-									value={artifactsFilter}
-									onChange={(values) =>
-										onFilterChange(COLUMN_ID.ARTIFACTS, values)
-									}
-									disabled={!artifacts.length}
-								/>
-								<DataTableFacetedFilter
-									title="Parameters"
-									size="xss"
-									options={parameters}
-									value={parametersFilter}
-									onChange={(values) =>
-										onFilterChange(COLUMN_ID.PARAMETERS, values)
-									}
-									disabled={!parameters.length}
-								/>
-								<Tooltip content="Reset">
-									<ButtonTw
-										variant="secondary"
-										size="xss"
-										onClick={onClearFilters}
-									>
-										<Icon name="Bin" size={18} className="mr-1.5" />
-										<span>Reset</span>
-									</ButtonTw>
-								</Tooltip>
-							</div>
+							<ResultTableFilterControls filters={filters} />
 						</div>
 					) : null}
 
@@ -384,6 +438,157 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		</div>
 	);
 });
+
+interface ResultTableFilterControlsProps {
+	filters: ReturnType<typeof useDataTableFilters>;
+}
+
+function ResultTableFilterControls({
+	filters
+}: ResultTableFilterControlsProps) {
+	const {
+		requirements,
+		parameters,
+		verdicts,
+		results,
+		resultProperties,
+		categories,
+		classifications,
+		artifacts,
+		requirementsFilter,
+		parametersFilter,
+		verdictsFilter,
+		resultsFilter,
+		resultPropertiesFilter,
+		categoriesFilter,
+		classificationsFilter,
+		artifactsFilter,
+		onClearFilters,
+		onFilterChange,
+		onRequirementsFilterChange,
+		onVerdictsFilterChange,
+		onResultsFilterChange,
+		onResultPropertiesFilterChange,
+		onCategoriesFilterChange,
+		onClassificationsFilterChange
+	} = filters;
+
+	return (
+		<div className="flex flex-wrap gap-2 items-center">
+			<DataTableFacetedFilter
+				title="Obtained Result"
+				size="xss"
+				options={results}
+				value={resultsFilter}
+				onChange={onResultsFilterChange}
+				disabled={!results.length}
+			/>
+			<DataTableFacetedFilter
+				title="Result Type"
+				size="xss"
+				options={resultProperties}
+				value={resultPropertiesFilter}
+				onChange={onResultPropertiesFilterChange}
+				disabled={!resultProperties.length}
+			/>
+			<DataTableFacetedFilter
+				title="Verdicts"
+				size="xss"
+				options={verdicts}
+				value={verdictsFilter}
+				onChange={onVerdictsFilterChange}
+				disabled={!verdicts.length}
+			/>
+			{/* Beside Verdicts, because it answers the same question one step
+			    further on: the verdict says what went wrong, the category says
+			    what it was decided to be. */}
+			<DataTableFacetedFilter
+				title="Category"
+				size="xss"
+				options={categories}
+				value={categoriesFilter}
+				onChange={onCategoriesFilterChange}
+				disabled={!categories.length}
+			/>
+			{/* After Category, completing the thought: the category says what a
+			    failure was decided to be, this says what that decision did to
+			    the run's unexpected count. */}
+			<DataTableFacetedFilter
+				title="Classification"
+				size="xss"
+				options={classifications}
+				value={classificationsFilter}
+				onChange={onClassificationsFilterChange}
+				disabled={!classifications.length}
+			/>
+			<DataTableFacetedFilter
+				title="Artifacts"
+				size="xss"
+				options={artifacts}
+				value={artifactsFilter}
+				onChange={(values) => onFilterChange(COLUMN_ID.ARTIFACTS, values)}
+				disabled={!artifacts.length}
+			/>
+			<DataTableFacetedFilter
+				title="Parameters"
+				size="xss"
+				options={parameters}
+				value={parametersFilter}
+				onChange={(values) => onFilterChange(COLUMN_ID.PARAMETERS, values)}
+				disabled={!parameters.length}
+			/>
+			<DataTableFacetedFilter
+				title="Requirements"
+				size="xss"
+				options={requirements}
+				value={requirementsFilter}
+				onChange={onRequirementsFilterChange}
+				disabled={!requirements.length}
+			/>
+			<Separator orientation="vertical" className="h-5" />
+			<Tooltip content="Reset">
+				<ButtonTw variant="secondary" size="xss" onClick={onClearFilters}>
+					<Icon name="Bin" size={18} className="mr-1.5" />
+					<span>Reset</span>
+				</ButtonTw>
+			</Tooltip>
+		</div>
+	);
+}
+
+export interface ResultTableToolbarProps {
+	/** The same key the table was given: the filters are stored under it. */
+	rowId: string;
+	data: RunDataResults[];
+	/** What the filters offer, when a server knows more rows than `data` holds. */
+	facets?: ResultTableFacets;
+}
+
+/**
+ * The result table's filters, for a host rendering them beside its own
+ * heading rather than in the table's inline bar. Reads and writes the same
+ * URL state as the table with this `rowId`, so it must sit under the same
+ * `GlobalRequirementsProvider`.
+ */
+export function ResultTableToolbar({
+	rowId,
+	data,
+	facets
+}: ResultTableToolbarProps) {
+	const filters = useDataTableFilters(rowId, data, facets);
+
+	return <ResultTableFilterControls filters={filters} />;
+}
+
+/**
+ * The filter bar's state for a host that answers it itself - a server
+ * narrowing the rows by the same selections. The `*Filter` fields are what
+ * is selected; the option lists are what the chips offer.
+ */
+export const useResultTableFilters = useDataTableFilters;
+
+/** The values every filter can take, as a server reports them. */
+export type ResultTableFacets = IssueResultsFacets;
 
 interface ResultRowProps {
 	row: Row<RunDataResults>;
@@ -432,6 +637,10 @@ function ResultRow(props: ResultRowProps) {
 					<div
 						key={cell.id}
 						data-column-id={cell.column.id}
+						// The cells of one result are siblings, with no row box
+						// around them: this is what groups them for a reader of
+						// the DOM, as the column id tells the cells of a row apart.
+						data-result-id={row.original.result_id}
 						onMouseEnter={() => setHovered(true)}
 						onMouseLeave={() => setHovered(false)}
 						className={cn(
@@ -472,13 +681,13 @@ function ResultRow(props: ResultRowProps) {
 }
 
 interface StickyHeaderOptions {
-	height: number;
+	stickyTop: number;
 }
 
-function useStickyHeader({ height }: StickyHeaderOptions) {
+function useStickyHeader({ stickyTop }: StickyHeaderOptions) {
 	// Sticky offset is used for the useIsSticky hook to detect when header becomes sticky
 	// Now that toolbar is below header, offset doesn't depend on toolbar visibility
-	const stickyOffset = -(height + STICKY_OFFSET);
+	const stickyOffset = -(stickyTop + 1);
 
 	const getHeaderProps = useCallback<
 		NonNullable<TwTableProps<RunDataResults>['getHeaderProps']>
@@ -486,13 +695,13 @@ function useStickyHeader({ height }: StickyHeaderOptions) {
 		(_, { isSticky }) => {
 			return {
 				style: {
-					top: `${height + HEADER_HEIGHT}px`,
+					top: `${stickyTop}px`,
 					position: 'sticky',
 					boxShadow: isSticky ? '0 0 10px rgba(0, 0, 0, 0.1)' : 'none'
 				} as CSSProperties
 			};
 		},
-		[height]
+		[stickyTop]
 	);
 
 	return { stickyOffset, getHeaderProps };
@@ -533,9 +742,16 @@ function useGlobalRequirementsFilters({
 	};
 }
 
-function useDataTableFilters(rowId: string, data: RunDataResults[]) {
+function useDataTableFilters(
+	rowId: string,
+	data: RunDataResults[],
+	// With facets the option lists come from them, whole; without, from the
+	// rows, narrowed by the other filters as the run page does it.
+	facets?: ResultTableFacets
+) {
 	const { columnFilters, setColumnFilters, resetLocalRequirements } =
 		useColumnFilters(rowId);
+	const { setLocalRequirements } = useGlobalRequirements();
 	const resultValues = new Set(Object.values(RESULT_TYPE));
 	const resultPropertiesValues = new Set<RESULT_PROPERTIES>([
 		RESULT_PROPERTIES.Expected,
@@ -681,20 +897,31 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 	]);
 
 	const requirements = useMemo(() => {
-		return Array.from(
-			new Set(filteredData.map((row) => row.requirements).flat())
-		)
-			.filter((requirement) => requirement !== undefined)
-			.map((requirement) => ({
-				label: requirement,
-				value: requirement
-			}));
-	}, [filteredData]);
+		const values =
+			facets?.requirements ??
+			Array.from(new Set(filteredData.map((row) => row.requirements).flat()));
+
+		return withBadges(
+			values
+				.filter((requirement) => requirement !== undefined)
+				.map((requirement) => ({
+					label: requirement,
+					value: requirement
+				})),
+			// The chip the Requirements cell draws.
+			({ label }) => (
+				<Badge className={cn('bg-badge-2', FACET_CHIP_CLASS)}>{label}</Badge>
+			)
+		);
+	}, [facets?.requirements, filteredData]);
 
 	const parameters = useMemo(() => {
-		return Array.from(new Set(filteredData.map((row) => row.parameters).flat()))
-			.filter(Boolean)
-			.map((parameter) => ({
+		const values =
+			facets?.parameters ??
+			Array.from(new Set(filteredData.map((row) => row.parameters).flat()));
+
+		return withBadges(
+			values.filter(Boolean).map((parameter) => ({
 				label: toSingleLineParameterLabel(
 					formatKeyValueForDisplay(parameter, {
 						displayDelimiter: config.keyValueDisplayDelimiter,
@@ -702,19 +929,34 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 					})
 				),
 				value: parameter
-			}));
-	}, [filteredData]);
+			})),
+			// The chip the Parameters cell draws, on one line as the label is.
+			({ label }) => (
+				<Badge className={cn('bg-badge-1', FACET_CHIP_CLASS)}>{label}</Badge>
+			)
+		);
+	}, [facets?.parameters, filteredData]);
 
 	const verdicts = useMemo(() => {
-		return Array.from(
-			new Set(filteredData.map((row) => row.obtained_result.verdicts).flat())
-		)
-			.filter(Boolean)
-			.map((verdict) => ({
+		const values =
+			facets?.verdicts ??
+			Array.from(
+				new Set(filteredData.map((row) => row.obtained_result.verdicts).flat())
+			);
+
+		return withBadges(
+			values.filter(Boolean).map((verdict) => ({
 				label: verdict,
 				value: verdict
-			}));
-	}, [filteredData]);
+			})),
+			// The hollow chip a verdict is under its result in the cell.
+			({ label }) => (
+				<Badge variant={BadgeVariants.Transparent} className={FACET_CHIP_CLASS}>
+					{label}
+				</Badge>
+			)
+		);
+	}, [facets?.verdicts, filteredData]);
 
 	/**
 	 * The categories the loaded results are actually stamped with, drawn as the
@@ -728,18 +970,20 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 		() =>
 			withFacetBadges(
 				buildFacetOptions({
-					values: filteredDataWithoutCategories.flatMap((row) =>
-						Array.from(
-							new Set((row.issues ?? []).map((issue) => issue.category))
-						)
-					),
+					values:
+						(facets?.categories as IssueCategory[] | undefined) ??
+						filteredDataWithoutCategories.flatMap((row) =>
+							Array.from(
+								new Set((row.issues ?? []).map((issue) => issue.category))
+							)
+						),
 					order: CATEGORY_ORDER,
 					labelFor: (category) => categoryMeta(category).label,
 					keywordsFor: (category) => [categoryMeta(category).displayValue]
 				}),
 				(category: IssueCategory) => <CategoryBadge category={category} />
 			),
-		[filteredDataWithoutCategories]
+		[facets?.categories, filteredDataWithoutCategories]
 	);
 
 	/**
@@ -750,16 +994,18 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 		() =>
 			withFacetBadges(
 				buildFacetOptions({
-					values: filteredDataWithoutClassifications
-						.map(
-							(row) =>
-								resultClassification({
-									issues: row.issues,
-									hasError: row.has_error,
-									effectiveExpected: row.effective_expected
-								})?.value
-						)
-						.filter((value) => value !== undefined),
+					values:
+						(facets?.classifications as ResultClassification[] | undefined) ??
+						filteredDataWithoutClassifications
+							.map(
+								(row) =>
+									resultClassification({
+										issues: row.issues,
+										hasError: row.has_error,
+										effectiveExpected: row.effective_expected
+									})?.value
+							)
+							.filter((value) => value !== undefined),
 					order: RESULT_CLASSIFICATION_ORDER,
 					labelFor: (value) => RESULT_CLASSIFICATION_META[value].label,
 					keywordsFor: (value) => [
@@ -770,53 +1016,88 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 					<ResultClassificationBadge classification={classification} />
 				)
 			),
-		[filteredDataWithoutClassifications]
+		[facets?.classifications, filteredDataWithoutClassifications]
 	);
 
 	const results = useMemo(() => {
 		const orderedResultTypes = Object.values(RESULT_TYPE);
+		const values =
+			(facets?.results as RESULT_TYPE[] | undefined) ??
+			Array.from(
+				new Set(
+					filteredDataWithoutResults.map(
+						(row) => row.obtained_result.result_type
+					)
+				)
+			);
 
-		return Array.from(
-			new Set(
-				filteredDataWithoutResults.map((row) => row.obtained_result.result_type)
-			)
-		)
-			.filter(Boolean)
-			.sort(
-				(a, b) => orderedResultTypes.indexOf(a) - orderedResultTypes.indexOf(b)
-			)
-			.map((result) => ({
-				label: result,
-				value: result
-			}));
-	}, [filteredDataWithoutResults]);
+		return withBadges(
+			values
+				.filter(Boolean)
+				.sort(
+					(a, b) =>
+						orderedResultTypes.indexOf(a) - orderedResultTypes.indexOf(b)
+				)
+				.map((result) => ({
+					label: result,
+					value: result
+				})),
+			// The cell colours a result by whether it was expected, which a
+			// result type on its own cannot know: FAILED is green when it was
+			// meant to fail. The plain chip makes no claim; Result Type carries
+			// the colour.
+			({ label }) => <Badge className={FACET_CHIP_CLASS}>{label}</Badge>
+		);
+	}, [facets?.results, filteredDataWithoutResults]);
 
 	const resultProperties = useMemo(() => {
-		return Array.from(
-			new Set(
-				filteredDataWithoutResultProperties.map((row) =>
-					row.has_error
-						? RESULT_PROPERTIES.Unexpected
-						: RESULT_PROPERTIES.Expected
+		const values =
+			(facets?.result_properties as RESULT_PROPERTIES[] | undefined) ??
+			Array.from(
+				new Set(
+					filteredDataWithoutResultProperties.map((row) =>
+						row.has_error
+							? RESULT_PROPERTIES.Unexpected
+							: RESULT_PROPERTIES.Expected
+					)
 				)
+			);
+
+		return withBadges(
+			values
+				.filter((resultProperty) => resultProperty in RESULT_PROPERTIES_LABEL)
+				.map((resultProperty) => ({
+					label: RESULT_PROPERTIES_LABEL[resultProperty],
+					value: resultProperty
+				})),
+			// Upper case, as the result it qualifies is: PASSED, EXPECTED.
+			({ label, value }) => (
+				<Badge variant={RESULT_PROPERTIES_BADGE_VARIANT[value]}>
+					{label.toUpperCase()}
+				</Badge>
 			)
-		)
-			.filter((resultProperty) => resultProperty !== undefined)
-			.map((resultProperty) => ({
-				label: RESULT_PROPERTIES_LABEL[resultProperty],
-				value: resultProperty
-			}));
-	}, [filteredDataWithoutResultProperties]);
+		);
+	}, [facets?.result_properties, filteredDataWithoutResultProperties]);
 
 	const artifacts = useMemo(() => {
-		return Array.from(new Set(filteredData.map((row) => row.artifacts).flat()))
-			.filter(Boolean)
-			.filter((artifact) => artifact !== undefined)
-			.map((artifact) => ({
-				label: artifact,
-				value: artifact
-			}));
-	}, [filteredData]);
+		const values =
+			facets?.artifacts ??
+			Array.from(new Set(filteredData.map((row) => row.artifacts).flat()));
+
+		return withBadges(
+			values
+				.filter(Boolean)
+				.filter((artifact) => artifact !== undefined)
+				.map((artifact) => ({
+					label: artifact,
+					value: artifact
+				})),
+			// The chip the Artifacts cell draws.
+			({ label }) => (
+				<Badge className={cn('bg-badge-16', FACET_CHIP_CLASS)}>{label}</Badge>
+			)
+		);
+	}, [facets?.artifacts, filteredData]);
 
 	function handleClearFilters() {
 		trackEvent(analyticsEventNames.resultTableFiltersReset, {
@@ -825,6 +1106,14 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 
 		setColumnFilters([]);
 		resetLocalRequirements();
+	}
+
+	// The same write a click on a requirement chip makes: the selection
+	// lives with the requirements shared across tables, and the column
+	// filter follows it.
+	function handleRequirementsFilterChange(values: string[] | undefined) {
+		setLocalRequirements(values ?? []);
+		handleFilterChange(COLUMN_ID.REQUIREMENTS, values);
 	}
 
 	function handleFilterChange(id: string, values: string[] | undefined) {
@@ -942,6 +1231,7 @@ function useDataTableFilters(rowId: string, data: RunDataResults[]) {
 		artifactsFilter,
 		onClearFilters: handleClearFilters,
 		onFilterChange: handleFilterChange,
+		onRequirementsFilterChange: handleRequirementsFilterChange,
 		onVerdictsFilterChange: handleVerdictsFilterChange,
 		onResultsFilterChange: handleResultsFilterChange,
 		onResultPropertiesFilterChange: handleResultPropertiesFilterChange,
@@ -961,7 +1251,7 @@ const compressedColumnFiltersParam = withDefault(
 		},
 		decode: (value) => decodeCompressedOrJsonState(value)
 	} as QueryParamConfig<
-		Record<string, ColumnFiltersState>,
+		Record<string, ColumnFiltersState> | undefined,
 		Record<string, ColumnFiltersState>
 	>,
 	{}
@@ -1003,8 +1293,28 @@ function findFilterById(columnFilters: ColumnFiltersState, id: string) {
 	return columnFilters.find((filter) => filter.id === id);
 }
 
+/** Whether any filter of `columnFilters` selects something. */
+function hasAnySelection(columnFilters: ColumnFiltersState): boolean {
+	return columnFilters.some((filter) => {
+		const value = StringArraySchema.safeParse(filter.value);
+
+		if (value.success) return value.data.length > 0;
+
+		if (filter.id === COLUMN_ID.OBTAINED_RESULT) {
+			const obtainedResult = ObtainedResultFilterSchema.safeParse(filter.value);
+
+			if (!obtainedResult.success) return false;
+
+			return obtainedResultFilterCount(obtainedResult.data) > 0;
+		}
+
+		return false;
+	});
+}
+
 function useColumnFilters(rowId: string) {
 	const [queryColumnFilters, setQueryColumnFilters] = useQueryParam<
+		Record<string, ColumnFiltersState> | undefined,
 		Record<string, ColumnFiltersState>
 	>('columnFilters', compressedColumnFiltersParam, { updateType: 'replaceIn' });
 	const { localRequirements, setLocalRequirements } = useGlobalRequirements();
@@ -1061,7 +1371,20 @@ function useColumnFilters(rowId: string) {
 				});
 			}
 
-			setQueryColumnFilters((prev) => ({ ...prev, [rowId]: nextState }));
+			// A table that selects nothing has nothing to keep in the URL: Reset
+			// leaves no trace of it, and a link with no table left carries no
+			// parameter at all.
+			setQueryColumnFilters((prev) => {
+				const next = { ...prev };
+
+				if (hasAnySelection(nextState)) {
+					next[rowId] = nextState;
+				} else {
+					delete next[rowId];
+				}
+
+				return Object.keys(next).length > 0 ? next : undefined;
+			});
 		},
 		[columnFilters, rowId, setQueryColumnFilters]
 	);
@@ -1071,21 +1394,7 @@ function useColumnFilters(rowId: string) {
 		setLocalRequirements([]);
 	}, [setColumnFilters, setLocalRequirements]);
 
-	const hasFilters = columnFilters.some((filter) => {
-		const value = StringArraySchema.safeParse(filter.value);
-
-		if (value.success) return value.data.length > 0;
-
-		if (filter.id === COLUMN_ID.OBTAINED_RESULT) {
-			const obtainedResult = ObtainedResultFilterSchema.safeParse(filter.value);
-
-			if (!obtainedResult.success) return false;
-
-			return obtainedResultFilterCount(obtainedResult.data) > 0;
-		}
-
-		return false;
-	});
+	const hasFilters = hasAnySelection(columnFilters);
 
 	return {
 		columnFilters,
