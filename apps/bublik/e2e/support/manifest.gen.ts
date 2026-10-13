@@ -56,6 +56,7 @@ export interface Bundle {
 	pinnedResults?: PinnedResult[];
 	project: string;
 	revisions: Revision[];
+	rulesApplied?: boolean;
 	runId?: number | null;
 	runStatus:
 		| (
