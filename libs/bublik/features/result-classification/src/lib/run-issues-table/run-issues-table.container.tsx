@@ -47,7 +47,8 @@ export function RunIssuesTable({
 	runId,
 	projectId,
 	toolbarActions,
-	renderResultPreview
+	renderResultPreview,
+	renderIssueResults
 }: RunIssuesTableProps) {
 	const { data, isLoading, error } = useGetRunIssuesQuery(
 		projectId === undefined ? skipToken : { runId, projectId }
@@ -148,15 +149,19 @@ export function RunIssuesTable({
 			onResetFilters={resetFilters}
 			toolbarActions={toolbarActions}
 			totalCount={issues.length}
-			renderSubRow={(row) => (
-				<RunIssueResults
-					runId={runId}
-					issueId={row.original.issue_id}
-					projectId={projectId}
-					scrollRef={scrollRef}
-					renderResultPreview={renderResultPreview}
-				/>
-			)}
+			renderSubRow={(row) =>
+				renderIssueResults ? (
+					renderIssueResults(row.original.issue_id)
+				) : (
+					<RunIssueResults
+						runId={runId}
+						issueId={row.original.issue_id}
+						projectId={projectId}
+						scrollRef={scrollRef}
+						renderResultPreview={renderResultPreview}
+					/>
+				)
+			}
 		/>
 	);
 }

@@ -6,7 +6,10 @@ import type { Table } from '@tanstack/react-table';
 import { Skeleton } from '@/shared/tailwind-ui';
 import { BublikErrorState } from '@/bublik/features/ui-state';
 
-import { ClassificationTable } from '../classification-table/classification-table.component';
+import {
+	ClassificationTable,
+	useSubRowPin
+} from '../classification-table/classification-table.component';
 import type { ResultRow } from './issue-results-table.types';
 
 export interface IssueResultsTableProps {
@@ -14,7 +17,8 @@ export interface IssueResultsTableProps {
 	/**
 	 * The scroller this table lives in, when it is a sub-row of another table.
 	 * With it, the header pins under the outer table's header while the
-	 * results scroll past.
+	 * results scroll past. A table rendered as a `ClassificationTable`
+	 * sub-row learns this, and where to pin, from the row instead.
 	 */
 	scrollRef?: RefObject<HTMLElement>;
 }
@@ -42,8 +46,11 @@ const OUTER_HEADER_HEIGHT_PX = 32;
 
 export function IssueResultsTable({
 	table,
-	scrollRef
+	scrollRef: scrollRefProp
 }: IssueResultsTableProps) {
+	const pin = useSubRowPin();
+	const scrollRef = pin?.scrollRef ?? scrollRefProp;
+
 	return (
 		<div
 			className="px-4 py-2 border-t border-border-primary"
@@ -53,7 +60,7 @@ export function IssueResultsTable({
 				table={table}
 				variant="nested"
 				stickyHeader={Boolean(scrollRef)}
-				stickyTop={OUTER_HEADER_HEIGHT_PX}
+				stickyTop={pin?.top ?? OUTER_HEADER_HEIGHT_PX}
 				stickyShadow
 				scrollRef={scrollRef}
 				getRowAttributes={(row) => ({

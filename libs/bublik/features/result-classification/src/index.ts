@@ -3,6 +3,18 @@
 export * from './lib/classification';
 export * from './lib/sidebar';
 
+export {
+	ClassificationFooter,
+	ClassificationRange,
+	ClassificationToolbar,
+	ClassificationToolbarSeparator,
+	useSubRowPin
+} from './lib/classification-table/classification-table.component';
+export type { SubRowPin } from './lib/classification-table/classification-table.component';
+export {
+	PageParam,
+	createPageSizeParam
+} from './lib/classification-table/classification-table.params';
 export { buildFacetOptions } from './lib/classification-table/classification-table.utils';
 export type { FacetOption } from './lib/classification-table/classification-table.utils';
 
@@ -17,10 +29,15 @@ export { RunIssuesTable, RunIssuesTableLoading } from './lib/run-issues-table';
 export { IssueResults, RunIssueResults } from './lib/issue-results-table';
 export type { RenderResultPreview } from './lib/issue-results-table';
 
-export { IssueDetailHeader, IssueHeaderBar } from './lib/issue-detail';
+export {
+	IssueDetailHeader,
+	IssueHeaderBar,
+	IssueResultsButton
+} from './lib/issue-detail';
 export type {
 	IssueDetailHeaderProps,
-	IssueHeaderBarProps
+	IssueHeaderBarProps,
+	IssueResultsButtonProps
 } from './lib/issue-detail';
 
 export { ClassifyButton, ClassifyResultContainer } from './lib/classify';

@@ -8,11 +8,14 @@ import {
 	ApplyRulesButton,
 	RunIssuesTable
 } from '@/bublik/features/result-classification';
+import {
+	ResultTableHost,
+	RunIssueResultTable
+} from '@/bublik/features/issue-results';
 import { useGetRunDetailsQuery } from '@/services/bublik-api';
 import { RunDetailsContainer } from '@/bublik/features/run-details';
 import { CopyShortUrlButtonContainer } from '@/bublik/features/copy-url';
 import { LinkWithProject } from '@/bublik/features/projects';
-import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
 import { BublikEmptyState } from '@/bublik/features/ui-state';
 import { routes } from '@/router';
 import {
@@ -76,28 +79,24 @@ function RunIssuesPage() {
 		>
 			<RunIssuesHeader runId={runId} />
 			<div className="flex flex-col flex-1 min-h-0 bg-white rounded">
-				<RunIssuesTable
-					runId={runId}
-					projectId={projectId}
-					toolbarActions={
-						<ApplyRulesButton runId={runId} projectId={projectId} />
-					}
-					renderResultPreview={(result, resultRunId) => (
-						<LogPreviewContainer
-							logName={result.name}
-							runId={Number(resultRunId)}
-							resultId={result.result_id}
-							measurementId={
-								result.has_measurements ? result.result_id : undefined
-							}
-						>
-							<ButtonTw variant="secondary" size="xss">
-								<Icon name="ExpandSelection" size={20} className="mr-1" />
-								Preview
-							</ButtonTw>
-						</LogPreviewContainer>
-					)}
-				/>
+				<ResultTableHost>
+					<RunIssuesTable
+						runId={runId}
+						projectId={projectId}
+						toolbarActions={
+							<ApplyRulesButton runId={runId} projectId={projectId} />
+						}
+						// An expanded issue unfolds into the run page's result table,
+						// the same rows a test's count badge opens there.
+						renderIssueResults={(issueId) => (
+							<RunIssueResultTable
+								runId={runId}
+								issueId={issueId}
+								projectId={projectId}
+							/>
+						)}
+					/>
+				</ResultTableHost>
 			</div>
 		</div>
 	);

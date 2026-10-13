@@ -502,33 +502,50 @@ export function useGroupedExpanded(
 }
 
 /**
- * The measured width of an element, via a callback ref.
+ * A measurement of an element, kept current by a `ResizeObserver`, via a
+ * callback ref.
  *
  * A callback ref rather than a `RefObject` because the tables mount their
  * scroller only after loading resolves: an effect keyed on a ref object runs
  * once, while the node is still absent, and never measures anything.
  */
-export function useElementWidth<T extends HTMLElement>() {
-	const [width, setWidth] = useState<number>();
+function useElementMeasure<T extends HTMLElement>(
+	measure: (node: HTMLElement) => number
+) {
+	const [value, setValue] = useState<number>();
 	const observerRef = useRef<ResizeObserver>();
 
-	const ref = useCallback((node: T | null) => {
-		observerRef.current?.disconnect();
+	const ref = useCallback(
+		(node: T | null) => {
+			observerRef.current?.disconnect();
 
-		if (!node) return;
+			if (!node) return;
 
-		const observer = new ResizeObserver(([entry]) =>
-			setWidth(entry.contentRect.width)
-		);
+			const observer = new ResizeObserver(() => setValue(measure(node)));
 
-		observer.observe(node);
-		observerRef.current = observer;
-		setWidth(node.clientWidth);
-	}, []);
+			observer.observe(node);
+			observerRef.current = observer;
+			setValue(measure(node));
+		},
+		[measure]
+	);
 
 	useEffect(() => () => observerRef.current?.disconnect(), []);
 
-	return [ref, width] as const;
+	return [ref, value] as const;
+}
+
+const clientWidth = (node: HTMLElement) => node.clientWidth;
+const offsetHeight = (node: HTMLElement) => node.offsetHeight;
+
+/** The measured content width of an element, via a callback ref. */
+export function useElementWidth<T extends HTMLElement>() {
+	return useElementMeasure<T>(clientWidth);
+}
+
+/** The measured border-box height of an element, via a callback ref. */
+export function useElementHeight<T extends HTMLElement>() {
+	return useElementMeasure<T>(offsetHeight);
 }
 
 /**

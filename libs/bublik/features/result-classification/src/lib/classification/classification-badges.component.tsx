@@ -485,8 +485,10 @@ export function BugKeyChip({
 		>
 			<Tooltip content={tooltip}>
 				{issueId !== undefined ? (
+					// The key leads to what the issue stamped, across every run;
+					// the rules behind it are a sub-page away from there.
 					<LinkWithProject
-						to={routes.issue({ issueId })}
+						to={routes.issueResults({ issueId })}
 						data-testid="issue-key-link"
 						{...keyProps}
 					>
@@ -637,7 +639,7 @@ export function ResultIssueBadges({
 	const body = (
 		<div
 			className={cn(
-				'grid grid-cols-[max-content_max-content] items-center justify-start gap-x-1.5 gap-y-1',
+				'grid grid-cols-[max-content_minmax(0,1fr)] items-center justify-start gap-x-1.5 gap-y-1',
 				className
 			)}
 		>
@@ -659,9 +661,13 @@ export function ResultIssueBadges({
 						description={`${issue.issue_title}. ${originDescription(origins)}`}
 						className="max-w-[7rem]"
 					/>
-					<div className="flex items-center gap-1.5">
+					{/* The badges take what is left of the column and wrap within
+					    it: an issue can carry three categories, and each badge is
+					    a filter toggle, so none may be clipped away. */}
+					<div className="flex items-center gap-1.5 min-w-0">
 						<VerticalRule />
 						<CategoryBadgeList
+							className="flex-wrap"
 							categories={categories}
 							selectedCategories={selectedCategories}
 							onCategoryClick={onCategoryClick}

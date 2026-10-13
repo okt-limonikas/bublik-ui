@@ -2,7 +2,11 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import {
 	Fragment,
+	createContext,
+	useCallback,
+	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	type CSSProperties,
@@ -26,7 +30,11 @@ import {
 	type ColumnVisibilityItem
 } from '@/shared/tailwind-ui';
 
-import { useHasScrolledPast, useIsStuck } from './classification-table.hooks';
+import {
+	useElementHeight,
+	useHasScrolledPast,
+	useIsStuck
+} from './classification-table.hooks';
 
 declare module '@tanstack/react-table' {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -44,6 +52,33 @@ const GUTTER_TRACK = 'minmax(0, 1fr)';
 
 /** The column header's height, and so the offset a stuck group heading sits at. */
 const HEADER_HEIGHT_PX = 32;
+
+/**
+ * Where a sub-row's own sticky header should pin, handed down to whatever
+ * an expanded row unfolds into.
+ */
+export interface SubRowPin {
+	/** The scroller the sub-row scrolls inside. */
+	scrollRef?: RefObject<HTMLElement>;
+	/**
+	 * The offset from the scroller's top at which the sub-row's content is
+	 * first uncovered: under the outer header, and under the expanded row
+	 * too when that row is pinned.
+	 */
+	top: number;
+}
+
+const SubRowPinContext = createContext<SubRowPin | null>(null);
+
+/**
+ * The pin a nested table sits under, when rendered as another table's
+ * sub-row; `null` elsewhere. Lets the nested table follow the outer one
+ * without being told its layout: the outer header's height, and whether
+ * and how tall the row above it is pinned.
+ */
+export function useSubRowPin(): SubRowPin | null {
+	return useContext(SubRowPinContext);
+}
 
 /**
  * Where the gutter track goes: before the first visible column that is pinned
@@ -115,6 +150,13 @@ export interface ClassificationTableProps<T> {
 	 */
 	stickyShadow?: boolean;
 	/**
+	 * Pin an expanded row beneath the header while what it unfolds into
+	 * scrolls past, so the reader keeps the row in sight however long its
+	 * sub-row runs. The sub-row learns where it is uncovered through
+	 * `useSubRowPin()`. Needs `stickyHeader` and `scrollRef`.
+	 */
+	stickyExpandedRows?: boolean;
+	/**
 	 * Add an empty flexible track that takes the surplus width.
 	 *
 	 * Only useful for a table whose every column declares a *capped* width. The
@@ -155,6 +197,7 @@ export function ClassificationTable<T>({
 	stickyHeader = false,
 	stickyTop = 0,
 	stickyShadow = false,
+	stickyExpandedRows = false,
 	endGutter = false,
 	gutterBefore,
 	scrollRef,
@@ -335,6 +378,10 @@ export function ClassificationTable<T>({
 						gutterAt={gutterAt}
 						renderSubRow={renderSubRow}
 						attributes={getRowAttributes?.(row)}
+						scrollRef={scrollRef}
+						// Where the sub-row starts out uncovered: under the header.
+						subRowTop={stickyHeader ? stickyTop + HEADER_HEIGHT_PX : 0}
+						pinExpanded={stickyHeader && stickyExpandedRows}
 					/>
 				)
 			)}
@@ -434,6 +481,11 @@ interface ClassificationRowProps<T> {
 	gutterAt?: number;
 	renderSubRow?: (row: Row<T>) => ReactNode;
 	attributes?: Record<string, string | number>;
+	scrollRef?: RefObject<HTMLElement>;
+	/** Where the sub-row is uncovered with the row scrolled away: under the header. */
+	subRowTop?: number;
+	/** Pin the row at `subRowTop` while it is expanded. */
+	pinExpanded?: boolean;
 }
 
 function ClassificationRow<T>({
@@ -441,12 +493,43 @@ function ClassificationRow<T>({
 	variant,
 	gutterAt = -1,
 	renderSubRow,
-	attributes
+	attributes,
+	scrollRef,
+	subRowTop = 0,
+	pinExpanded = false
 }: ClassificationRowProps<T>) {
 	const [hovered, setHovered] = useState(false);
 	const cells = row.getVisibleCells();
 	const isExpanded = Boolean(renderSubRow) && row.getIsExpanded();
 	const gutterIsLast = gutterAt === cells.length;
+	const isPinned = isExpanded && pinExpanded;
+
+	// A pinned row covers the top of its sub-row by its own height, which the
+	// sub-row's pinned header has to clear; measured, since a row grows with
+	// its wrapped badges. Every cell is one grid row tall, so the first will do.
+	const [measureFirstCell, rowHeight] = useElementHeight<HTMLDivElement>();
+	const firstCellNode = useRef<HTMLDivElement | null>(null);
+	const firstCellRef = useCallback(
+		(node: HTMLDivElement | null) => {
+			firstCellNode.current = node;
+			measureFirstCell(node);
+		},
+		[measureFirstCell]
+	);
+	// Once pinned under the header the row squares its top corners and draws
+	// the edge between them, as a pinned group heading does.
+	const isStuck = useIsStuck(
+		firstCellNode,
+		isPinned ? scrollRef : undefined,
+		subRowTop
+	);
+	const pin = useMemo<SubRowPin>(
+		() => ({
+			scrollRef,
+			top: isPinned ? subRowTop + (rowHeight ?? 0) : subRowTop
+		}),
+		[scrollRef, isPinned, subRowTop, rowHeight]
+	);
 
 	// The card's edge treatment. The card runs across the gutter — it takes the
 	// same background and hover border as the cells either side of it — and
@@ -466,13 +549,23 @@ function ClassificationRow<T>({
 			hovered && isLast && 'border-r-primary',
 			isExpanded && 'border-b-transparent',
 			isExpanded && isFirst && 'rounded-bl-none [&>*]:rounded-bl-none',
-			isExpanded && isLast && 'rounded-br-none'
+			isExpanded && isLast && 'rounded-br-none',
+			isStuck && 'border-t-border-primary',
+			isStuck && isFirst && 'rounded-tl-none [&>*]:rounded-tl-none',
+			isStuck && isLast && 'rounded-tr-none'
 		);
+	// Over the sub-row's own pinned header (z-8 as a nested table, or what
+	// the run page's result table pins) and under the outer header. Applied
+	// last: a column's own classes may position its cell (the status stripe
+	// draws from a `relative` cell), and the later position wins the merge.
+	const pinnedClassName = isPinned && 'sticky z-[9]';
+	const cellStyle = isPinned ? { top: subRowTop } : undefined;
 
 	const gutter = (
 		<GutterCell
 			key="gutter"
-			className={cellClassName(false, gutterIsLast)}
+			className={cn(cellClassName(false, gutterIsLast), pinnedClassName)}
+			style={cellStyle}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
 		/>
@@ -480,7 +573,13 @@ function ClassificationRow<T>({
 
 	return (
 		<Fragment>
-			<div className="contents" role="row" {...attributes}>
+			<div
+				className="contents"
+				role="row"
+				data-pinned={isPinned ? 'true' : undefined}
+				data-stuck={isStuck ? 'true' : undefined}
+				{...attributes}
+			>
 				{cells.flatMap((cell, idx) => {
 					const isFirst = idx === 0;
 					const isLast = idx === cells.length - 1 && !gutterIsLast;
@@ -490,12 +589,15 @@ function ClassificationRow<T>({
 						<div
 							key={cell.id}
 							role="cell"
+							ref={isFirst ? firstCellRef : undefined}
+							style={cellStyle}
 							onMouseEnter={() => setHovered(true)}
 							onMouseLeave={() => setHovered(false)}
 							className={cn(
 								cellClassName(isFirst, isLast),
 								cell.column.columnDef.meta?.className,
-								cell.column.columnDef.meta?.cellClassName
+								cell.column.columnDef.meta?.cellClassName,
+								pinnedClassName
 							)}
 						>
 							{flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -514,7 +616,9 @@ function ClassificationRow<T>({
 					onMouseEnter={() => setHovered(true)}
 					onMouseLeave={() => setHovered(false)}
 				>
-					{renderSubRow(row)}
+					<SubRowPinContext.Provider value={pin}>
+						{renderSubRow(row)}
+					</SubRowPinContext.Provider>
 				</div>
 			) : null}
 		</Fragment>
@@ -587,7 +691,12 @@ export function ClassificationRange({
 
 	if (!matchedCount) {
 		return (
-			<span className="text-xs text-text-primary tabular-nums">No {noun}s</span>
+			<span
+				className="text-xs text-text-primary tabular-nums"
+				data-testid="classification-range"
+			>
+				No {noun}s
+			</span>
 		);
 	}
 
@@ -596,7 +705,10 @@ export function ClassificationRange({
 	const isNarrowed = matchedCount < totalCount;
 
 	return (
-		<span className="text-xs text-text-primary tabular-nums">
+		<span
+			className="text-xs text-text-primary tabular-nums"
+			data-testid="classification-range"
+		>
 			{first}–{last} of {matchedCount} {isNarrowed ? 'matching' : plural}
 			{isNarrowed ? ` · ${totalCount} total` : null}
 		</span>

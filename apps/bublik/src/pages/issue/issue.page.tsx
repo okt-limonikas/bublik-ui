@@ -6,6 +6,7 @@ import { skipToken } from '@reduxjs/toolkit/query';
 import {
 	IssueDetailHeader,
 	IssueHeaderBar,
+	IssueResultsButton,
 	IssueRulesTable,
 	NewRuleButton
 } from '@/bublik/features/result-classification';
@@ -54,6 +55,7 @@ export const IssuePage = () => {
 					projectId={projectId}
 					onDeleted={() => navigate(routes.issues({}))}
 				>
+					<IssueResultsButton issueId={numericIssueId} projectId={projectId} />
 					<CopyShortUrlButtonContainer />
 				</IssueHeaderBar>
 				<IssueDetailHeader issueId={numericIssueId} projectId={projectId} />

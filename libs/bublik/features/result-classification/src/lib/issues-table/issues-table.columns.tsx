@@ -3,7 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 
 import { LinkWithProject } from '@/bublik/features/projects';
-import { Tooltip } from '@/shared/tailwind-ui';
+import { Badge, BadgeVariants, Tooltip } from '@/shared/tailwind-ui';
 import { routes } from '@/router';
 import { formatTimeToDot, formatTimestampToFull } from '@/shared/utils';
 
@@ -139,26 +139,37 @@ export function getColumns(): ColumnDef<IssueTableRow, unknown>[] {
 			id: COLUMN_ID.RESULTS,
 			accessorFn: (row) => row.result_count,
 			header: 'Results',
-			// The cells are flex boxes, so the count is pushed right by
-			// justification, not `text-right`.
-			meta: {
-				width: 'auto',
-				headerClassName: 'justify-end',
-				cellClassName: 'justify-end'
-			},
+			meta: { width: 'auto', badgeCell: true },
 			// The server cannot order by it, and sorting one page would pass for
 			// sorting the list.
 			enableSorting: false,
-			cell: ({ row }) => (
-				<Tooltip content="Results stamped under this issue, across every run. A result two of its rules both match counts twice.">
-					<span
-						className="tabular-nums text-text-primary"
-						data-testid="issue-result-count"
-					>
-						{row.original.result_count}
-					</span>
-				</Tooltip>
-			)
+			// The same badge the run-issues table counts with; there it expands
+			// the results in place, here it opens them across every run.
+			cell: ({ row }) =>
+				row.original.result_count ? (
+					<Tooltip content="Show the results this issue is stamped on, across every run. A result two of its rules both match counts twice.">
+						<Badge
+							as={LinkWithProject}
+							to={routes.issueResults({ issueId: row.original.id })}
+							variant={BadgeVariants.PrimaryActive}
+							isInteractive
+							className="tabular-nums hover:underline"
+							data-testid="issue-result-count"
+						>
+							{row.original.result_count}
+						</Badge>
+					</Tooltip>
+				) : (
+					<Tooltip content="No results are classified under this issue yet.">
+						<Badge
+							variant={BadgeVariants.Neutral}
+							className="tabular-nums"
+							data-testid="issue-result-count"
+						>
+							{row.original.result_count}
+						</Badge>
+					</Tooltip>
+				)
 		},
 		{
 			id: COLUMN_ID.CREATED,

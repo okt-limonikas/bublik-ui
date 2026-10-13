@@ -46,6 +46,9 @@
 			"@/bublik/features/history-link": [
 				"libs/bublik/features/history-link/src/index.ts"
 			],
+			"@/bublik/features/issue-results": [
+				"libs/bublik/features/issue-results/src/index.ts"
+			],
 			"@/bublik/features/link-to-source": [
 				"libs/bublik/features/link-to-source/src/index.ts"
 			],

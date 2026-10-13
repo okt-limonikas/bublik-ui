@@ -202,6 +202,8 @@ export function RunIssuesTableView({
 						table={table}
 						stickyHeader
 						stickyShadow
+						// An opened issue stays in sight while its results scroll.
+						stickyExpandedRows
 						// Description is capped now, so the surplus goes to a gutter
 						// before Actions rather than to the badge columns.
 						endGutter

@@ -64,6 +64,9 @@ export const routes = {
 	issue: buildRoute<IssueConfig>({
 		getPathname: ({ issueId }) => `/issues/${issueId}`
 	}),
+	issueResults: buildRoute<IssueConfig>({
+		getPathname: ({ issueId }) => `/issues/${issueId}/results`
+	}),
 	runIssues: buildRoute<RunIssuesConfig>({
 		getPathname: ({ runId }) => `/runs/${runId}/issues`
 	}),

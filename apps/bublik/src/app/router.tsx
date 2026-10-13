@@ -26,6 +26,7 @@ import { AdminAnalyticsPage } from '../pages/admin-analytics';
 import { AuthLayout } from '../pages/auth/auth.layout';
 import { IssuesPage } from '../pages/issues';
 import { IssuePage } from '../pages/issue';
+import { IssueResultsPage } from '../pages/issue-results';
 import { IssueRulesListPage } from '../pages/issue-rules-list';
 import { AdminUsersPage } from '../pages/admin-users/admin-users.page';
 import { ConfigsPage } from '../pages/configs/configs.page';
@@ -334,6 +335,10 @@ const router = createBrowserRouter(
 						// regardless of order.
 						{ path: '/issues/rules', element: <IssueRulesListPage /> },
 						{ path: '/issues/:issueId', element: <IssuePage /> },
+						{
+							path: '/issues/:issueId/results',
+							element: <IssueResultsPage />
+						},
 						{
 							path: '/admin',
 							element: <DevelopersLayout />,
