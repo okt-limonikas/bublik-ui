@@ -70,6 +70,7 @@ Feature: Run issues against seeded classification
     When I cancel the edit
     Then the issue is still listed with its effect on the run
 
+  # The expanded results are the run page's result table, test first.
   @issues @needs-classification
   Scenario: The expanded results of a seeded issue show the test, its package and its verdicts
     Given the seed classified a result of a run under an issue
@@ -77,3 +78,16 @@ Feature: Run issues against seeded classification
     When I expand the issue's results
     Then the classified result is listed with its test name and package path
     And it shows the verdicts the result obtained
+
+  # The window is made short so the results run past the table's bottom
+  # edge; the page is the same at any height.
+  @issues @needs-classification
+  Scenario: An opened issue's row stays pinned while its results scroll
+    Given the seed classified a result of a run under an issue
+    And I open the run's issues page in a short window
+    When I expand the issue's results
+    Then the issue's row is pinned under the column header
+    When I scroll the table to its end
+    Then the row is stuck there with its results beneath it
+    When I collapse the issue's results
+    Then the row is no longer pinned

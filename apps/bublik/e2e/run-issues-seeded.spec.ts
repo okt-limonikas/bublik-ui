@@ -2,6 +2,7 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 /* eslint-disable playwright/expect-expect */
 import { expect, test } from './support/test';
+import type { Locator } from '@playwright/test';
 
 import type { IssueDrawer } from './pages/issue-drawer';
 import { RunIssuesPage } from './pages/run-issues-page';
@@ -502,6 +503,49 @@ test.describe('Run Issues Page against seeded classification', () => {
 			);
 			await and('it shows the verdicts the result obtained', () =>
 				runIssuesPage.expectResultVerdicts(stamped.resultId, stamped.verdicts)
+			);
+		}
+	);
+
+	test(
+		"An opened issue's row stays pinned while its results scroll",
+		SEEDED,
+		async ({ page }) => {
+			const runIssuesPage = new RunIssuesPage(page);
+			let run!: SeededRun;
+			let stamped!: StampedResult;
+			let row!: Locator;
+
+			await given(
+				'the seed classified a result of a run under an issue',
+				() => {
+					run = seededRun();
+					stamped = stampedResult(run);
+				}
+			);
+			await and("I open the run's issues page in a short window", async () => {
+				await page.setViewportSize({ width: 1280, height: 480 });
+				await runIssuesPage.goto(run.runId, { pageSize: '100' });
+				await runIssuesPage.expectLoaded();
+				row = runIssuesPage.rowById(stamped.entry.issue.issueId);
+			});
+			await when("I expand the issue's results", () =>
+				runIssuesPage.expandResults(row)
+			);
+			await then("the issue's row is pinned under the column header", () =>
+				runIssuesPage.expectRowPinned(row, true)
+			);
+			await when('I scroll the table to its end', () =>
+				runIssuesPage.scrollToEnd()
+			);
+			await then('the row is stuck there with its results beneath it', () =>
+				runIssuesPage.expectRowStuck(row)
+			);
+			await when("I collapse the issue's results", () =>
+				runIssuesPage.collapseResults(row)
+			);
+			await then('the row is no longer pinned', () =>
+				runIssuesPage.expectRowPinned(row, false)
 			);
 		}
 	);

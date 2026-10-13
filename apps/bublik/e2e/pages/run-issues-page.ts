@@ -116,6 +116,12 @@ class RunIssuesPage {
 		);
 	}
 
+	/**
+	 * What an expanded issue unfolds into: the run page's result table over
+	 * the results the issue stamped in this run. Its cells are siblings in one
+	 * grid with no row box; a result's cells share its `data-result-id`, and
+	 * the Obtained Result cells stand for the rows.
+	 */
 	get resultsPanel(): Locator {
 		return this.root.getByTestId('issue-results');
 	}
@@ -145,15 +151,20 @@ class RunIssuesPage {
 	}
 
 	resultRows(): Locator {
-		return this.resultsPanel.locator('[data-testid="issue-result-row"]');
+		return this.resultsPanel.locator('[data-column-id="obtained-result"]');
 	}
 
-	resultLink(resultRow: Locator, name: 'Run' | 'Log' | 'History'): Locator {
-		return resultRow.getByRole('link', { name: new RegExp(`^${name}`) });
+	/** The Actions cell of the `index`th result, holding its links. */
+	resultLinksCell(index: number): Locator {
+		return this.resultsPanel.locator('[data-column-id="links"]').nth(index);
 	}
 
-	resultPreviewButton(resultRow: Locator): Locator {
-		return resultRow.getByRole('button', { name: 'Preview', exact: true });
+	resultLink(linksCell: Locator, name: 'Log' | 'History'): Locator {
+		return linksCell.getByRole('link', { name: new RegExp(`^${name}`) });
+	}
+
+	resultPreviewButton(linksCell: Locator): Locator {
+		return linksCell.getByRole('button', { name: 'Preview', exact: true });
 	}
 
 	keyLink(row: Locator): Locator {
@@ -194,6 +205,14 @@ class RunIssuesPage {
 			'true'
 		);
 		await expect(this.resultsPanel).toBeVisible({ timeout: 30_000 });
+	}
+
+	async collapseResults(row: Locator): Promise<void> {
+		await this.resultCountButton(row).click();
+		await expect(this.resultCountButton(row)).toHaveAttribute(
+			'aria-expanded',
+			'false'
+		);
 	}
 
 	/** Applies the rules and resolves with the toast's wording. */
@@ -266,13 +285,49 @@ class RunIssuesPage {
 			.toBeGreaterThanOrEqual(count);
 	}
 
-	async expectResultLinks(resultRow: Locator): Promise<void> {
-		await expect(this.resultLink(resultRow, 'Run')).toBeVisible({
+	/**
+	 * The `index`th result links to its log, history and preview. The rows
+	 * share the run the page is about, so none of them links to it.
+	 */
+	async expectResultLinks(index: number): Promise<void> {
+		const links = this.resultLinksCell(index);
+
+		await expect(this.resultLink(links, 'Log')).toBeVisible({
 			timeout: 15_000
 		});
-		await expect(this.resultLink(resultRow, 'Log')).toBeVisible();
-		await expect(this.resultLink(resultRow, 'History')).toBeVisible();
-		await expect(this.resultPreviewButton(resultRow)).toBeVisible();
+		await expect(this.resultLink(links, 'History')).toBeVisible();
+		await expect(this.resultPreviewButton(links)).toBeVisible();
+	}
+
+	/** The scroller the issues and their unfolded results scroll inside. */
+	get scroller(): Locator {
+		return this.table.table.locator('xpath=..');
+	}
+
+	async expectRowPinned(row: Locator, pinned: boolean): Promise<void> {
+		if (pinned) {
+			await expect(row).toHaveAttribute('data-pinned', 'true', {
+				timeout: 15_000
+			});
+		} else {
+			await expect(row).not.toHaveAttribute('data-pinned', /.*/, {
+				timeout: 15_000
+			});
+		}
+	}
+
+	/** Scrolls the table to its end, so an open issue's results run past the top. */
+	async scrollToEnd(): Promise<void> {
+		await this.scroller.evaluate((element) =>
+			element.scrollTo({ top: element.scrollHeight })
+		);
+	}
+
+	/** The row is pinned under the column header, its results scrolled beneath it. */
+	async expectRowStuck(row: Locator): Promise<void> {
+		await expect(row).toHaveAttribute('data-stuck', 'true', {
+			timeout: 15_000
+		});
 	}
 
 	async expectAppliedToast(text: string): Promise<void> {
@@ -400,11 +455,15 @@ class RunIssuesPage {
 		expect(Number(/of (\d+)/.exec(text)?.[1])).toBeGreaterThanOrEqual(atLeast);
 	}
 
-	// --- The results sub-table of an expanded row ---
+	// --- The results table of an expanded row ---
 
-	resultRowById(resultId: number): Locator {
+	/** One cell of the result with this id, by the column it is in. */
+	resultCellOf(
+		resultId: number,
+		column: 'links' | 'test' | 'obtained-result'
+	): Locator {
 		return this.resultsPanel.locator(
-			`[data-testid="issue-result-row"][data-result-id="${resultId}"]`
+			`[data-column-id="${column}"][data-result-id="${resultId}"]`
 		);
 	}
 
@@ -413,21 +472,21 @@ class RunIssuesPage {
 		resultId: number,
 		{ name, packagePath }: { name: string; packagePath: string }
 	): Promise<void> {
-		const row = this.resultRowById(resultId);
-		await expect(row).toHaveCount(1, { timeout: 30_000 });
-		await expect(row.getByText(name, { exact: true })).toBeVisible({
+		const cell = this.resultCellOf(resultId, 'test');
+		await expect(cell).toHaveCount(1, { timeout: 30_000 });
+		await expect(cell.getByText(name, { exact: true })).toBeVisible({
 			timeout: 15_000
 		});
-		await expect(row.getByText(packagePath, { exact: true })).toBeVisible();
+		await expect(cell.getByText(packagePath, { exact: true })).toBeVisible();
 	}
 
 	async expectResultVerdicts(
 		resultId: number,
 		verdicts: readonly string[]
 	): Promise<void> {
-		const row = this.resultRowById(resultId);
+		const cell = this.resultCellOf(resultId, 'obtained-result');
 		for (const verdict of verdicts) {
-			await expect(row.getByText(verdict.trim()).first()).toBeVisible({
+			await expect(cell.getByText(verdict.trim()).first()).toBeVisible({
 				timeout: 15_000
 			});
 		}

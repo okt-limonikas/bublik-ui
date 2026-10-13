@@ -419,7 +419,13 @@ class HistoryPage {
 	chartsHeader(mode: HistoryMode): Locator {
 		if (mode === 'measurements') return this.root.getByText('Trend Charts');
 		if (mode === 'measurements-by-iteration') {
-			return this.root.getByText('Series Charts');
+			// The loading skeleton is headed "Series Charts" too; the filters
+			// arrive with the charts, and the empty state in their place. The
+			// filter's name grows with its selection.
+			return this.root
+				.getByRole('button', { name: /^Parameters(\s|$)/ })
+				.or(this.root.getByText('No results found', { exact: false }))
+				.first();
 		}
 
 		return this.root
@@ -752,14 +758,17 @@ class HistoryPage {
 		});
 	}
 
-	/** The Issue pill shows the issue's key badge and title, not its id. */
+	/**
+	 * The Issue pill shows the issue's key badge and title, not its id. The
+	 * key leads to the issue's results, as a stamp's key does.
+	 */
 	async expectLegendIssue(issueId: number, title: string): Promise<void> {
 		const pill = this.legendPill('Issue');
 
 		await expect(pill).toContainText(title, { timeout: 15_000 });
 		await expect(pill.getByTestId('issue-key-link')).toHaveAttribute(
 			'href',
-			new RegExp(`/issues/${issueId}(?:$|\\?)`)
+			new RegExp(`/issues/${issueId}/results(?:$|\\?)`)
 		);
 	}
 

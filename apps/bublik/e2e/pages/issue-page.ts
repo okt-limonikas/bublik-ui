@@ -151,6 +151,11 @@ class IssuePage {
 		return this.root.getByTestId('rule-create');
 	}
 
+	/** The header bar's way to the issue's results page. */
+	get resultsButton(): Locator {
+		return this.root.getByTestId('issue-results-button');
+	}
+
 	get noRulesYet(): Locator {
 		return this.root.getByText(
 			'This issue has no rules yet. Write one here, or classify a failing result against this issue.'
@@ -261,6 +266,13 @@ class IssuePage {
 		await drawer.expectOpen('New Rule');
 
 		return drawer;
+	}
+
+	async openResults(): Promise<void> {
+		await this.resultsButton.click();
+		await expect(this.page).toHaveURL(/\/issues\/\d+\/results(?:$|\?)/, {
+			timeout: 15_000
+		});
 	}
 
 	async editRule(row: Locator): Promise<RuleDrawer> {

@@ -23,7 +23,7 @@ Feature: Run issues
     When I open the run's issues page
     Then the issue is listed as suppressed
     When I expand the issue's results
-    Then at least one result is listed with links to the run, log, history and preview
+    Then at least one result is listed with links to the log, history and preview
     And I delete the issue from the run issues page
 
   @issues @issues-write @needs-nok

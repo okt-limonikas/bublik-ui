@@ -135,12 +135,10 @@ test.describe('Run Issues Page', () => {
 				runIssuesPage.expandResults(runIssuesPage.rowByTitle(classified.title))
 			);
 			await then(
-				'at least one result is listed with links to the run, log, history and preview',
+				'at least one result is listed with links to the log, history and preview',
 				async () => {
 					await runIssuesPage.expectResultRowsAtLeast(1);
-					await runIssuesPage.expectResultLinks(
-						runIssuesPage.resultRows().first()
-					);
+					await runIssuesPage.expectResultLinks(0);
 				}
 			);
 			await and('I delete the issue from the run issues page', () =>
