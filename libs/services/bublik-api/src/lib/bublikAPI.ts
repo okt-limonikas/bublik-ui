@@ -158,6 +158,7 @@ export const {
 	useGetRunIssuesQuery,
 	useGetRunIssueResultsQuery,
 	useGetIssueResultsQuery,
+	useGetIssueResultsFacetsQuery,
 	useGetIssuesFacetsQuery,
 	useGetIssueRulesFacetsQuery,
 	useCreateIssueMutation,

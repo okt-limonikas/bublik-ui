@@ -51,11 +51,31 @@ describe.each(['activateRules', 'deactivateRules'] as const)(
 		it('refetches the issue results, whose suppression it changes', async () => {
 			const { api, store, timesRequested } = setup();
 			store.dispatch(api.endpoints.getIssueResults.initiate({ issueId: 7 }));
-			await vi.waitFor(() => expect(timesRequested('/results/')).toBe(1));
+			await vi.waitFor(() =>
+				expect(timesRequested('/issues/7/results/')).toBe(1)
+			);
 
 			await store.dispatch(api.endpoints[endpoint].initiate({ ids: [3] }));
 
-			await vi.waitFor(() => expect(timesRequested('/results/')).toBe(2));
+			await vi.waitFor(() =>
+				expect(timesRequested('/issues/7/results/')).toBe(2)
+			);
+		});
+
+		it('refetches the issue results facets, whose classifications it changes', async () => {
+			const { api, store, timesRequested } = setup();
+			store.dispatch(
+				api.endpoints.getIssueResultsFacets.initiate({ issueId: 7 })
+			);
+			await vi.waitFor(() =>
+				expect(timesRequested('/issues/7/results/facets/')).toBe(1)
+			);
+
+			await store.dispatch(api.endpoints[endpoint].initiate({ ids: [3] }));
+
+			await vi.waitFor(() =>
+				expect(timesRequested('/issues/7/results/facets/')).toBe(2)
+			);
 		});
 	}
 );

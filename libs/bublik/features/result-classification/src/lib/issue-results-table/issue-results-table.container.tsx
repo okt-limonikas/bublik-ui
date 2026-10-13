@@ -36,11 +36,14 @@ export function IssueResults({
 			: skipToken
 	);
 
+	// The first page only: this compact list is the run-scoped fallback, and
+	// the cross-run page draws the full result table over the server's pages.
 	const issueQuery = useGetIssueResultsQuery(
-		!isRunScoped ? { issueId, projectId } : skipToken
+		!isRunScoped ? { issueId } : skipToken
 	);
 
-	const { data, isLoading, error } = isRunScoped ? runQuery : issueQuery;
+	const data = isRunScoped ? runQuery.data : issueQuery.data?.results;
+	const { isLoading, error } = isRunScoped ? runQuery : issueQuery;
 
 	const results = useMemo<ResultRow[]>(() => data ?? [], [data]);
 	const columns = useMemo(

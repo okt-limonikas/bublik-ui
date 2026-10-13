@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET Labs Ltd. */
+import type { RunDataResults } from './run';
 
 export type IssueCategory =
 	| 'product-defect'
@@ -76,6 +77,32 @@ export type Issue = {
 export interface PaginatedResponse<T> {
 	pagination: { count: number; next: string | null; previous: string | null };
 	results: T[];
+}
+
+/**
+ * Every value each result-table filter can take over an issue's results,
+ * unfiltered — `/issues/<id>/results/facets/` — so the filter bar can offer
+ * what the other pages hold.
+ */
+export interface IssueResultsFacets {
+	results: string[];
+	result_properties: string[];
+	verdicts: string[];
+	categories: string[];
+	classifications: string[];
+	artifacts: string[];
+	parameters: string[];
+	requirements: string[];
+}
+
+export interface IssueResultsResponse {
+	pagination: {
+		page: number;
+		count: number;
+		next: string | null;
+		previous: string | null;
+	};
+	results: RunDataResults[];
 }
 
 /**

@@ -11,6 +11,8 @@ import {
 	CreateRuleRequest,
 	Issue,
 	IssueFacets,
+	IssueResultsFacets,
+	IssueResultsResponse,
 	IssueRuleFacets,
 	IssuePickerOption,
 	IssueRule,
@@ -171,6 +173,54 @@ function withoutPaging<
 	return rest;
 }
 
+export interface GetIssueResultsArgs {
+	issueId: number;
+	/** 1-based, as DRF counts pages. */
+	page?: number;
+	pageSize?: number;
+	/** Obtained results; any of them. */
+	results?: string[];
+	/** `expected` / `unexpected`; any of them. */
+	resultProperties?: string[];
+	/** Stamp categories; any of them. */
+	categories?: string[];
+	/** The result's classification chip; any of them. */
+	classifications?: string[];
+	/** Every one of them. */
+	verdicts?: string[];
+	artifacts?: string[];
+	/** `name=value`, as the rows carry them; every one of them. */
+	parameters?: string[];
+	/** Every one of them. */
+	requirements?: string[];
+}
+
+const EMPTY_ISSUE_RESULTS_FACETS: IssueResultsFacets = {
+	results: [],
+	result_properties: [],
+	verdicts: [],
+	categories: [],
+	classifications: [],
+	artifacts: [],
+	parameters: [],
+	requirements: []
+};
+
+export function issueResultsParams(args: GetIssueResultsArgs) {
+	return {
+		page: args.page,
+		page_size: args.pageSize,
+		results: listValued(args.results),
+		result_properties: listValued(args.resultProperties),
+		category: listValued(args.categories),
+		classification: listValued(args.classifications),
+		verdict: repeated(args.verdicts),
+		artifact: repeated(args.artifacts),
+		parameter: repeated(args.parameters),
+		requirements: listValued(args.requirements)
+	};
+}
+
 export function issueRulesParams(args: GetIssueRulesArgs) {
 	return {
 		project: args.projectId,
@@ -231,26 +281,46 @@ export const classificationEndpoints = {
 			providesTags: [BUBLIK_TAG.IssueRules, BUBLIK_TAG.Issues]
 		}),
 		/**
-		 * Every result stamped under an issue, across runs — the issue-scoped
-		 * twin of `getRunIssueResults`.
-		 *
-		 * Served by the plain result listing rather than an issue sub-route:
-		 * `ResultViewSet` takes an `issue` filter (a `;` list of ids), and its rows
-		 * already carry the `run_id` a cross-run view needs.
+		 * One page of the results stamped under an issue, across runs, narrowed
+		 * and paged by the server. The issue-scoped twin of
+		 * `getRunIssueResults`, which answers whole: an issue can stamp
+		 * thousands of results, one run only so many.
 		 */
-		getIssueResults: build.query<
-			RunDataResults[],
-			{ issueId: number; projectId?: number }
-		>({
-			query: ({ issueId, projectId }) => ({
-				url: withApiV2('/results'),
-				params: { issue: String(issueId), project: projectId },
+		getIssueResults: build.query<IssueResultsResponse, GetIssueResultsArgs>({
+			query: (args) => ({
+				url: withApiV2(`/issues/${args.issueId}/results`),
+				params: toSearchParams(issueResultsParams(args)),
 				cache: 'no-cache'
 			}),
-			transformResponse: (response: ResultListResponse) =>
-				unwrapResults(response),
+			transformResponse: (response: Partial<IssueResultsResponse>) => ({
+				pagination: response?.pagination ?? {
+					page: 1,
+					count: response?.results?.length ?? 0,
+					next: null,
+					previous: null
+				},
+				results: response?.results ?? []
+			}),
 			providesTags: [BUBLIK_TAG.ResultClassification]
 		}),
+		/**
+		 * The values each filter of `getIssueResults` can take over the issue's
+		 * results, unfiltered. They depend on the issue alone, so they are
+		 * fetched once per issue view rather than with every page.
+		 */
+		getIssueResultsFacets: build.query<IssueResultsFacets, { issueId: number }>(
+			{
+				query: ({ issueId }) => ({
+					url: withApiV2(`/issues/${issueId}/results/facets`),
+					cache: 'no-cache'
+				}),
+				transformResponse: (response: Partial<IssueResultsFacets>) => ({
+					...EMPTY_ISSUE_RESULTS_FACETS,
+					...response
+				}),
+				providesTags: [BUBLIK_TAG.ResultClassification]
+			}
+		),
 		getIssuePicker: build.query<
 			IssuePickerOption[],
 			{ projectId?: number; search?: string }

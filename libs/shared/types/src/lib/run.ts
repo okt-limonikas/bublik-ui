@@ -214,6 +214,16 @@ export const RunDataResultsSchema = z.object({
 	// `/`-joined package path including the test; '' when it can't be resolved,
 	// null when the result has no iteration. Optional: older servers omit it.
 	path: z.string().nullable().optional(),
+	// The run's tags, which the history links need. Sent by listings whose
+	// rows span runs, where fetching each run's details would be a request
+	// per run; a listing of one run leaves it out, and the details are asked
+	// for once.
+	run_tags: z
+		.object({
+			important_tags: z.array(z.string()),
+			relevant_tags: z.array(z.string())
+		})
+		.optional(),
 	// classification (Plan 2 read-side); optional for backward-compat
 	effective_expected: z.boolean().optional(),
 	issues: z.array(z.custom<ResultIssueRef>()).optional()
