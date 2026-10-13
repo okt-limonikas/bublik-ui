@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import { Badge, Tooltip, cn } from '@/shared/tailwind-ui';
+import { Badge, Tooltip, cn, useSidebar } from '@/shared/tailwind-ui';
 
 import { CLASSIFICATION_BADGE_CLASS } from '../classification/classification.constants';
 import { issueStateMeta } from '../classification/classification.utils';
@@ -11,6 +11,7 @@ export interface OpenIssueCountBadgeProps {
 	/** The sidebar item it sits on is the current page. */
 	isActive: boolean;
 	testId: string;
+	className?: string;
 }
 
 /**
@@ -22,9 +23,11 @@ export function OpenIssueCountBadge({
 	count,
 	tooltip,
 	isActive,
-	testId
+	testId,
+	className
 }: OpenIssueCountBadgeProps) {
 	const openMeta = issueStateMeta('open');
+	const { isSidebarOpen } = useSidebar();
 
 	return (
 		<Tooltip content={tooltip} side="right">
@@ -34,10 +37,13 @@ export function OpenIssueCountBadge({
 				// Sized like the toolbar filters' chips (`py-0 px-1.5 leading-4`),
 				// not the table cell's taller badge. On the current item it keeps
 				// the Open badge's hover border, so it holds up on the highlight.
+				// Faded out, like the labels, when the sidebar is collapsed.
 				className={cn(
 					CLASSIFICATION_BADGE_CLASS,
-					'ml-auto gap-1 py-0 px-1.5 leading-4 tabular-nums',
-					isActive && 'border-text-expected/40'
+					'ml-auto gap-1 py-0 px-1.5 leading-4 tabular-nums transition-opacity',
+					isActive && 'border-text-expected/40',
+					!isSidebarOpen && 'opacity-0',
+					className
 				)}
 				data-testid={testId}
 			>
