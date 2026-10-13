@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+import { ReactNode } from 'react';
+
 import { HistoryMode, RunDataResults } from '@/shared/types';
 import { usePrefetch } from '@/services/bublik-api';
 import { routes } from '@/router';
@@ -10,6 +12,9 @@ import { LogPreviewContainer } from '@/bublik/features/log-preview-drawer';
 import { LinkWithProject } from '@/bublik/features/projects';
 
 import { HistoryLinkContainer } from '@/bublik/features/history-link';
+
+// PROTOTYPE — remove with result-links.prototype.tsx
+import { useHistorySlotPrototype } from './result-links.prototype';
 
 export interface ResultLinksProps {
 	runId: string;
@@ -22,6 +27,8 @@ export interface ResultLinksProps {
 	onLinkClick?: (action: string) => void;
 	showLinkToRun?: boolean;
 	path?: string;
+	/** PROTOTYPE: replaces the History cell when set. */
+	historySlot?: ReactNode;
 }
 
 export const ResultLinks = (props: ResultLinksProps) => {
@@ -35,7 +42,8 @@ export const ResultLinks = (props: ResultLinksProps) => {
 		onMeasurementLinkMouseEnter,
 		onLinkClick,
 		showLinkToRun = false,
-		path
+		path,
+		historySlot
 	} = props;
 
 	return (
@@ -65,12 +73,14 @@ export const ResultLinks = (props: ResultLinksProps) => {
 					</LinkWithProject>
 				</li>
 				<li className="pl-0.5">
-					<HistoryLinkContainer
-						runId={Number(runId)}
-						result={result}
-						userPreferredHistoryMode={userPreferredHistoryMode}
-						path={path}
-					/>
+					{historySlot ?? (
+						<HistoryLinkContainer
+							runId={Number(runId)}
+							result={result}
+							userPreferredHistoryMode={userPreferredHistoryMode}
+							path={path}
+						/>
+					)}
 				</li>
 				{hasMeasurements && (
 					<li className="pl-2">
@@ -116,6 +126,8 @@ export interface ActionLinksProps {
 	result: RunDataResults;
 	showLinkToRun?: boolean;
 	path?: string;
+	/** PROTOTYPE: replaces the History cell when set. */
+	historySlot?: ReactNode;
 }
 
 export const ResultLinksContainer = (props: ActionLinksProps) => {
@@ -137,6 +149,13 @@ export const ResultLinksContainer = (props: ActionLinksProps) => {
 		prefetchResultInfo(resultId);
 	};
 
+	const historySlot = useHistorySlotPrototype({
+		runId: Number(runId),
+		result,
+		historyMode: userPreferences.history.defaultMode,
+		path
+	});
+
 	const handleLinkClick = (action: string) => {
 		trackEvent(analyticsEventNames.resultTableLinkClick, { action });
 	};
@@ -153,6 +172,7 @@ export const ResultLinksContainer = (props: ActionLinksProps) => {
 			showLinkToRun={showLinkToRun}
 			path={path}
 			onLinkClick={handleLinkClick}
+			historySlot={historySlot}
 		/>
 	);
 };

@@ -18,6 +18,8 @@ import {
 import { DiffFormContainer } from '@/bublik/features/run-diff';
 import { CopyShortUrlButtonContainer } from '@/bublik/features/copy-url';
 import { routes } from '@/router';
+// PROTOTYPE — remove with result-links.prototype.tsx
+import { PrototypeSwitcher } from '@/bublik/features/result-links';
 import { usePrefetchLogPage } from '@/services/bublik-api';
 import {
 	ButtonTw,
@@ -105,6 +107,7 @@ export const RunPage = () => {
 				<RunTableContainer runId={runId} />
 			</GlobalRequirementsProvider>
 			<ScrollToTopPage offset={158} />
+			<PrototypeSwitcher />
 		</div>
 	);
 };
