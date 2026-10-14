@@ -107,7 +107,7 @@ export const getColumns = ({
 	// it, with the result badge centred in that. The first line of the
 	// columns before it is given the same height, so the run link, the test
 	// name and the badge read as one line across the row.
-	const FIRST_LINE_CLASS = 'flex items-center min-h-[26px]';
+	const FIRST_LINE_CLASS = 'flex items-center pt-1';
 
 	const testColumn = helper.accessor((data) => data, {
 		header: 'Test',
@@ -121,7 +121,7 @@ export const getColumns = ({
 			// lose the leaf package, which is what tells tests apart. The path
 			// breaks only at its slashes, dimmed so the segments read as a trail.
 			return (
-				<div className="flex flex-col min-w-0 gap-1" title={rowPath || name}>
+				<div className="flex flex-col min-w-0" title={rowPath || name}>
 					<div className={FIRST_LINE_CLASS}>
 						<span className="min-w-0 font-medium">{name}</span>
 					</div>
