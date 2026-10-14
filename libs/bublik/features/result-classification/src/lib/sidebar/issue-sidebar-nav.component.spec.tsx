@@ -52,6 +52,15 @@ describe('the Issue sidebar entry', () => {
 		expect(screen.queryByTestId('issue-sidebar-bug-link')).toBeNull();
 	});
 
+	it('follows the Issue entry when the key is clicked', () => {
+		renderNav(true);
+
+		const link = screen.getByTestId('issue-sidebar-key').closest('a');
+		expect(link).not.toBeNull();
+		expect(link).toHaveAttribute('href', expect.stringMatching(/\/issues\/47/));
+		expect(link).toHaveAccessibleName(/^Issue\b/);
+	});
+
 	it('fades the key out when the sidebar is collapsed', () => {
 		renderNav(false);
 

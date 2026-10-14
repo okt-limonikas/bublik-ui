@@ -46,6 +46,8 @@ export interface UseRunSidebarStateReturn {
 	currentRunId: string | null;
 	/** The run every link and the issue count describe. */
 	activeRunId: string | null;
+	/** Its main package, once the details have loaded; empty until then. */
+	activeRunName: string;
 
 	detailsUrl: string;
 	reportUrl: string | null;
@@ -284,6 +286,7 @@ export function useRunSidebarState(): UseRunSidebarStateReturn {
 		lastMode,
 		currentRunId,
 		activeRunId,
+		activeRunName: runDetails?.main_package ?? '',
 		detailsUrl,
 		reportUrl,
 		issuesUrl,

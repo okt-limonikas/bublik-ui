@@ -5,7 +5,10 @@ import { useLocation, matchPath } from 'react-router-dom';
 
 import { Icon } from '@/shared/tailwind-ui';
 import { LinkWithProject } from '@/bublik/features/projects';
-import { OpenIssueCountBadge } from '@/bublik/features/result-classification';
+import {
+	OpenIssueCountBadge,
+	SidebarKeyBadge
+} from '@/bublik/features/result-classification';
 import {
 	SidebarNavLinkWrapper,
 	SidebarNavInternalLink,
@@ -37,6 +40,11 @@ function runOpenIssuesTooltip(openCount: number, totalCount: number): string {
 	return totalCount > openCount ? `${base}, of ${totalCount} in all` : base;
 }
 
+/** Names the run beside its number: the entry itself only says "Run". */
+function runKeyTooltip(runId: string, runName: string): string {
+	return runName ? `Run #${runId}: ${runName}` : `Run #${runId}`;
+}
+
 export function RunSidebarNav() {
 	const location = useLocation();
 	const {
@@ -48,6 +56,8 @@ export function RunSidebarNav() {
 		reportUrl,
 		issuesUrl,
 		mainLinkUrl,
+		activeRunId,
+		activeRunName,
 		isReportLoading,
 		isIssuesLoading,
 		issueCount,
@@ -89,6 +99,13 @@ export function RunSidebarNav() {
 					>
 						<SidebarNavInternalLink.Icon name="PieChart" />
 						<SidebarNavInternalLink.Label>Run</SidebarNavInternalLink.Label>
+						{activeRunId ? (
+							<SidebarKeyBadge
+								label={`#${activeRunId}`}
+								tooltip={runKeyTooltip(activeRunId, activeRunName)}
+								testId="run-sidebar-key"
+							/>
+						) : null}
 					</SidebarNavInternalLink>
 				</SidebarNavLinkWrapper>
 				<SidebarNavInfoButton disabled={!isMainLinkAvailable}>

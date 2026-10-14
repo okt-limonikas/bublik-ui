@@ -22,10 +22,10 @@ function countTooltip(count: number, singular: string, plural: string) {
 	return `${count} ${count === 1 ? singular : plural}`;
 }
 
-const RULES_PATTERN = { path: '/issues/:issueId' };
 const RESULTS_PATTERN = { path: '/issues/:issueId/results' };
+const RULES_PATTERN = { path: '/issues/:issueId' };
 
-const ISSUE_PATTERNS: ActivePattern[] = [RULES_PATTERN, RESULTS_PATTERN];
+const ISSUE_PATTERNS: ActivePattern[] = [RESULTS_PATTERN, RULES_PATTERN];
 
 // `/issues/rules` matches `/issues/:issueId` too; the digit check below keeps
 // the Issue entry quiet there, and these stand in for its patterns. A submenu
@@ -86,39 +86,17 @@ export function IssueSidebarNav() {
 					>
 						<SidebarNavInternalLink.Icon name="Paper" />
 						<SidebarNavInternalLink.Label>Issue</SidebarNavInternalLink.Label>
+						<IssueKeyBadge
+							bugKey={bugKey}
+							title={issueTitle}
+							closed={isIssueClosed}
+						/>
 					</SidebarNavInternalLink>
 				</SidebarNavLinkWrapper>
-				<IssueKeyBadge
-					bugKey={bugKey}
-					title={issueTitle}
-					closed={isIssueClosed}
-				/>
 				<SidebarNavToggle />
 			</SidebarNavCollapsibleContainer.Item>
 
 			<SidebarNavCollapsibleContainer.Submenu>
-				<SidebarNavSubmenuItemContainer
-					to={rulesUrl}
-					pattern={isIssueDetail ? RULES_PATTERN : NEVER_ACTIVE_PATTERN}
-					disabled={!isAvailable}
-					linkComponent={LinkWithProject}
-				>
-					<SidebarNavSubmenuItemContainer.Icon
-						name="SettingsSliders"
-						className="size-6"
-					/>
-					<SidebarNavSubmenuItemContainer.Label>
-						Rules
-					</SidebarNavSubmenuItemContainer.Label>
-					{ruleCount > 0 ? (
-						<SidebarCountBadge
-							count={ruleCount}
-							tooltip={countTooltip(ruleCount, 'rule', 'rules')}
-							isActive={isIssueDetail && !isResultsPage}
-							testId="issue-sidebar-rule-count"
-						/>
-					) : null}
-				</SidebarNavSubmenuItemContainer>
 				<SidebarNavSubmenuItemContainer
 					to={resultsUrl}
 					pattern={isIssueDetail ? RESULTS_PATTERN : NEVER_ACTIVE_PATTERN}
@@ -147,6 +125,28 @@ export function IssueSidebarNav() {
 							)}
 							isActive={isIssueDetail && isResultsPage}
 							testId="issue-sidebar-result-count"
+						/>
+					) : null}
+				</SidebarNavSubmenuItemContainer>
+				<SidebarNavSubmenuItemContainer
+					to={rulesUrl}
+					pattern={isIssueDetail ? RULES_PATTERN : NEVER_ACTIVE_PATTERN}
+					disabled={!isAvailable}
+					linkComponent={LinkWithProject}
+				>
+					<SidebarNavSubmenuItemContainer.Icon
+						name="SettingsSliders"
+						className="size-6"
+					/>
+					<SidebarNavSubmenuItemContainer.Label>
+						Rules
+					</SidebarNavSubmenuItemContainer.Label>
+					{ruleCount > 0 ? (
+						<SidebarCountBadge
+							count={ruleCount}
+							tooltip={countTooltip(ruleCount, 'rule', 'rules')}
+							isActive={isIssueDetail && !isResultsPage}
+							testId="issue-sidebar-rule-count"
 						/>
 					) : null}
 				</SidebarNavSubmenuItemContainer>
