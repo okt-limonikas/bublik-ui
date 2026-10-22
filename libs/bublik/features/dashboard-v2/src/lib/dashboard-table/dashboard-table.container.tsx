@@ -17,6 +17,7 @@ import {
 	useDashboardDate,
 	useDashboardReload,
 	useDashboardSearchTerm,
+	useDashboardTvMode,
 	usePrefetchNextAndPreviousDay
 } from '../hooks';
 import { renderSubrow } from '../subrow';
@@ -85,6 +86,7 @@ export const DashboardTableContainer = ({
 	const { date, setDate } = useDashboardDate(id);
 	const { isEnabled } = useDashboardReload();
 	const { term } = useDashboardSearchTerm();
+	const { isTvModeEnabled } = useDashboardTvMode();
 	const requestedDate = date || initialDate;
 	const currentQueryKey = getDashboardQueryKey({ requestedDate, projectIds });
 	const query = useGetDashboardByDateQuery(
@@ -156,6 +158,7 @@ export const DashboardTableContainer = ({
 			globalFilter={term || undefined}
 			context={displayData?.payload || {}}
 			error={tableError}
+			showExpand={!isTvModeEnabled}
 		/>
 	);
 };

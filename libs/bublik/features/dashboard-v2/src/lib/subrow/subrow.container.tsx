@@ -18,8 +18,11 @@ export const Subrow = ({ row, children }: PropsWithChildren<SubrowProps>) => {
 	return (
 		<>
 			<div
+				// Continues the status icon down the subrow, over the row border. It
+				// starts a row height (h-9) above, behind the icon, so the icon's
+				// rounded bottom corner has colour behind it instead of a notch.
 				className={cn(
-					'w-6 shrink-0 rounded-l-md absolute -left-px top-0 h-[calc(100%+1px)]',
+					'w-6 shrink-0 rounded-l-md absolute -left-px -top-9 h-[calc(100%+2.25rem+1px)]',
 					color,
 					bg
 				)}
