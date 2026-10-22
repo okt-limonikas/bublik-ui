@@ -205,7 +205,7 @@ function ImportEventsRefreshControl(props: ImportEventsRefreshControlProps) {
 							className="transition-[stroke-dashoffset] duration-300 ease-linear"
 						/>
 					</svg>
-					<span className="relative grid size-[18px] place-items-center rounded-full bg-white text-[0.625rem] font-semibold leading-none">
+					<span className="relative grid size-[18px] place-items-center rounded-full bg-bg-primary text-[0.625rem] font-semibold leading-none">
 						{isEnabled
 							? countdown.status === 'fetching'
 								? '...'
@@ -340,7 +340,7 @@ export const ImportEventsTableContainer = (props: PropsWithChildren) => {
 		);
 	return (
 		<>
-			<div className="px-6 py-4 bg-white rounded-t-xl">
+			<div className="px-6 py-4 bg-bg-primary rounded-t-xl">
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<ImportRunFilterForm
 						key={JSON.stringify(query)}

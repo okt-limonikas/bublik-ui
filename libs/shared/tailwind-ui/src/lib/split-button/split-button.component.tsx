@@ -27,7 +27,7 @@ const SplitButtonRoot = React.forwardRef<
 			ref={ref}
 			className={cn(
 				'inline-flex group items-center',
-				variant === 'outline' && 'border rounded-md',
+				variant === 'outline' && 'border border-border-input rounded-md',
 				variant === 'secondary' && 'bg-primary-wash',
 				className
 			)}
@@ -97,7 +97,7 @@ const SplitButtonContent = React.forwardRef<
 		<DropdownMenu.Content
 			ref={ref}
 			className={cn(
-				'z-[100] min-w-[220px] bg-white rounded-lg p-1 shadow-popover',
+				'z-[100] min-w-[220px] bg-bg-elevated rounded-lg p-1 shadow-popover',
 				'rdx-state-open:rdx-side-top:animate-slide-down-fade',
 				'rdx-state-open:rdx-side-right:animate-slide-left-fade',
 				'rdx-state-open:rdx-side-bottom:animate-slide-up-fade',
@@ -144,7 +144,15 @@ const SplitButtonSeparator = React.forwardRef<
 	React.ElementRef<typeof Separator>,
 	React.ComponentPropsWithoutRef<typeof Separator>
 >(({ className, ...props }, ref) => (
-	<Separator ref={ref} {...props} className={className} />
+	<Separator
+		ref={ref}
+		{...props}
+		// Between the two halves it is part of the control's outline
+		className={cn(
+			props.orientation === 'vertical' && 'bg-border-input',
+			className
+		)}
+	/>
 ));
 
 const SplitButton = Object.assign(SplitButtonRoot, {
