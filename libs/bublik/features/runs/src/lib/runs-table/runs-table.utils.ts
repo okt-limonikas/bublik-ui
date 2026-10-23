@@ -4,7 +4,9 @@ import { FilterFnOption } from '@tanstack/react-table';
 
 import { RunsData } from '@/shared/types';
 
-export const globalFilterFn: FilterFnOption<RunsData> = (
+import { RunsTableFeatures } from './runs-table.features';
+
+export const globalFilterFn: FilterFnOption<RunsTableFeatures, RunsData> = (
 	row,
 	columnId,
 	filterValue

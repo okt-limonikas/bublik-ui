@@ -6,12 +6,9 @@ import {
 	OnChangeFn,
 	TableState,
 	RowSelectionState,
-	useReactTable,
-	getCoreRowModel,
-	getPaginationRowModel,
+	useTable,
 	flexRender,
-	Row,
-	getSortedRowModel
+	Row
 } from '@tanstack/react-table';
 
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
@@ -21,6 +18,7 @@ import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import { columns } from './runs-table.columns';
 import { globalFilterFn } from './runs-table.utils';
+import { runsTableFeatures, RunsTableFeatures } from './runs-table.features';
 
 const getRowId = (runsData: RunsData) => runsData.id.toString();
 const MAX_SELECTION_NUMBER = 9999;
@@ -54,12 +52,13 @@ function RunsTable(props: RunsTableProps) {
 		selection
 	} = props;
 
-	const state = useMemo<Partial<TableState>>(
+	const state = useMemo<Partial<TableState<RunsTableFeatures>>>(
 		() => ({ pagination, globalFilter, rowSelection }),
 		[globalFilter, pagination, rowSelection]
 	);
 
-	const table = useReactTable<RunsData>({
+	const table = useTable({
+		features: runsTableFeatures,
 		data,
 		columns,
 		state,
@@ -68,15 +67,12 @@ function RunsTable(props: RunsTableProps) {
 		globalFilterFn,
 		onGlobalFilterChange,
 		getRowId,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 		manualPagination: true
 	});
 
-	const { pageIndex, pageSize } = table.getState().pagination;
+	const { pageIndex, pageSize } = table.state.pagination;
 
-	function handleRowClick(row: Row<RunsData>) {
+	function handleRowClick(row: Row<RunsTableFeatures, RunsData>) {
 		return (e: MouseEvent<HTMLTableRowElement>) => {
 			if (
 				e.target instanceof Element &&
@@ -86,7 +82,7 @@ function RunsTable(props: RunsTableProps) {
 				return;
 			}
 
-			const selectionState = table.getState().rowSelection;
+			const selectionState = table.atoms.rowSelection.get();
 			const selectionKeys = Object.keys(selectionState);
 			const isMaxLength = selectionKeys.length === MAX_SELECTION_NUMBER;
 
@@ -183,9 +179,9 @@ function RunsTable(props: RunsTableProps) {
 }
 
 interface RunsRowProps {
-	row: Row<RunsData>;
+	row: Row<RunsTableFeatures, RunsData>;
 	onRowClick: (
-		row: Row<RunsData>
+		row: Row<RunsTableFeatures, RunsData>
 	) => (e: MouseEvent<HTMLTableRowElement>) => void;
 }
 

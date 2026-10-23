@@ -3,7 +3,11 @@
 import { useCallback, useMemo } from 'react';
 import { sub } from 'date-fns';
 import { useDispatch, useSelector } from 'react-redux';
-import { OnChangeFn, PaginationState } from '@tanstack/react-table';
+import {
+	OnChangeFn,
+	PaginationState,
+	RowSelectionState
+} from '@tanstack/react-table';
 import { useRouter, type AnyRouter } from '@tanstack/react-router';
 
 import {
@@ -203,8 +207,10 @@ export const useRunsSelection = () => {
 		[searchStr]
 	);
 
-	const rowSelection = useMemo(() => {
-		return Object.fromEntries(selectedRunIds.map((id: string) => [id, true]));
+	const rowSelection = useMemo<RowSelectionState>(() => {
+		return Object.fromEntries(
+			selectedRunIds.map((id: string) => [id, true] as const)
+		);
 	}, [selectedRunIds]);
 
 	const compareIds = selectedRunIds;

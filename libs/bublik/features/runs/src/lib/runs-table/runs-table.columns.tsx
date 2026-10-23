@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { CellContext, ColumnDef, RowData } from '@tanstack/react-table';
+import { CellContext, ColumnDef } from '@tanstack/react-table';
+import type { CellData, RowData, TableFeatures } from '@tanstack/react-table';
 
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import {
@@ -15,19 +16,26 @@ import { config } from '@/bublik/config';
 import { RunsData, RunsStatisticData, RUN_STATUS } from '@/shared/types';
 
 import { DatesHeader, ColumnDates, RunLinks, ColumnSummary } from './columns';
+import { RunsTableFeatures } from './runs-table.features';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		className?: string;
 		headerClassName?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 const onGlobalFilter =
-	(cell: CellContext<RunsData, unknown>) => (badge: BadgeListItem) => {
+	(cell: CellContext<RunsTableFeatures, RunsData, unknown>) =>
+	(badge: BadgeListItem) => {
 		const table = cell.table;
-		const globalFilter: string[] = table.getState().globalFilter;
+		const globalFilter: string[] = table.atoms.globalFilter.get();
 		const isSelected = globalFilter.includes(badge.payload);
 		const nextFilter = isSelected
 			? globalFilter.filter((tag) => tag !== badge.payload)
@@ -42,7 +50,7 @@ const onGlobalFilter =
 		table.setGlobalFilter(nextFilter);
 	};
 
-export const columns: ColumnDef<RunsData>[] = [
+export const columns: ColumnDef<RunsTableFeatures, RunsData>[] = [
 	{
 		id: 'runStatus',
 		header: () => null,
@@ -128,7 +136,7 @@ export const columns: ColumnDef<RunsData>[] = [
 				/>
 			);
 		},
-		sortingFn: (a, b) =>
+		sortFn: (a, b) =>
 			a.original.stats.tests_total_nok - b.original.stats.tests_total_nok,
 		meta: { headerClassName: 'pl-1.5' }
 	},
@@ -144,7 +152,7 @@ export const columns: ColumnDef<RunsData>[] = [
 					className="bg-badge-6"
 					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-					selectedBadges={cell.table.getState().globalFilter}
+					selectedBadges={cell.table.atoms.globalFilter.get()}
 					onBadgeClick={onGlobalFilter(cell)}
 				/>
 			);
@@ -162,7 +170,7 @@ export const columns: ColumnDef<RunsData>[] = [
 					className="bg-badge-4 whitespace-nowrap"
 					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-					selectedBadges={cell.table.getState().globalFilter}
+					selectedBadges={cell.table.atoms.globalFilter.get()}
 					onBadgeClick={onGlobalFilter(cell)}
 				/>
 			);
@@ -179,7 +187,7 @@ export const columns: ColumnDef<RunsData>[] = [
 					badges={cell.getValue<BadgeListItem[]>()}
 					keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 					keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-					selectedBadges={cell.table.getState().globalFilter}
+					selectedBadges={cell.table.atoms.globalFilter.get()}
 					onBadgeClick={onGlobalFilter(cell)}
 				/>
 			);
