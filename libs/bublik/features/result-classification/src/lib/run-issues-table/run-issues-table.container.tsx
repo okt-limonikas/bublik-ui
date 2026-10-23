@@ -2,14 +2,7 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { useEffect, useMemo } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
-import {
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable
-} from '@tanstack/react-table';
+import { useTable } from '@tanstack/react-table';
 
 import { useIsScrollbarVisible } from '@/shared/hooks';
 import type { RunIssueRow } from '@/shared/types';
@@ -21,6 +14,7 @@ import {
 	useColumnVisibility
 } from '../classification-table/classification-table.hooks';
 import { KEY } from '../classification-table/classification-table.constants';
+import { classificationTableFeatures } from '../classification-table/classification-table.features';
 import { RunIssueResults } from '../issue-results-table/issue-results-table.container';
 import { getColumns } from './run-issues-table.columns';
 import {
@@ -90,7 +84,8 @@ export function RunIssuesTable({
 	const { stateOptions, effectOptions, categoryOptions } =
 		useFacetOptions(issues);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data: issues,
 		columns,
 		state: {
@@ -111,11 +106,6 @@ export function RunIssuesTable({
 		// the issues they name rather than as positions on a page.
 		getRowId: (row) => String(row.issue_id),
 		getRowCanExpand: () => true,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
 		// The page lives in the URL, and the state hook already sends it back to
 		// 1 on a filter or search change. TanStack's own reset fires whenever a
 		// row model recomputes, and a page change in the URL makes them

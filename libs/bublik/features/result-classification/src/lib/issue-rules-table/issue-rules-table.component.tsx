@@ -23,6 +23,7 @@ import {
 	ClassificationToolbar,
 	ClassificationToolbarSeparator
 } from '../classification-table/classification-table.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import {
 	facetControls,
 	type FacetOption
@@ -86,12 +87,14 @@ export function IssueRulesTableEmpty({
 }
 
 export interface IssueRulesTableViewProps {
-	table: Table<IssueRuleRow>;
+	table: Table<ClassificationTableFeatures, IssueRuleRow>;
 	scrollRef: RefObject<HTMLDivElement>;
 	/** Measures the room the table has, which decides how many columns fit. */
 	widthRef: (node: HTMLDivElement | null) => void;
 	isScrollable: boolean;
-	renderSubRow?: (row: Row<IssueRuleRow>) => ReactNode;
+	renderSubRow?: (
+		row: Row<ClassificationTableFeatures, IssueRuleRow>
+	) => ReactNode;
 	showIssue: boolean;
 	/** Every project at once: the rows sit under one heading per project. */
 	groupByProject: boolean;
@@ -138,7 +141,7 @@ export function IssueRulesTableView({
 }: IssueRulesTableViewProps) {
 	const facets = facetControls(table);
 
-	const { pagination } = table.getState();
+	const pagination = table.atoms.pagination.get();
 	const rows = table.getRowModel().rows;
 
 	function scrollToTop() {

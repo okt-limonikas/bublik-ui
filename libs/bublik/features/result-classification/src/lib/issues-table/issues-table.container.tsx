@@ -1,14 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { useEffect, useMemo } from 'react';
-import {
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getGroupedRowModel,
-	getSortedRowModel,
-	useReactTable
-} from '@tanstack/react-table';
+import { useTable } from '@tanstack/react-table';
 
 import { useIsScrollbarVisible } from '@/shared/hooks';
 import {
@@ -25,6 +18,7 @@ import {
 	useGroupedExpanded
 } from '../classification-table/classification-table.hooks';
 import { KEY } from '../classification-table/classification-table.constants';
+import { classificationTableFeatures } from '../classification-table/classification-table.features';
 import { getColumns } from './issues-table.columns';
 import {
 	IssuesTableEmpty,
@@ -129,7 +123,8 @@ export function IssuesTable({
 		facets
 	);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data: rows,
 		columns,
 		state: {
@@ -151,12 +146,7 @@ export function IssuesTable({
 		manualPagination: true,
 		getRowId: (row) => String(row.id),
 		getRowCanExpand: (row) => row.getIsGrouped(),
-		autoResetExpanded: false,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getGroupedRowModel: getGroupedRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getExpandedRowModel: getExpandedRowModel()
+		autoResetExpanded: false
 	});
 
 	const pageCount = table.getPageCount();

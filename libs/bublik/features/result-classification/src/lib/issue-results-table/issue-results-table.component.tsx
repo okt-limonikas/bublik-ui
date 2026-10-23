@@ -10,10 +10,11 @@ import {
 	ClassificationTable,
 	useSubRowPin
 } from '../classification-table/classification-table.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import type { ResultRow } from './issue-results-table.types';
 
 export interface IssueResultsTableProps {
-	table: Table<ResultRow>;
+	table: Table<ClassificationTableFeatures, ResultRow>;
 	/**
 	 * The scroller this table lives in, when it is a sub-row of another table.
 	 * With it, the header pins under the outer table's header while the

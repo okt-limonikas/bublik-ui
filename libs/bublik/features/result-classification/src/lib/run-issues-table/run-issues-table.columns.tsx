@@ -21,6 +21,7 @@ import {
 	DescriptionCell,
 	DESCRIPTION_COLUMN_META
 } from '../classification/description-cell.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import {
 	facetControls,
 	someOfFilter
@@ -44,7 +45,7 @@ import { searchFilter } from './run-issues-table.utils';
  */
 export function getColumns(
 	projectId?: number
-): ColumnDef<RunIssueRow, unknown>[] {
+): ColumnDef<ClassificationTableFeatures, RunIssueRow, unknown>[] {
 	return [
 		{
 			id: COLUMN_ID.STATUS,

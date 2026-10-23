@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { Table } from '@tanstack/react-table';
+import type { RowData, Table } from '@tanstack/react-table';
 
 import { ColumnsVisibility } from '@/shared/tailwind-ui';
 
 import { columnPickerItems } from './classification-table.component';
+import type { ClassificationTableFeatures } from './classification-table.features';
 
-export interface ClassificationColumnsPickerProps<T> {
-	table: Table<T>;
+export interface ClassificationColumnsPickerProps<T extends RowData> {
+	table: Table<ClassificationTableFeatures, T>;
 	columnOrder: readonly string[];
 	onColumnOrderChange: (order: string[]) => void;
 }
@@ -17,7 +18,7 @@ export interface ClassificationColumnsPickerProps<T> {
  * shows and orders the columns, listed in the table's own left-to-right order
  * so dragging a row up moves the column left.
  */
-export function ClassificationColumnsPicker<T>({
+export function ClassificationColumnsPicker<T extends RowData>({
 	table,
 	columnOrder,
 	onColumnOrderChange

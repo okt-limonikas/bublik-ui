@@ -32,6 +32,7 @@ import type { RunIssueEffect } from '../classification/classification.types';
 import { withFacetBadges } from '../classification/facet-badges.component';
 import { CategoryPresetButtons } from '../classification-table/category-preset-buttons.component';
 import { ClassificationColumnsPicker } from '../classification-table/columns-picker.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import { facetControls } from '../classification-table/classification-table.utils';
 import type { FacetOption } from '../classification-table/classification-table.utils';
 import { COLUMN_ID, PINNED_COLUMNS } from './run-issues-table.constants';
@@ -61,7 +62,7 @@ export function RunIssuesTableEmpty() {
 }
 
 export interface RunIssuesTableViewProps {
-	table: Table<RunIssueRow>;
+	table: Table<ClassificationTableFeatures, RunIssueRow>;
 	scrollRef: RefObject<HTMLDivElement>;
 	isScrollable: boolean;
 	columnOrder: string[];
@@ -75,7 +76,9 @@ export interface RunIssuesTableViewProps {
 	onResetFilters: () => void;
 	toolbarActions?: ReactNode;
 	totalCount: number;
-	renderSubRow: (row: Row<RunIssueRow>) => ReactNode;
+	renderSubRow: (
+		row: Row<ClassificationTableFeatures, RunIssueRow>
+	) => ReactNode;
 }
 
 export function RunIssuesTableView({
@@ -103,7 +106,7 @@ export function RunIssuesTableView({
 		[categoryOptions]
 	);
 
-	const { pagination } = table.getState();
+	const pagination = table.atoms.pagination.get();
 	const rows = table.getRowModel().rows;
 	const matchedCount = table.getFilteredRowModel().rows.length;
 

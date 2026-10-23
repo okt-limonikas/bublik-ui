@@ -2,13 +2,7 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import {
-	getCoreRowModel,
-	getExpandedRowModel,
-	getGroupedRowModel,
-	useReactTable,
-	type ColumnDef
-} from '@tanstack/react-table';
+import { useTable, type ColumnDef } from '@tanstack/react-table';
 
 import { TooltipProvider } from '@/shared/tailwind-ui';
 
@@ -18,6 +12,10 @@ import {
 	ClassificationTable,
 	columnPickerItems
 } from './classification-table.component';
+import {
+	classificationTableFeatures,
+	type ClassificationTableFeatures
+} from './classification-table.features';
 import { useGroupedExpanded } from './classification-table.hooks';
 import { groupRowId } from './classification-table.utils';
 
@@ -46,7 +44,7 @@ const DATA: Row[] = [
 ];
 
 // Sorting off: this spec is about track and cell counts.
-const COLUMNS: ColumnDef<Row, unknown>[] = [
+const COLUMNS: ColumnDef<ClassificationTableFeatures, Row, unknown>[] = [
 	{
 		id: 'name',
 		header: 'Name',
@@ -62,7 +60,7 @@ const COLUMNS: ColumnDef<Row, unknown>[] = [
 	}
 ];
 
-const PROJECT_COLUMN: ColumnDef<Row, unknown> = {
+const PROJECT_COLUMN: ColumnDef<ClassificationTableFeatures, Row, unknown> = {
 	id: 'project',
 	header: 'Project',
 	accessorFn: (row) => row.project,
@@ -78,11 +76,11 @@ function Harness({
 	endGutter?: boolean;
 	gutterBefore?: readonly string[];
 }) {
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data: DATA.slice(0, 2),
 		columns: COLUMNS,
-		getRowId: (row) => String(row.id),
-		getCoreRowModel: getCoreRowModel()
+		getRowId: (row) => String(row.id)
 	});
 
 	return (
@@ -99,7 +97,8 @@ function GroupedHarness({ endGutter }: { endGutter?: boolean }) {
 		'project',
 		DATA.map((row) => row.project)
 	);
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data: DATA,
 		columns: [...COLUMNS, PROJECT_COLUMN],
 		state: {
@@ -110,10 +109,7 @@ function GroupedHarness({ endGutter }: { endGutter?: boolean }) {
 		onExpandedChange: setExpanded,
 		autoResetExpanded: false,
 		getRowId: (row) => String(row.id),
-		getRowCanExpand: (row) => row.getIsGrouped(),
-		getCoreRowModel: getCoreRowModel(),
-		getGroupedRowModel: getGroupedRowModel(),
-		getExpandedRowModel: getExpandedRowModel()
+		getRowCanExpand: (row) => row.getIsGrouped()
 	});
 
 	return (
@@ -280,12 +276,12 @@ describe('ClassificationTable', () => {
 
 describe('columnPickerItems', () => {
 	function PickerHarness({ order }: { order: string[] }) {
-		const table = useReactTable({
+		const table = useTable({
+			features: classificationTableFeatures,
 			data: DATA,
 			columns: [...COLUMNS, PROJECT_COLUMN],
 			state: { columnOrder: order, columnVisibility: { state: false } },
-			getRowId: (row) => String(row.id),
-			getCoreRowModel: getCoreRowModel()
+			getRowId: (row) => String(row.id)
 		});
 
 		return (

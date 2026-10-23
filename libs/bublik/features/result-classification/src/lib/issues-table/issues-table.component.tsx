@@ -22,6 +22,7 @@ import {
 	ClassificationToolbar,
 	ClassificationToolbarSeparator
 } from '../classification-table/classification-table.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import {
 	facetControls,
 	type FacetOption
@@ -75,7 +76,7 @@ export function IssuesTableEmpty({
 }
 
 export interface IssuesTableViewProps {
-	table: Table<IssueTableRow>;
+	table: Table<ClassificationTableFeatures, IssueTableRow>;
 	scrollRef: RefObject<HTMLDivElement>;
 	isScrollable: boolean;
 	columnOrder: string[];
@@ -109,7 +110,7 @@ export function IssuesTableView({
 }: IssuesTableViewProps) {
 	const facets = facetControls(table);
 
-	const { pagination } = table.getState();
+	const pagination = table.atoms.pagination.get();
 	const visibleRows = table.getRowModel().rows;
 
 	function scrollToTop() {

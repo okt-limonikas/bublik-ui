@@ -3,15 +3,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ReactNode, forwardRef } from 'react';
-import {
-	flexRender,
-	getCoreRowModel,
-	useReactTable
-} from '@tanstack/react-table';
+import { flexRender, useTable } from '@tanstack/react-table';
 
 import { TooltipProvider } from '@/shared/tailwind-ui';
 import type { Issue, IssueState } from '@/shared/types';
 
+import { classificationTableFeatures } from '../classification-table/classification-table.features';
 import { COLUMN_ID } from './issues-table.constants';
 import type { IssueTableRow } from './issues-table.types';
 import { buildRows } from './issues-table.utils';
@@ -71,10 +68,10 @@ function issueRow(id: number, state: IssueState): IssueTableRow {
 
 /** Renders only the Key column's cells, one per row. */
 function KeyColumn({ data }: { data: IssueTableRow[] }) {
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data,
-		columns: getColumns().filter((column) => column.id === COLUMN_ID.KEY),
-		getCoreRowModel: getCoreRowModel()
+		columns: getColumns().filter((column) => column.id === COLUMN_ID.KEY)
 	});
 
 	return (

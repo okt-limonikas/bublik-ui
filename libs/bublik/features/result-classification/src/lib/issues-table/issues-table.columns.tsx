@@ -22,6 +22,7 @@ import {
 	DescriptionCell,
 	DESCRIPTION_COLUMN_META
 } from '../classification/description-cell.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import {
 	facetControls,
 	someOfFilter
@@ -42,7 +43,11 @@ import { searchFilter } from './issues-table.utils';
  * room on the right. Actions close the row, flush with the right edge past
  * the gutter that takes the surplus width.
  */
-export function getColumns(): ColumnDef<IssueTableRow, unknown>[] {
+export function getColumns(): ColumnDef<
+	ClassificationTableFeatures,
+	IssueTableRow,
+	unknown
+>[] {
 	return [
 		{
 			id: COLUMN_ID.STATUS,

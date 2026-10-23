@@ -3,6 +3,7 @@
 import { Fragment } from 'react';
 import { flexRender, type Row } from '@tanstack/react-table';
 
+import type { ClassificationTableFeatures } from '../../classification-table/classification-table.features';
 import { DETAIL_COLUMN_IDS } from '../issue-rules-table.constants';
 import type { IssueRuleRow } from '../issue-rules-table.types';
 
@@ -14,7 +15,11 @@ import type { IssueRuleRow } from '../issue-rules-table.types';
  * they have in the wide layout. `getAllCells` rather than `getVisibleCells`
  * because these are precisely the columns that are currently hidden.
  */
-export function RuleDetail({ row }: { row: Row<IssueRuleRow> }) {
+export function RuleDetail({
+	row
+}: {
+	row: Row<ClassificationTableFeatures, IssueRuleRow>;
+}) {
 	const cells = row
 		.getAllCells()
 		.filter(

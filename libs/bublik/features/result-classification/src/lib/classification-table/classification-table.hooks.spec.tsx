@@ -2,7 +2,7 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 
 import {
 	renderHookWithRouter,
@@ -344,19 +344,19 @@ describe('useClassificationTableState', () => {
 	});
 });
 
-const WIDE_DEFAULTS: VisibilityState = { active: false };
-const COMPACT_DEFAULTS: VisibilityState = {
+const WIDE_DEFAULTS: ColumnVisibilityState = { active: false };
+const COMPACT_DEFAULTS: ColumnVisibilityState = {
 	active: false,
 	tags: false,
 	verdicts: false
 };
 
 function setupVisibility(
-	defaults: VisibilityState = WIDE_DEFAULTS,
+	defaults: ColumnVisibilityState = WIDE_DEFAULTS,
 	initialEntry = '/rules'
 ) {
 	return renderHookWithRouter(
-		({ defaults: current }: { defaults: VisibilityState }) => ({
+		({ defaults: current }: { defaults: ColumnVisibilityState }) => ({
 			visibility: useColumnVisibility('spec', current, { queryKey: 'cols' })
 		}),
 		{ ...urlOptions(initialEntry), initialProps: { defaults } }

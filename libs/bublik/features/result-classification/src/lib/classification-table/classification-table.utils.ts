@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import type { ReactNode } from 'react';
-import type { FilterFn, Row, Table } from '@tanstack/react-table';
+import type { FilterFn, Row, RowData, Table } from '@tanstack/react-table';
 
-export function someOfFilter<T>(
-	row: Row<T>,
+import type { ClassificationTableFeatures } from './classification-table.features';
+
+export function someOfFilter<T extends RowData>(
+	row: Row<ClassificationTableFeatures, T>,
 	columnId: string,
 	filterValue: unknown
 ): boolean {
@@ -17,10 +19,10 @@ export function someOfFilter<T>(
 	return values.some((v) => selected.includes(String(v)));
 }
 
-export function makeSearchFilter<T>(
+export function makeSearchFilter<T extends RowData>(
 	haystack: (row: T) => (string | number | null | undefined)[]
-): FilterFn<T> {
-	return (row: Row<T>, _columnId, filterValue) => {
+): FilterFn<ClassificationTableFeatures, T> {
+	return (row: Row<ClassificationTableFeatures, T>, _columnId, filterValue) => {
 		const query = String(filterValue ?? '')
 			.trim()
 			.toLowerCase();
@@ -184,7 +186,9 @@ export function groupRowId(columnId: string, value: unknown): string {
 	return `${columnId}:${String(value)}`;
 }
 
-export function facetControls<T>(table: Table<T>) {
+export function facetControls<T extends RowData>(
+	table: Table<ClassificationTableFeatures, T>
+) {
 	const values = (columnId: string) =>
 		(table.getColumn(columnId)?.getFilterValue() as string[] | undefined) ?? [];
 

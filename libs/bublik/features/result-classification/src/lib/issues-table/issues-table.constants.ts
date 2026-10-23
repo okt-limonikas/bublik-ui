@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 
 import { defineClassificationSearch } from '../classification-table/classification-table.search';
 
@@ -53,7 +53,7 @@ export const PINNED_COLUMNS = {
 	last: [COLUMN_ID.ACTIONS]
 } as const;
 
-export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+export const DEFAULT_COLUMN_VISIBILITY: ColumnVisibilityState = {
 	[COLUMN_ID.PROJECT]: false,
 	[COLUMN_ID.CREATED]: false
 };

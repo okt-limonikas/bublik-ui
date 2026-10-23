@@ -15,9 +15,11 @@ import {
 } from 'react';
 import {
 	flexRender,
+	type CellData,
 	type Row,
 	type RowData,
-	type Table
+	type Table,
+	type TableFeatures
 } from '@tanstack/react-table';
 
 import { useDebounce } from '@/shared/hooks';
@@ -30,6 +32,7 @@ import {
 	type ColumnVisibilityItem
 } from '@/shared/tailwind-ui';
 
+import type { ClassificationTableFeatures } from './classification-table.features';
 import {
 	useElementHeight,
 	useHasScrolledPast,
@@ -37,14 +40,19 @@ import {
 } from './classification-table.hooks';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		width?: string;
 		badgeCell?: boolean;
 		className?: string;
 		headerClassName?: string;
 		cellClassName?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 const DEFAULT_TRACK = 'minmax(0, 1fr)';
@@ -130,8 +138,8 @@ function GutterCell({
 
 export type ClassificationTableVariant = 'card' | 'nested';
 
-export interface ClassificationTableProps<T> {
-	table: Table<T>;
+export interface ClassificationTableProps<T extends RowData> {
+	table: Table<ClassificationTableFeatures, T>;
 	variant?: ClassificationTableVariant;
 	stickyHeader?: boolean;
 	/**
@@ -177,21 +185,24 @@ export interface ClassificationTableProps<T> {
 	 */
 	gutterBefore?: readonly string[];
 	scrollRef?: RefObject<HTMLElement>;
-	renderSubRow?: (row: Row<T>) => ReactNode;
-	getRowAttributes?: (row: Row<T>) => Record<string, string | number>;
+	renderSubRow?: (row: Row<ClassificationTableFeatures, T>) => ReactNode;
+	getRowAttributes?: (
+		row: Row<ClassificationTableFeatures, T>
+	) => Record<string, string | number>;
 	/**
 	 * What a grouped row (`row.getIsGrouped()`) shows in its full-width heading.
 	 *
-	 * Grouping itself is the table's: give `useReactTable` a `grouping` state,
-	 * `getGroupedRowModel` and `getExpandedRowModel`, and the row model carries
-	 * one grouped row per bucket followed by its leaf rows while it is expanded.
+	 * Grouping itself is the table's: give `useTable` a `grouping` state (the
+	 * shared features carry the grouped and expanded row models), and the row
+	 * model carries one grouped row per bucket followed by its leaf rows while
+	 * it is expanded.
 	 * Its `subRows` are the bucket's rows in the table's sort order.
 	 */
-	renderGroupHeader?: (row: Row<T>) => ReactNode;
+	renderGroupHeader?: (row: Row<ClassificationTableFeatures, T>) => ReactNode;
 	testId?: string;
 }
 
-export function ClassificationTable<T>({
+export function ClassificationTable<T extends RowData>({
 	table,
 	variant = 'card',
 	stickyHeader = false,
@@ -389,8 +400,8 @@ export function ClassificationTable<T>({
 	);
 }
 
-interface GroupHeaderRowProps<T> {
-	row: Row<T>;
+interface GroupHeaderRowProps<T extends RowData> {
+	row: Row<ClassificationTableFeatures, T>;
 	sticky: boolean;
 	scrollRef?: RefObject<HTMLElement>;
 	children: ReactNode;
@@ -404,7 +415,7 @@ interface GroupHeaderRowProps<T> {
  * folds its rows away on request: a long "all projects" page is easier to
  * read one project at a time.
  */
-function GroupHeaderRow<T>({
+function GroupHeaderRow<T extends RowData>({
 	row,
 	sticky,
 	scrollRef,
@@ -474,12 +485,12 @@ function GroupHeaderRow<T>({
 	);
 }
 
-interface ClassificationRowProps<T> {
-	row: Row<T>;
+interface ClassificationRowProps<T extends RowData> {
+	row: Row<ClassificationTableFeatures, T>;
 	variant: ClassificationTableVariant;
 	/** The index of the gutter track among the row's cells; `-1` for none. */
 	gutterAt?: number;
-	renderSubRow?: (row: Row<T>) => ReactNode;
+	renderSubRow?: (row: Row<ClassificationTableFeatures, T>) => ReactNode;
 	attributes?: Record<string, string | number>;
 	scrollRef?: RefObject<HTMLElement>;
 	/** Where the sub-row is uncovered with the row scrolled away: under the header. */
@@ -488,7 +499,7 @@ interface ClassificationRowProps<T> {
 	pinExpanded?: boolean;
 }
 
-function ClassificationRow<T>({
+function ClassificationRow<T extends RowData>({
 	row,
 	variant,
 	gutterAt = -1,
@@ -781,8 +792,8 @@ export function ClassificationToolbarSeparator() {
  * hidden — the stripe, the expander, Actions — are pinned in place and left
  * out, so nothing in the list can be dragged somewhere the table would refuse.
  */
-export function columnPickerItems<T>(
-	table: Table<T>,
+export function columnPickerItems<T extends RowData>(
+	table: Table<ClassificationTableFeatures, T>,
 	columnOrder: readonly string[]
 ): ColumnVisibilityItem[] {
 	// The order can name columns this table does not have right now — the rules

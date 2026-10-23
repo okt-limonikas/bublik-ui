@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 
 import { DEFAULT_PAGE_SIZE } from '../classification-table/classification-table.constants';
 import { defineClassificationSearch } from '../classification-table/classification-table.search';
@@ -42,7 +42,7 @@ export const PINNED_COLUMNS = {
  * Effect On Run starts hidden: the stripe already carries it, in colour, and
  * its toolbar filter keeps working either way.
  */
-export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+export const DEFAULT_COLUMN_VISIBILITY: ColumnVisibilityState = {
 	[COLUMN_ID.EFFECT]: false
 };
 

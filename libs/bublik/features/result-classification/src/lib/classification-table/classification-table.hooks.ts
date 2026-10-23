@@ -9,7 +9,7 @@ import type {
 	OnChangeFn,
 	PaginationState,
 	SortingState,
-	VisibilityState
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 
 import { useAnySearch, useSearchWriter } from '@/router';
@@ -259,14 +259,14 @@ const COLUMNS_CODEC = columnOverrides();
 /** The column ids, left to right, as the `order` key spells them. */
 const ORDER_CODEC = idList();
 
-const NO_OVERRIDES: VisibilityState = {};
+const NO_OVERRIDES: ColumnVisibilityState = {};
 
 /** The columns whose visibility differs from what `defaults` would give them. */
 function diffVisibility(
-	state: VisibilityState,
-	defaults: VisibilityState
-): VisibilityState {
-	const overrides: VisibilityState = {};
+	state: ColumnVisibilityState,
+	defaults: ColumnVisibilityState
+): ColumnVisibilityState {
+	const overrides: ColumnVisibilityState = {};
 
 	for (const [id, visible] of Object.entries(state)) {
 		// A column missing from a visibility state is visible.
@@ -276,7 +276,7 @@ function diffVisibility(
 	return overrides;
 }
 
-function hasOverrides(overrides: VisibilityState) {
+function hasOverrides(overrides: ColumnVisibilityState) {
 	return Object.keys(overrides).length > 0;
 }
 
@@ -295,13 +295,13 @@ function hasOverrides(overrides: VisibilityState) {
  */
 export function useColumnVisibility(
 	tableKey: string,
-	defaults: VisibilityState,
+	defaults: ColumnVisibilityState,
 	options: { queryKey?: string } = {}
-): [VisibilityState, OnChangeFn<VisibilityState>] {
+): [ColumnVisibilityState, OnChangeFn<ColumnVisibilityState>] {
 	const { queryKey } = options;
 
 	const [storedOverrides, setStoredOverrides] =
-		useLocalStorage<VisibilityState>(
+		useLocalStorage<ColumnVisibilityState>(
 			`bublik.columns.${tableKey}`,
 			NO_OVERRIDES
 		);
@@ -323,7 +323,7 @@ export function useColumnVisibility(
 		[defaultsToken, overridesToken]
 	);
 
-	const setColumnVisibility = useCallback<OnChangeFn<VisibilityState>>(
+	const setColumnVisibility = useCallback<OnChangeFn<ColumnVisibilityState>>(
 		(updaterOrValue) => {
 			const next =
 				typeof updaterOrValue === 'function'

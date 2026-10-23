@@ -2,16 +2,13 @@
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
 import { useMemo } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
-import {
-	getCoreRowModel,
-	getSortedRowModel,
-	useReactTable
-} from '@tanstack/react-table';
+import { useTable } from '@tanstack/react-table';
 
 import {
 	useGetIssueResultsQuery,
 	useGetRunIssueResultsQuery
 } from '@/services/bublik-api';
+import { classificationTableFeatures } from '../classification-table/classification-table.features';
 import { getColumns } from './issue-results-table.columns';
 import {
 	IssueResultsTable,
@@ -51,12 +48,14 @@ export function IssueResults({
 		[runId, renderResultPreview]
 	);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: classificationTableFeatures,
 		data: results,
 		columns,
 		getRowId: (row) => String(row.result_id),
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel()
+		// One list, every result at once: the shared features paginate, this
+		// table does not.
+		manualPagination: true
 	});
 
 	if (isLoading || (isRunScoped && projectId === undefined)) {

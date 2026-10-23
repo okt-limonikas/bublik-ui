@@ -20,6 +20,7 @@ import {
 	IssueStateBadge,
 	RuleActiveBadge
 } from '../classification/classification-badges.component';
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import { facetControls } from '../classification-table/classification-table.utils';
 import { ISSUE_ACTIONS_COLUMN_META } from '../issue-detail/issue-actions.constants';
 import { chipsForRule } from '../rule-form/match-scope.utils';
@@ -38,7 +39,11 @@ import {
 	ruleVerdictsKey
 } from './issue-rules-table.utils';
 
-const KEY_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const KEY_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.KEY,
 	accessorFn: (row) => row.bugKey ?? '',
 	header: 'Key',
@@ -55,7 +60,11 @@ const KEY_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const ISSUE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const ISSUE_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.ISSUE,
 	accessorFn: (row) => row.issueTitle,
 	header: 'Issue',
@@ -73,7 +82,11 @@ const ISSUE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const TEST_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const TEST_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.TEST,
 	accessorFn: (row) => row.test_name,
 	header: 'Test',
@@ -91,7 +104,11 @@ const TEST_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const SCOPE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const SCOPE_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.SCOPE,
 	header: 'Match Scope',
 	meta: { width: COLUMN_WIDTH[COLUMN_ID.SCOPE] },
@@ -113,7 +130,11 @@ const SCOPE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	}
 };
 
-const DISPOSITION_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const DISPOSITION_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.DISPOSITION,
 	accessorFn: (row) => dispositionKey(row.expected),
 	header: 'Disposition',
@@ -130,7 +151,11 @@ const DISPOSITION_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const CATEGORY_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const CATEGORY_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.CATEGORY,
 	accessorFn: (row) => row.category,
 	header: 'Category',
@@ -147,7 +172,11 @@ const CATEGORY_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const PARAMETERS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const PARAMETERS_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.PARAMETERS,
 	accessorFn: (row) => ruleParameterValues(row),
 	header: 'Parameters',
@@ -164,7 +193,11 @@ const PARAMETERS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const VERDICTS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const VERDICTS_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.VERDICTS,
 	accessorFn: (row) => row.verdicts ?? [],
 	header: 'Verdicts',
@@ -184,7 +217,11 @@ const VERDICTS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const TAGS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const TAGS_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.TAGS,
 	accessorFn: (row) => ruleTagValues(row),
 	header: 'Tags',
@@ -201,7 +238,11 @@ const TAGS_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const ACTIVE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const ACTIVE_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.ACTIVE,
 	accessorFn: (row) => String(row.active),
 	header: 'Active',
@@ -218,7 +259,11 @@ const ACTIVE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	)
 };
 
-const ISSUE_STATE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const ISSUE_STATE_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.ISSUE_STATE,
 	accessorFn: (row) => row.issueState ?? '',
 	header: 'State',
@@ -242,7 +287,11 @@ const ISSUE_STATE_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
  * `DEFAULT_COLUMN_VISIBILITY` — `enableHiding: false` keeps it out of the
  * picker rather than pinning it on.
  */
-const PROJECT_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const PROJECT_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.PROJECT,
 	accessorFn: (row) => row.project,
 	header: 'Project',
@@ -251,7 +300,11 @@ const PROJECT_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 	enableGrouping: true
 };
 
-const EXPANDER_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
+const EXPANDER_COLUMN: ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+> = {
 	id: COLUMN_ID.EXPANDER,
 	enableHiding: false,
 	enableSorting: false,
@@ -290,7 +343,11 @@ const EXPANDER_COLUMN: ColumnDef<IssueRuleRow, unknown> = {
 export function getColumns({
 	showIssue,
 	compact
-}: GetColumnsArgs): ColumnDef<IssueRuleRow, unknown>[] {
+}: GetColumnsArgs): ColumnDef<
+	ClassificationTableFeatures,
+	IssueRuleRow,
+	unknown
+>[] {
 	return [
 		{
 			id: COLUMN_ID.STATUS,

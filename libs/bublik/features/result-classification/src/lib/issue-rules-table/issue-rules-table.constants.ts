@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 
 import { defineClassificationSearch } from '../classification-table/classification-table.search';
 
@@ -108,7 +108,7 @@ export const PINNED_COLUMNS = {
  * column stays for anyone who wants it spelled out, and its filter keeps
  * working either way. Project never shows; it is the grouping column.
  */
-export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+export const DEFAULT_COLUMN_VISIBILITY: ColumnVisibilityState = {
 	[COLUMN_ID.PROJECT]: false,
 	[COLUMN_ID.DISPOSITION]: false,
 	[COLUMN_ID.TAGS]: false,
@@ -128,7 +128,7 @@ export const DETAIL_COLUMN_IDS: string[] = [
 ];
 
 /** What `DEFAULT_COLUMN_VISIBILITY` becomes once the table runs out of room. */
-export const COMPACT_COLUMN_VISIBILITY: VisibilityState = {
+export const COMPACT_COLUMN_VISIBILITY: ColumnVisibilityState = {
 	...DEFAULT_COLUMN_VISIBILITY,
 	...Object.fromEntries(DETAIL_COLUMN_IDS.map((id) => [id, false]))
 };

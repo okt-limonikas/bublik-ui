@@ -6,6 +6,7 @@ import { LinkWithProject } from '@/bublik/features/projects';
 import { HistoryLinkContainer } from '@/bublik/features/history-link';
 import { ButtonTw, Icon, VerdictList } from '@/shared/tailwind-ui';
 
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import type {
 	RenderResultPreview,
 	ResultRow
@@ -73,7 +74,7 @@ function ResultLinks({ runId, row, renderPreview }: ResultLinksProps) {
 export function getColumns(
 	runId?: number | string,
 	renderPreview?: RenderResultPreview
-): ColumnDef<ResultRow, unknown>[] {
+): ColumnDef<ClassificationTableFeatures, ResultRow, unknown>[] {
 	return [
 		{
 			id: 'links',

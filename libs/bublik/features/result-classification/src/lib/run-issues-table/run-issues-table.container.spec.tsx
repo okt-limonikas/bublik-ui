@@ -8,6 +8,7 @@ import { renderWithRouter } from '@/router/testing';
 import { TooltipProvider } from '@/shared/tailwind-ui';
 import type { RunIssueRow } from '@/shared/types';
 
+import type { ClassificationTableFeatures } from '../classification-table/classification-table.features';
 import { RunIssuesTable } from './run-issues-table.container';
 import {
 	COLUMN_ID,
@@ -37,7 +38,7 @@ vi.mock('@/services/bublik-api', async (importOriginal) => ({
 // The real cells pull in the issue modals, project links and badges; paging
 // only needs the columns the table state names.
 vi.mock('./run-issues-table.columns', () => ({
-	getColumns: (): ColumnDef<RunIssueRow>[] => [
+	getColumns: (): ColumnDef<ClassificationTableFeatures, RunIssueRow>[] => [
 		{
 			id: COLUMN_ID.ISSUE,
 			accessorFn: (row) => row.title,

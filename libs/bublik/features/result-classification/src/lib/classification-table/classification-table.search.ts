@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2026 OKTET LTD */
-import type { SortingState, VisibilityState } from '@tanstack/react-table';
+import type {
+	SortingState,
+	ColumnVisibilityState
+} from '@tanstack/react-table';
 import { z } from 'zod';
 
 import {
@@ -142,11 +145,11 @@ function openRows(): Codec<Record<string, boolean>> {
  * An empty override set writes nothing, which lets the table fall back to a
  * default that depends on how much room it has.
  */
-function columnOverrides(): Codec<VisibilityState> {
+function columnOverrides(): Codec<ColumnVisibilityState> {
 	return {
 		parse: (raw) =>
 			decodeString(raw, (text) => {
-				const overrides: VisibilityState = {};
+				const overrides: ColumnVisibilityState = {};
 
 				for (const token of splitIds(text)) {
 					const sign = token[0];
