@@ -5,11 +5,9 @@ import {
 	ColumnDef,
 	ExpandedState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	RowData,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
+import type { CellData, RowData, TableFeatures } from '@tanstack/react-table';
 
 import { BublikEmptyState } from '@/bublik/features/ui-state';
 import { AnalyticsEvent } from '@/shared/types';
@@ -30,12 +28,21 @@ import {
 	normalizeTrackedPath
 } from '../admin-analytics-page.utils';
 import { parseDetailDate } from '@/shared/utils';
+import {
+	analyticsEventsTableFeatures,
+	AnalyticsEventsTableFeatures
+} from './analytics-events-table.features';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		headerCellClassName?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 interface AnalyticsEventsTableProps {
@@ -83,7 +90,9 @@ function AnalyticsEventsTable(props: AnalyticsEventsTableProps) {
 	const { events, totalCount, isLoading, isFetching } = props;
 	const [expanded, setExpanded] = useState<ExpandedState>({});
 
-	const columns = useMemo<ColumnDef<AnalyticsEvent>[]>(
+	const columns = useMemo<
+		ColumnDef<AnalyticsEventsTableFeatures, AnalyticsEvent>[]
+	>(
 		() => [
 			{
 				accessorKey: 'occurred_at',
@@ -232,14 +241,13 @@ function AnalyticsEventsTable(props: AnalyticsEventsTableProps) {
 		[]
 	);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: analyticsEventsTableFeatures,
 		data: events,
 		columns,
 		state: { expanded },
 		onExpandedChange: setExpanded,
 		getRowId: (row) => `${row.id}`,
-		getCoreRowModel: getCoreRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
 		getRowCanExpand: (row) => hasEventPayload(row.original.payload)
 	});
 
