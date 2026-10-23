@@ -1,19 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import {
-	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable
-} from '@tanstack/react-table';
+import { flexRender, useTable } from '@tanstack/react-table';
 
 import { User } from '@/shared/types';
 import { cn, Pagination, Skeleton, TableSort } from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import { columns } from './users-table.columns';
+import { usersTableFeatures } from './users-table.features';
 
 export const UsersTableLoading = () => {
 	return (
@@ -53,17 +47,14 @@ interface UsersTableProps {
 export const UsersTable = (props: UsersTableProps) => {
 	const { users } = props;
 
-	const table = useReactTable<User>({
+	const table = useTable({
+		features: usersTableFeatures,
 		initialState: {
 			pagination: { pageIndex: 0, pageSize: 25 },
 			sorting: [{ id: 'email', desc: true }]
 		},
 		data: users,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel: getPaginationRowModel()
+		columns
 	});
 
 	return (
@@ -120,10 +111,10 @@ export const UsersTable = (props: UsersTableProps) => {
 			<div className="flex items-center justify-center">
 				<Pagination
 					totalCount={users.length}
-					pageSize={table.getState().pagination.pageSize}
+					pageSize={table.state.pagination.pageSize}
 					onPageChange={(page) => table.setPageIndex(page - 1)}
 					onPageSizeChange={table.setPageSize}
-					currentPage={table.getState().pagination.pageIndex + 1}
+					currentPage={table.state.pagination.pageIndex + 1}
 				/>
 			</div>
 		</div>

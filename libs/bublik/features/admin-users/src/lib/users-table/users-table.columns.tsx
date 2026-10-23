@@ -13,10 +13,11 @@ import {
 } from './users-table.utils';
 import { DeactivateUserContainer } from '../deactivate-user';
 import { ActivateUserContainer } from '../activate-user';
+import { UsersTableFeatures } from './users-table.features';
 
-const helper = createColumnHelper<User>();
+const helper = createColumnHelper<UsersTableFeatures, User>();
 
-export const columns = [
+export const columns = helper.columns([
 	helper.display({
 		header: 'Actions',
 		cell: (cell) => {
@@ -86,4 +87,4 @@ export const columns = [
 			);
 		}
 	})
-];
+]);
