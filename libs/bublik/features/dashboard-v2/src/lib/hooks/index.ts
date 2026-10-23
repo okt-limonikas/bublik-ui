@@ -63,6 +63,8 @@ export const useDashboardSearchTerm = () => {
 
 const AUTO_RELOAD_KEY = 'dashboard-auto-reload';
 
+export const DASHBOARD_RELOAD_INTERVAL_MS = 30_000;
+
 /**
  * Auto reload is remembered in localStorage so it survives reloads and
  * redeploys. A `reload` param in the URL wins, so shared links keep turning
@@ -139,31 +141,33 @@ export const useDashboardClock = () => {
 	const { projectIds } = useProjectSearch();
 	const dispatch = useDispatch();
 
-	const { fulfilledTimeStamp: todayTimetamp = new Date().getTime() } =
+	const { fulfilledTimeStamp: todayTimetamp = 0, isFetching: isTodayFetching } =
 		useGetDashboardByDateQuery({ projects: projectIds });
-	const { fulfilledTimeStamp: mainTimestamp = new Date().getTime() } =
+	const { fulfilledTimeStamp: mainTimestamp = 0, isFetching: isMainFetching } =
 		useGetDashboardByDateQuery(
 			mainDate
 				? { date: formatTimeToAPI(mainDate), projects: projectIds }
 				: undefined,
 			{ skip: !mainDate }
 		);
-	const { fulfilledTimeStamp: secondTimestamp = new Date().getTime() } =
-		useGetDashboardByDateQuery(
-			secondDate
-				? { date: formatTimeToAPI(secondDate), projects: projectIds }
-				: undefined,
-			{ skip: !secondDate }
-		);
+	const {
+		fulfilledTimeStamp: secondTimestamp = 0,
+		isFetching: isSecondFetching
+	} = useGetDashboardByDateQuery(
+		secondDate
+			? { date: formatTimeToAPI(secondDate), projects: projectIds }
+			: undefined,
+		{ skip: !secondDate }
+	);
 
 	const refetch = () => {
 		dispatch(bublikAPI.util.invalidateTags([BUBLIK_TAG.DashboardData]));
 	};
 
 	return {
-		latestTimestamp: new Date(
-			Math.max(todayTimetamp, mainTimestamp, secondTimestamp)
-		),
+		latestTimestamp:
+			Math.max(todayTimetamp, mainTimestamp, secondTimestamp) || undefined,
+		isFetching: isTodayFetching || isMainFetching || isSecondFetching,
 		refetch
 	};
 };

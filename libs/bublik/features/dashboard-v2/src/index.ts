@@ -5,7 +5,6 @@ export * from './lib/search-bar';
 export * from './lib/today-button';
 export * from './lib/mode-picker';
 export * from './lib/auto-reload';
-export * from './lib/clock';
 export * from './lib/mode-picker';
 export * from './lib/layout-handler';
 export * from './lib/tv-mode';

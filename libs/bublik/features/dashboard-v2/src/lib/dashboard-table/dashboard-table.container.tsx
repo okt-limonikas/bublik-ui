@@ -18,6 +18,7 @@ import {
 	DashboardTableId,
 	useDashboardDate,
 	useDashboardReload,
+	DASHBOARD_RELOAD_INTERVAL_MS,
 	useDashboardSearchTerm,
 	useDashboardTvMode,
 	usePrefetchNextAndPreviousDay
@@ -100,7 +101,8 @@ export const DashboardTableContainer = ({
 			  }
 			: { projects: projectIds },
 		{
-			pollingInterval: isEnabled || isTvModeEnabled ? 30000 : undefined,
+			pollingInterval:
+				isEnabled || isTvModeEnabled ? DASHBOARD_RELOAD_INTERVAL_MS : undefined,
 			refetchOnMountOrArgChange: true,
 			refetchOnFocus: true
 		}

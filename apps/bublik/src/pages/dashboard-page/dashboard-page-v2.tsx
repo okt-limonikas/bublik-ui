@@ -4,7 +4,6 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 
 import {
 	AutoReloadContainer,
-	ClockContainer,
 	DASHBOARD_TABLE_ID,
 	LayoutHandlerContainer,
 	ModePickerContainer,
@@ -84,7 +83,6 @@ export const DashboardPageV2 = () => {
 					<div className="flex flex-wrap items-stretch justify-center gap-4">
 						<TvModeContainer />
 						<AutoReloadContainer />
-						<ClockContainer />
 						<CopyShortUrlButtonContainer variant="header" />
 					</div>
 				</div>
