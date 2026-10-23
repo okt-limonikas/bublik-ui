@@ -168,14 +168,17 @@ function RunsTable(props: RunsTableProps) {
 				</table>
 			</div>
 			{pageCount ? (
-				<div className="flex justify-center">
-					<Pagination
-						totalCount={pageCount}
-						currentPage={pageIndex + 1}
-						pageSize={pageSize}
-						onPageChange={(page) => table.setPageIndex(page - 1)}
-						onPageSizeChange={table.setPageSize}
-					/>
+				<div className="sticky bottom-0 z-20 -mb-2 bg-bg-body pb-2">
+					<div className="flex items-center justify-center rounded-b-xl bg-bg-primary px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+						<Pagination
+							variant="bordered"
+							totalCount={pageCount}
+							currentPage={pageIndex + 1}
+							pageSize={pageSize}
+							onPageChange={(page) => table.setPageIndex(page - 1)}
+							onPageSizeChange={table.setPageSize}
+						/>
+					</div>
 				</div>
 			) : null}
 		</div>
