@@ -6,6 +6,7 @@ import {
 	AutoReloadContainer,
 	ClockContainer,
 	DASHBOARD_TABLE_ID,
+	GridFlagToggleContainer,
 	LayoutHandlerContainer,
 	ModePickerContainer,
 	SearchBarContainer,
@@ -92,6 +93,7 @@ export const DashboardPageV2 = () => {
 			<main className="flex-grow isolate">
 				<LayoutHandlerContainer />
 			</main>
+			<GridFlagToggleContainer />
 		</div>
 	);
 };

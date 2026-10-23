@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
+import { CSSProperties } from 'react';
 import { ColumnDef, RowData } from '@tanstack/react-table';
 
 import { DashboardAPIResponse, DashboardData } from '@/shared/types';
@@ -31,6 +32,8 @@ const EXPAND_COLUMN_WIDTH = 32;
 declare module '@tanstack/react-table' {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface ColumnMeta<TData extends RowData, TValue> {
+		/** Inline flex sizing, used by the legacy table only. */
+		style?: CSSProperties;
 		/** Track size for the table's `grid-template-columns`. */
 		width?: string;
 		/** Cells may shrink below their content and truncate. */
