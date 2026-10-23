@@ -4,7 +4,13 @@ import { FC, useMemo } from 'react';
 import { Row } from '@tanstack/react-table';
 
 import { RunDataResults } from '@/shared/types';
-import { TableClassNames, cn, TwTable, Skeleton } from '@/shared/tailwind-ui';
+import {
+	TableClassNames,
+	cn,
+	TwTable,
+	TwTableFeatures,
+	Skeleton
+} from '@/shared/tailwind-ui';
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import {
@@ -46,7 +52,9 @@ export const ResultDiffEmpty = () => {
 const gridClassName =
 	'grid grid-cols-[26.5px,130px,1fr,1fr,35.5px,120px,1fr,1fr]';
 
-const getBodyRowClassname = (row: Row<RunDataResultsWithDiff>) => {
+const getBodyRowClassname = (
+	row: Row<TwTableFeatures, RunDataResultsWithDiff>
+) => {
 	const { diffType } = row.original;
 
 	const isAdded = diffType === DiffType.ADDED;

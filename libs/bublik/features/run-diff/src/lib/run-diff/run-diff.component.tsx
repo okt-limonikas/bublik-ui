@@ -4,14 +4,12 @@ import { FC, Fragment, ReactNode, useMemo } from 'react';
 import {
 	ExpandedState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
 	OnChangeFn,
 	Row,
 	Table,
 	TableState,
-	useReactTable,
-	VisibilityState
+	useTable,
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 
 import { NodeEntity, RunData } from '@/shared/types';
@@ -28,9 +26,13 @@ import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 import { DiffType, MergedRunDataWithDiff } from './run-diff.types';
 import { computeDiff, getRowCanExpand } from './run-diff.utils';
 import { mergedColumns } from './run-diff.columns';
+import {
+	RunDiffTableFeatures,
+	runDiffTableFeatures
+} from './run-diff.features';
 
 export interface VisibilityProps {
-	table: Table<MergedRunDataWithDiff>;
+	table: Table<RunDiffTableFeatures, MergedRunDataWithDiff>;
 }
 
 const DiffToolbar = ({ table }: VisibilityProps) => {
@@ -120,11 +122,13 @@ export const RunDiffEmpty = () => {
 export interface RunDiffProps {
 	leftRoot: RunData;
 	rightRoot: RunData;
-	renderSubComponent: (props: { row: Row<MergedRunDataWithDiff> }) => ReactNode;
+	renderSubComponent: (props: {
+		row: Row<RunDiffTableFeatures, MergedRunDataWithDiff>;
+	}) => ReactNode;
 	expanded: ExpandedState;
 	onExpandedChange: OnChangeFn<ExpandedState>;
-	onColumnVisibilityChange: OnChangeFn<VisibilityState>;
-	columnVisibility: VisibilityState;
+	onColumnVisibilityChange: OnChangeFn<ColumnVisibilityState>;
+	columnVisibility: ColumnVisibilityState;
 }
 
 export const RunDiff: FC<RunDiffProps> = ({
@@ -141,17 +145,16 @@ export const RunDiff: FC<RunDiffProps> = ({
 		[leftRoot, rightRoot]
 	);
 
-	const state = useMemo<Partial<TableState>>(
+	const state = useMemo<Partial<TableState<RunDiffTableFeatures>>>(
 		() => ({ expanded, columnVisibility }),
 		[columnVisibility, expanded]
 	);
 
-	const table = useReactTable<MergedRunDataWithDiff>({
+	const table = useTable({
+		features: runDiffTableFeatures,
 		data: merge,
 		state,
 		columns: mergedColumns,
-		getCoreRowModel: getCoreRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
 		getSubRows: (row) => row.children,
 		onExpandedChange,
 		onColumnVisibilityChange,

@@ -25,7 +25,7 @@ const RUN_COMPARE_URL_PARAMS = {
 	},
 	columnVisibility: {
 		codec: 'JsonParam',
-		values: 'a tanstack VisibilityState',
+		values: 'a tanstack ColumnVisibilityState',
 		whenAbsent: 'the default columns',
 		writtenBy: 'the Columns menu'
 	}

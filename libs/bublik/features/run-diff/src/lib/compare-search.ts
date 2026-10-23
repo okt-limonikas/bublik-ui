@@ -5,7 +5,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import type {
 	ExpandedState,
 	OnChangeFn,
-	VisibilityState
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 
 import { useSearchWriter } from '@/router';
@@ -51,8 +51,8 @@ function useCompareExpanded(): [ExpandedState, OnChangeFn<ExpandedState>] {
 
 /** The diff table's columns (`columnVisibility`); TOTAL, RUN and ABNORMAL are hidden by default. */
 function useCompareColumnVisibility(): [
-	VisibilityState,
-	OnChangeFn<VisibilityState>
+	ColumnVisibilityState,
+	OnChangeFn<ColumnVisibilityState>
 ] {
 	return useCompareTableState('columnVisibility');
 }

@@ -4,6 +4,7 @@ import { FC, useCallback } from 'react';
 import { Row } from '@tanstack/react-table';
 
 import { MergedRunDataWithDiff } from './run-diff.types';
+import { RunDiffTableFeatures } from './run-diff.features';
 import { useRunDiffState } from './run-diff.container.hooks';
 import { ResultDiffContainer } from '../result-diff';
 import {
@@ -30,7 +31,7 @@ export const RunDiffContainer: FC<RunDiffContainerProps> = (props) => {
 	const [columnVisibility, setColumnVisibility] = useCompareColumnVisibility();
 
 	const renderSubComponent = useCallback(
-		({ row }: { row: Row<MergedRunDataWithDiff> }) => (
+		({ row }: { row: Row<RunDiffTableFeatures, MergedRunDataWithDiff> }) => (
 			<ResultDiffContainer row={row} />
 		),
 		[]

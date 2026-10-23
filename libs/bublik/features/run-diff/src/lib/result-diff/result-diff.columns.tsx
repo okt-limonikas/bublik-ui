@@ -3,6 +3,7 @@
 import { ColumnDef } from '@tanstack/react-table';
 
 import { RunDataResults } from '@/shared/types';
+import { TwTableFeatures } from '@/shared/tailwind-ui';
 import { ResultLinksContainer } from '@/bublik/features/result-links';
 
 import { RunDataResultsWithDiff } from './result-diff.utils';
@@ -16,7 +17,10 @@ export interface ResultLinksProps {
 	result: RunDataResults;
 }
 
-export const getColumns = (): ColumnDef<RunDataResultsWithDiff>[] => {
+export const getColumns = (): ColumnDef<
+	TwTableFeatures,
+	RunDataResultsWithDiff
+>[] => {
 	return [
 		{
 			id: 'GUTTER_LEFT',

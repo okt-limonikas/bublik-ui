@@ -2,7 +2,12 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { ReactNode, SVGProps } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ColumnDef, RowData } from '@tanstack/react-table';
+import type {
+	CellData,
+	ColumnDef,
+	RowData,
+	TableFeatures
+} from '@tanstack/react-table';
 
 import { RunData } from '@/shared/types';
 import { isDefined } from '@/shared/utils';
@@ -29,6 +34,7 @@ import {
 } from '@/bublik/run-utils';
 
 import { MergedRunDataWithDiff } from './run-diff.types';
+import { RunDiffTableFeatures } from './run-diff.features';
 import {
 	hoverCellLeave,
 	hoverCellStart,
@@ -58,10 +64,15 @@ const ArrowIcon = (props: SVGProps<SVGSVGElement>) => {
 };
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		className?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 export interface RunDiffBadgeProps {
@@ -121,7 +132,7 @@ export interface CreateColumnConfig {
 
 const createRunDiffColumn: (
 	config: CreateColumnConfig
-) => ColumnDef<MergedRunDataWithDiff> = (config) => {
+) => ColumnDef<RunDiffTableFeatures, MergedRunDataWithDiff> = (config) => {
 	const { id, header, leftOrRight, getter, badgeVariant, headerIcon } = config;
 
 	return {
@@ -175,7 +186,7 @@ const createRunDiffColumn: (
 
 const createColumns = (
 	leftOrRight: 'left' | 'right'
-): ColumnDef<MergedRunDataWithDiff>[] => {
+): ColumnDef<RunDiffTableFeatures, MergedRunDataWithDiff>[] => {
 	const ID_POSTFIX = leftOrRight === 'left' ? 'LEFT' : 'RIGHT';
 
 	return [
@@ -323,7 +334,10 @@ const createColumns = (
 };
 
 const createRunDiffColumns = () => {
-	const mergedColumns: ColumnDef<MergedRunDataWithDiff>[] = [
+	const mergedColumns: ColumnDef<
+		RunDiffTableFeatures,
+		MergedRunDataWithDiff
+	>[] = [
 		{
 			id: 'GUTTER_LEFT',
 			cell: (cell) => <Gutter diffType={cell.row.original.diffType} />,

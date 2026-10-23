@@ -11,6 +11,7 @@ import {
 	MergedRunDataWithDiff,
 	RunDataWithDiff
 } from '../run-diff/run-diff.types';
+import { RunDiffTableFeatures } from '../run-diff/run-diff.features';
 import {
 	ResultDiff,
 	ResultDiffEmpty,
@@ -91,7 +92,7 @@ const useResultDiffState = ({
 };
 
 export interface ResultDiffContainerProps {
-	row: Row<MergedRunDataWithDiff>;
+	row: Row<RunDiffTableFeatures, MergedRunDataWithDiff>;
 }
 
 export const ResultDiffContainer: FC<ResultDiffContainerProps> = ({ row }) => {
