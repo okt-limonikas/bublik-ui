@@ -7,15 +7,18 @@ import {
 	Row,
 	TableState,
 	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
 
 import { HistoryDataLinear } from '@/shared/types';
 import { useIsSticky } from '@/shared/hooks';
-import { Pagination, Skeleton, cn } from '@/shared/tailwind-ui';
+import {
+	Pagination,
+	Skeleton,
+	TwTableFeatures,
+	cn,
+	twTableFeatures
+} from '@/shared/tailwind-ui';
 
 import { HistoryLinearGlobalFilter } from './history-linear.types';
 import { globalFilterFn } from './history-linear.utils';
@@ -61,12 +64,13 @@ export const HistoryLinearTable: FC<HistoryLinearTableProps> = ({
 	onGlobalFilterChange,
 	onPaginationChange
 }) => {
-	const state = useMemo<Partial<TableState>>(
+	const state = useMemo<Partial<TableState<TwTableFeatures>>>(
 		() => ({ pagination, globalFilter }),
 		[globalFilter, pagination]
 	);
 
-	const table = useReactTable<HistoryDataLinear>({
+	const table = useTable({
+		features: twTableFeatures,
 		data,
 		columns,
 		pageCount,
@@ -76,13 +80,10 @@ export const HistoryLinearTable: FC<HistoryLinearTableProps> = ({
 		onPaginationChange,
 		getColumnCanGlobalFilter: () => true,
 		manualPagination: true,
-		enableSorting: false,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel: getPaginationRowModel()
+		enableSorting: false
 	});
 
-	const { pageIndex, pageSize } = table.getState().pagination;
+	const { pageIndex, pageSize } = table.state.pagination;
 
 	const headerRef = useRef<HTMLDivElement | null>(null);
 	const { isSticky } = useIsSticky(headerRef, { offset: -1 });
@@ -153,7 +154,7 @@ export const HistoryLinearTable: FC<HistoryLinearTableProps> = ({
 };
 
 interface HistoryLinearRowProps {
-	row: Row<HistoryDataLinear>;
+	row: Row<TwTableFeatures, HistoryDataLinear>;
 }
 
 /**

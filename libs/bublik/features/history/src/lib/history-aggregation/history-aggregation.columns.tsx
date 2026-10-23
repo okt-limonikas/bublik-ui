@@ -5,7 +5,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { HistoryDataAggregation, ResultData } from '@/shared/types';
 import { config } from '@/bublik/config';
 import { HistoryAggregationColumns } from './history-aggregation.constantst';
-import { Badge, BadgeList } from '@/shared/tailwind-ui';
+import { Badge, BadgeList, TwTableFeatures } from '@/shared/tailwind-ui';
 
 import {
 	getParametersHash,
@@ -16,7 +16,7 @@ import { HistoryContextMenuContainer } from '../history-context-menu';
 import { onResultTypeClick } from '../history-linear/history-linear.utils';
 import { HistoryAggregationGlobalFilter } from './history-aggregation.types';
 
-export const columns: ColumnDef<HistoryDataAggregation>[] = [
+export const columns: ColumnDef<TwTableFeatures, HistoryDataAggregation>[] = [
 	{
 		id: HistoryAggregationColumns.ResultsLog,
 		header: 'Parameters/Hash',
@@ -25,7 +25,7 @@ export const columns: ColumnDef<HistoryDataAggregation>[] = [
 			const { parameters, hash } =
 				cell.getValue<ReturnType<typeof getParametersHash>>();
 			const globalFilter: HistoryAggregationGlobalFilter =
-				cell.table.getState().globalFilter;
+				cell.table.atoms.globalFilter.get();
 
 			return (
 				<HistoryContextMenuContainer
@@ -57,7 +57,7 @@ export const columns: ColumnDef<HistoryDataAggregation>[] = [
 		cell: (cell) => {
 			const results = cell.getValue<ResultData[]>();
 			const globalFilter: HistoryAggregationGlobalFilter =
-				cell.table.getState().globalFilter;
+				cell.table.atoms.globalFilter.get();
 
 			return (
 				<ResultList

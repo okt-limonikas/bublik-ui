@@ -3,7 +3,7 @@
 import { CellContext, FilterFn } from '@tanstack/react-table';
 
 import { HistoryDataAggregation } from '@/shared/types';
-import { BadgeListItem } from '@/shared/tailwind-ui';
+import { BadgeListItem, TwTableFeatures } from '@/shared/tailwind-ui';
 
 import {
 	HistoryAggregationGlobalFilter,
@@ -19,13 +19,13 @@ export const getParametersHash = ({
 
 export const onBadgeCellClick =
 	(
-		cell: CellContext<HistoryDataAggregation, unknown>,
+		cell: CellContext<TwTableFeatures, HistoryDataAggregation, unknown>,
 		key: HistoryLinearArrayFilters
 	) =>
 	(badge: BadgeListItem) => {
 		const { table } = cell;
 		const globalFilter: HistoryAggregationGlobalFilter =
-			table.getState().globalFilter;
+			table.atoms.globalFilter.get();
 
 		if (globalFilter[key].includes(badge.payload)) {
 			table.setGlobalFilter((prev: HistoryAggregationGlobalFilter) => ({
@@ -40,11 +40,10 @@ export const onBadgeCellClick =
 		}
 	};
 
-export const globalFilterFn: FilterFn<HistoryDataAggregation> = (
-	row,
-	_columnId,
-	filterValue: HistoryAggregationGlobalFilter
-) => {
+export const globalFilterFn: FilterFn<
+	TwTableFeatures,
+	HistoryDataAggregation
+> = (row, _columnId, filterValue: HistoryAggregationGlobalFilter) => {
 	const filterTags = [...filterValue.parameters, ...filterValue.verdicts];
 
 	// 1. Row

@@ -1,9 +1,13 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { CellContext, FilterFn } from '@tanstack/react-table';
+import { CellContext, FilterFn, RowData } from '@tanstack/react-table';
 
 import { HistoryDataLinear, RESULT_TYPE } from '@/shared/types';
-import { BadgeListItem, VerdictListProps } from '@/shared/tailwind-ui';
+import {
+	BadgeListItem,
+	TwTableFeatures,
+	VerdictListProps
+} from '@/shared/tailwind-ui';
 
 import { RunTimeProps } from './column-components';
 import { ArrayKeys, HistoryLinearGlobalFilter } from './history-linear.types';
@@ -34,7 +38,7 @@ export const getObtainedResult = (
 	};
 };
 
-export const globalFilterFn: FilterFn<HistoryDataLinear> = (
+export const globalFilterFn: FilterFn<TwTableFeatures, HistoryDataLinear> = (
 	row,
 	_columnId,
 	filterValue: HistoryLinearGlobalFilter
@@ -77,11 +81,14 @@ export const globalFilterFn: FilterFn<HistoryDataLinear> = (
 };
 
 export const onBadgeClick =
-	(cell: CellContext<HistoryDataLinear, unknown>, keyToUpdate: ArrayKeys) =>
+	(
+		cell: CellContext<TwTableFeatures, HistoryDataLinear, unknown>,
+		keyToUpdate: ArrayKeys
+	) =>
 	(badge: string | BadgeListItem) => {
 		const table = cell.table;
 		const globalFilter: HistoryLinearGlobalFilter =
-			cell.table.getState().globalFilter;
+			cell.table.atoms.globalFilter.get();
 
 		let badgeValue: string;
 		if (typeof badge === 'string') {
@@ -107,14 +114,14 @@ export const onBadgeClick =
 
 export const onResultTypeClick =
 	<
-		D,
+		D extends RowData,
 		T extends { resultType: null | RESULT_TYPE; isNotExpected: boolean | null }
 	>(
-		cell: CellContext<D, unknown>
+		cell: CellContext<TwTableFeatures, D, unknown>
 	) =>
 	(resultType: RESULT_TYPE, isNotExpected?: boolean) => {
 		const table = cell.table;
-		const globalFilter: T = table.getState().globalFilter;
+		const globalFilter: T = table.atoms.globalFilter.get();
 
 		if (
 			globalFilter.resultType === resultType &&

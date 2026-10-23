@@ -4,7 +4,12 @@ import { FC, useMemo } from 'react';
 import { OnChangeFn, PaginationState, TableState } from '@tanstack/react-table';
 
 import { HistoryDataAggregation } from '@/shared/types';
-import { Skeleton, TableClassNames, TwTable } from '@/shared/tailwind-ui';
+import {
+	Skeleton,
+	TableClassNames,
+	TwTable,
+	TwTableFeatures
+} from '@/shared/tailwind-ui';
 
 import { columns } from './history-aggregation.columns';
 import { globalFilterFn } from './history-aggregation.utils';
@@ -52,7 +57,7 @@ export const HistoryAggregation: FC<HistoryAggregationProps> = ({
 	globalFilter,
 	onGlobalFilterChange
 }) => {
-	const state = useMemo<Partial<TableState>>(
+	const state = useMemo<Partial<TableState<TwTableFeatures>>>(
 		() => ({ pagination, globalFilter }),
 		[globalFilter, pagination]
 	);

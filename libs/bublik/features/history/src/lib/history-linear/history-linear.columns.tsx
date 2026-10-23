@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { ColumnDef, RowData } from '@tanstack/react-table';
+import type {
+	CellData,
+	ColumnDef,
+	RowData,
+	TableFeatures
+} from '@tanstack/react-table';
 
 import { HistoryDataLinear, RunResult } from '@/shared/types';
 import { config } from '@/bublik/config';
@@ -12,6 +17,7 @@ import {
 	Tooltip,
 	VerdictList,
 	VerdictListProps,
+	TwTableFeatures,
 	VerdictVariant
 } from '@/shared/tailwind-ui';
 
@@ -28,8 +34,12 @@ import { HistoryLinearGlobalFilter } from './history-linear.types';
 import { HistoryContextMenuContainer } from '../history-context-menu';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		/**
 		 * The column's track in the table's grid. The whole table is one grid, so
 		 * a column's width belongs to the column rather than to a track list
@@ -37,9 +47,10 @@ declare module '@tanstack/react-table' {
 		 */
 		width?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
-export const columns: ColumnDef<HistoryDataLinear>[] = [
+export const columns: ColumnDef<TwTableFeatures, HistoryDataLinear>[] = [
 	{
 		id: HistoryLinearColumns.Links,
 		header: 'Actions',
@@ -91,7 +102,7 @@ export const columns: ColumnDef<HistoryDataLinear>[] = [
 						badges={metadataBadges}
 						keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 						keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-						selectedBadges={cell.table.getState().globalFilter['tags']}
+						selectedBadges={cell.table.atoms.globalFilter.get()['tags']}
 						onBadgeClick={onBadgeClick(cell, 'tags')}
 						className="bg-badge-4"
 					/>
@@ -117,7 +128,7 @@ export const columns: ColumnDef<HistoryDataLinear>[] = [
 						badges={tags}
 						keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 						keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-						selectedBadges={cell.table.getState().globalFilter['tags']}
+						selectedBadges={cell.table.atoms.globalFilter.get()['tags']}
 						onBadgeClick={onBadgeClick(cell, 'tags')}
 					/>
 				</HistoryContextMenuContainer>
@@ -155,7 +166,7 @@ export const columns: ColumnDef<HistoryDataLinear>[] = [
 			const { isNotExpected, verdicts, result } =
 				cell.getValue<VerdictListProps>();
 			const globalFilter: HistoryLinearGlobalFilter =
-				cell.table.getState().globalFilter;
+				cell.table.atoms.globalFilter.get();
 
 			const isResultSelected =
 				globalFilter.isNotExpected === isNotExpected &&
@@ -174,7 +185,7 @@ export const columns: ColumnDef<HistoryDataLinear>[] = [
 							variant={VerdictVariant.Obtained}
 							result={result}
 							verdicts={verdicts}
-							selectedVerdicts={cell.table.getState().globalFilter['verdicts']}
+							selectedVerdicts={cell.table.atoms.globalFilter.get()['verdicts']}
 							onVerdictClick={onBadgeClick(cell, 'verdicts')}
 							onResultClick={(resultType) =>
 								onResultTypeClick(cell)(resultType, isNotExpected)
@@ -214,7 +225,7 @@ export const columns: ColumnDef<HistoryDataLinear>[] = [
 						badges={parameters}
 						keyValueDisplayDelimiter={config.keyValueDisplayDelimiter}
 						keyValueSubmitDelimiter={config.keyValueSubmitDelimiter}
-						selectedBadges={cell.table.getState().globalFilter['parameters']}
+						selectedBadges={cell.table.atoms.globalFilter.get()['parameters']}
 						onBadgeClick={onBadgeClick(cell, 'parameters')}
 						className="bg-badge-1"
 						preformattedMode="pre"
