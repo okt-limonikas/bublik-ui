@@ -39,45 +39,45 @@ export const getColumnWidth = (
  * weights have no fixed base (unlike `getColumnWidth`): short columns are
  * light, so on a narrow row they stay near their content and the long text
  * columns keep as much as possible. The columns differ in how far they may
- * shrink: long text columns go down to nothing and truncate (see `shrinks`),
- * numbers and short labels stop at their content width, so a number never
- * truncates.
+ * shrink: numbers and short text stop at their content width (`min-content`,
+ * so a header's sort arrow may give way but a number never truncates); long
+ * text columns truncate, but keep room for their first characters, so a
+ * deficit lands on the longest column first and a short name next to a long
+ * configuration stays readable.
  */
 export const getColumnTracks = (
 	rows: DashboardData[],
 	headers: DashboardAPIResponse['header']
 ) => {
-	const GROW_MIN_LENGTH = 12;
+	// Text this long may truncate; anything shorter is kept whole.
+	const TRUNCATE_MIN_LENGTH = 11;
 	const MAX_WEIGHT = 30;
+	// About ten characters at the cell's font plus the cell's padding, and
+	// the badge's padding where the column has badges. The percentages keep
+	// a few such floors from overflowing a very narrow row.
+	const TEXT_FLOOR = 'min(4.25rem, 14%)';
+	const BADGE_FLOOR = 'min(5.25rem, 17%)';
 
 	const columns = headers.map(({ key, name }) => {
 		const isNumeric = isNumericColumn(rows, key);
+		const maxLength = getMaxLengthInColumn(rows, key);
 
 		return {
 			key,
 			isNumeric,
-			weight: Math.min(
-				MAX_WEIGHT,
-				Math.max(getMaxLengthInColumn(rows, key), name.length)
-			),
-			grows: !isNumeric && getMaxLengthInColumn(rows, key) >= GROW_MIN_LENGTH
+			weight: Math.min(MAX_WEIGHT, Math.max(maxLength, name.length)),
+			truncates: !isNumeric && maxLength >= TRUNCATE_MIN_LENGTH,
+			floor: columnHasBadges(rows, key) ? BADGE_FLOOR : TEXT_FLOOR
 		};
 	});
 
-	// Nothing long enough to fill the row: let every text column grow instead.
-	if (!columns.some((c) => c.grows)) {
-		columns.forEach((c) => {
-			c.grows = !c.isNumeric;
-		});
-	}
-
 	return new Map(
-		columns.map(({ key, weight, grows, isNumeric }) => {
-			const track = grows
-				? `minmax(0, ${weight}fr)`
-				: `minmax(max-content, ${weight}fr)`;
+		columns.map(({ key, weight, truncates, isNumeric, floor }) => {
+			const track = truncates
+				? `minmax(${floor}, ${weight}fr)`
+				: `minmax(min-content, ${weight}fr)`;
 
-			return [key, { track, shrinks: grows || !isNumeric }];
+			return [key, { track, shrinks: truncates || !isNumeric }];
 		})
 	);
 };

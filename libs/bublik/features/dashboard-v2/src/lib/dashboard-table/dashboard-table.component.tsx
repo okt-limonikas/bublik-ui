@@ -251,6 +251,12 @@ const TableGrid = (props: TableGridProps) => {
  * leads the label in a right-aligned header, so the label stays on the edge
  * the numbers align to, and trails it otherwise.
  */
+/**
+ * The arrow is laid out whether or not the column is sorted, so sorting does
+ * not move the header. It is a flex item with no base width: when the track
+ * is at its minimum (a narrow row) it gives way instead of holding the track
+ * open, and the sorted header is then told apart by colour.
+ */
 const renderSortArrow = (
 	header: Header<DashboardData, unknown>,
 	side: 'leading' | 'trailing'
@@ -260,15 +266,22 @@ const renderSortArrow = (
 	const direction = header.column.getIsSorted();
 
 	return (
-		<SortArrow
+		<span
 			className={cn(
-				'size-3.5 shrink-0',
-				side === 'leading' ? 'mr-1' : 'ml-1',
-				direction === 'asc' && 'translate-y-0.5 rotate-180',
-				direction === 'desc' && '-translate-y-px',
+				'w-0 min-w-0 max-w-3.5 flex-1 overflow-hidden flex',
+				side === 'leading' ? 'mr-1 justify-end' : 'ml-1',
 				!direction && 'invisible'
 			)}
-		/>
+		>
+			<SortArrow
+				className={cn(
+					// Scales down with its box instead of being clipped.
+					'h-3.5 w-full',
+					direction === 'asc' && 'translate-y-0.5 rotate-180',
+					direction === 'desc' && '-translate-y-px'
+				)}
+			/>
+		</span>
 	);
 };
 
@@ -298,7 +311,8 @@ const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
 			className={cn(
 				headerCellStyles({ align: meta?.align, padded: !meta?.isIcon }),
 				headerInset(meta),
-				header.column.getCanSort() && 'cursor-pointer select-none'
+				header.column.getCanSort() && 'cursor-pointer select-none',
+				header.column.getIsSorted() && 'text-primary'
 			)}
 			style={headerCellStyle}
 			onClick={header.column.getToggleSortingHandler()}
