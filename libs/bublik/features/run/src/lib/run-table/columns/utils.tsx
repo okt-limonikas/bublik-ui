@@ -7,10 +7,11 @@ import { RunData, MergedRun } from '@/shared/types';
 import { RunTableColumnConfig } from '../types';
 import { TableBadgeModel } from '../components';
 import { TableHeader } from '../components/table-header';
+import { RunTableFeatures } from '../run-table.features';
 
 export const createRunColumn = (
 	config: RunTableColumnConfig
-): ColumnDef<RunData | MergedRun> => {
+): ColumnDef<RunTableFeatures, RunData | MergedRun> => {
 	return {
 		accessorFn: config.accessor,
 		id: config.id,

@@ -15,6 +15,7 @@ import { MergedRun, NodeEntity, RunData } from '@/shared/types';
 import { ResultTableContainer } from '../../../result-table';
 import { ColumnId } from '../../types';
 import { useMeasure } from 'react-use';
+import { RunTableFeatures } from '../../run-table.features';
 
 const noLayoutAnimation = () => false;
 
@@ -22,7 +23,7 @@ const noLayoutAnimation = () => false;
 const GROUP_MEMBER_TRANSFORM = 'translate3d(var(--rt-group-dx, 0px), 0, 0)';
 
 export interface RowProps {
-	row: Row<RunData | MergedRun>;
+	row: Row<RunTableFeatures, RunData | MergedRun>;
 	runId: string | string[];
 	sortableColumnIds: ColumnId[];
 	/** Columns of the group currently being dragged (slide together). */
@@ -124,7 +125,7 @@ export const RunRow = ({
 };
 
 interface DragAlongCellProps {
-	cell: Cell<RunData | MergedRun, unknown>;
+	cell: Cell<RunTableFeatures, RunData | MergedRun, unknown>;
 	className?: string;
 	isGroupMember: boolean;
 }

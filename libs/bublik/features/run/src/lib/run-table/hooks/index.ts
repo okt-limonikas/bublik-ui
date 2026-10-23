@@ -16,9 +16,10 @@ import {
 } from '../utils';
 import { getResultFilterForColumnId } from '../columns/badge-columns';
 import { useRunTableRowState } from '../../hooks';
+import { RunTableFeatures } from '../run-table.features';
 
 export interface UseExpandUnexpectedConfig {
-	table: Table<RunData | MergedRun>;
+	table: Table<RunTableFeatures, RunData | MergedRun>;
 }
 
 function getStartTirId(data: RunData | MergedRun): number {
@@ -75,7 +76,10 @@ export const useExpandUnexpected = (config: UseExpandUnexpectedConfig) => {
 				(a, b) => getStartTirId(a.original) - getStartTirId(b.original)
 			);
 
-			let testContainingIteration: Row<RunData | MergedRun> | null = null;
+			let testContainingIteration: Row<
+				RunTableFeatures,
+				RunData | MergedRun
+			> | null = null;
 
 			for (const iteration of sortedIterations) {
 				if (getStartTirId(iteration.original) <= iterationId) {

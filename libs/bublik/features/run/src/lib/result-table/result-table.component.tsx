@@ -16,15 +16,11 @@ import {
 import {
 	ColumnFiltersState,
 	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
 	OnChangeFn,
 	PaginationState,
 	Row,
 	Updater,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
 import { createNextState } from '@reduxjs/toolkit';
 
@@ -70,6 +66,10 @@ import {
 import { BublikEmptyState, BublikErrorState } from '@/bublik/features/ui-state';
 
 import { getColumns } from './result-table.columns';
+import {
+	ResultTableFeatures,
+	resultTableFeatures
+} from './result-table.features';
 import { ResultTableFilters } from './result-table-filters.component';
 import {
 	COLUMN_ID,
@@ -225,7 +225,7 @@ export interface ResultTableProps {
 	pageCount?: number;
 	targetIterationId?: number;
 	rowState?: RowState;
-	onRowClick?: (row: Row<RunDataResults>) => void;
+	onRowClick?: (row: Row<ResultTableFeatures, RunDataResults>) => void;
 	path?: string;
 	/** Refetching rows already shown: they stay, dimmed, until the new ones land. */
 	isFetching?: boolean;
@@ -267,7 +267,8 @@ export const ResultTable = memo((props: ResultTableProps) => {
 
 	const { stickyOffset } = useStickyHeader({ stickyTop: headerTop });
 
-	const table = useReactTable<RunDataResults>({
+	const table = useTable({
+		features: resultTableFeatures,
 		data,
 		getRowId: (row) => String(row.result_id),
 		columns,
@@ -275,12 +276,6 @@ export const ResultTable = memo((props: ResultTableProps) => {
 		// Paged by the server: one page arrives, and it is shown whole.
 		manualPagination: !pagination || manualFiltering,
 		pageCount: manualFiltering ? manualPageCount : undefined,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel:
-			pagination && !manualFiltering ? getPaginationRowModel() : undefined,
-		enableSorting: false,
 		state: { columnFilters, ...(pagination ? { pagination } : {}) },
 		onColumnFiltersChange: setColumnFilters,
 		onPaginationChange,
@@ -474,12 +469,12 @@ export const useResultTableFilters = useDataTableFilters;
 export type ResultTableFacets = IssueResultsFacets;
 
 interface ResultRowProps {
-	row: Row<RunDataResults>;
+	row: Row<ResultTableFeatures, RunDataResults>;
 	idx: number;
-	arr: Row<RunDataResults>[];
+	arr: Row<ResultTableFeatures, RunDataResults>[];
 	targetIterationId?: number;
 	rowState?: RowState;
-	onRowClick?: (row: Row<RunDataResults>) => void;
+	onRowClick?: (row: Row<ResultTableFeatures, RunDataResults>) => void;
 	/** Where the pinned header ends, in px from the top of the scroller. */
 	headerBottom: number;
 	scrollRef?: RefObject<HTMLElement>;

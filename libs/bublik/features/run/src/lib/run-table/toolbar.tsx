@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { ReactNode, useMemo } from 'react';
-import { Table, VisibilityState } from '@tanstack/react-table';
+import { Table, ColumnVisibilityState } from '@tanstack/react-table';
 
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { MergedRun, RunData } from '@/shared/types';
@@ -19,6 +19,7 @@ import { useExpandUnexpected } from './hooks';
 import { hasUnexpected } from './utils';
 import { ColumnId } from './types';
 import { useGlobalRequirements } from '../hooks';
+import { RunTableFeatures } from './run-table.features';
 
 function getColumnLabel(columnId: string): string {
 	return columnId
@@ -40,8 +41,8 @@ function getColumnIcon(columnId: string): ReactNode {
 }
 
 export interface ToolbarProps {
-	table: Table<RunData | MergedRun>;
-	defaultColumnVisibility: VisibilityState;
+	table: Table<RunTableFeatures, RunData | MergedRun>;
+	defaultColumnVisibility: ColumnVisibilityState;
 	columnOrder: ColumnId[];
 	defaultColumnOrder: ColumnId[];
 	onColumnOrderChange: (order: ColumnId[]) => void;

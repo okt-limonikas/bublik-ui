@@ -6,8 +6,11 @@ import { MergedRun, RunData } from '@/shared/types';
 
 import { RowDecription } from '../context';
 import { isChild, isPackage, isTest } from './expanding';
+import { RunTableFeatures } from '../run-table.features';
 
-export const getRowValues = (row: Row<RunData | MergedRun>) => {
+export const getRowValues = (
+	row: Row<RunTableFeatures, RunData | MergedRun>
+) => {
 	const values: Record<string, number> = {};
 
 	row?.getAllCells().forEach((cell) => {
@@ -18,7 +21,7 @@ export const getRowValues = (row: Row<RunData | MergedRun>) => {
 };
 
 export const getRowsValuesById = (
-	rawRawsById: Record<string, Row<RunData | MergedRun>>
+	rawRawsById: Record<string, Row<RunTableFeatures, RunData | MergedRun>>
 ) => {
 	const rowsById = Object.entries(rawRawsById);
 
@@ -31,19 +34,19 @@ export const getRowsValuesById = (
 };
 
 const packageFilter =
-	(originalRow: Row<RunData | MergedRun>) =>
-	(row: Row<RunData | MergedRun>) => {
+	(originalRow: Row<RunTableFeatures, RunData | MergedRun>) =>
+	(row: Row<RunTableFeatures, RunData | MergedRun>) => {
 		return isChild(originalRow, row) && isPackage(row);
 	};
 
 const testFilter =
-	(originalRow: Row<RunData | MergedRun>) =>
-	(row: Row<RunData | MergedRun>) => {
+	(originalRow: Row<RunTableFeatures, RunData | MergedRun>) =>
+	(row: Row<RunTableFeatures, RunData | MergedRun>) => {
 		return isChild(originalRow, row) && isTest(row);
 	};
 
 export const getRowsDescriptionById = (
-	rows: Row<RunData | MergedRun>[]
+	rows: Row<RunTableFeatures, RunData | MergedRun>[]
 ): Record<string, RowDecription> => {
 	const result: Record<string, RowDecription> = {};
 

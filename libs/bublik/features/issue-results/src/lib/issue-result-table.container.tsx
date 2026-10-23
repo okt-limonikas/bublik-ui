@@ -32,6 +32,7 @@ import {
 	RunRowStateContextProvider,
 	useResultTableFilters,
 	useRunTableRowState,
+	type ResultTableFeatures,
 	type RowStateContextType,
 	type RunRowState
 } from '@/bublik/features/run';
@@ -82,7 +83,7 @@ function useResultTableRowState(rowId: string) {
 	const rowState = rowStates[rowId];
 
 	const onRowClick = useCallback(
-		(row: Row<RunDataResults>) =>
+		(row: Row<ResultTableFeatures, RunDataResults>) =>
 			updateRowState({
 				...rowState,
 				rowId,

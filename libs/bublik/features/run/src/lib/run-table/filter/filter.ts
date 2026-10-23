@@ -4,13 +4,15 @@ import { MergedRun, RunData } from '@/shared/types';
 import { FilterFn, Row } from '@tanstack/react-table';
 
 import { GlobalFilterValue } from '../types';
+import { RunTableFeatures } from '../run-table.features';
 
 const isChild = (rowId: string) => (filterValue: GlobalFilterValue) => {
 	return rowId.startsWith(filterValue.rowId);
 };
 
 const applyGlobalFilter =
-	(filters: GlobalFilterValue[]) => (row: Row<RunData | MergedRun>) => {
+	(filters: GlobalFilterValue[]) =>
+	(row: Row<RunTableFeatures, RunData | MergedRun>) => {
 		const isPresentInSomeParent = filters.some(isChild(row.id));
 
 		// We handle only subtrees moving on (strict checking)
@@ -21,7 +23,7 @@ const applyGlobalFilter =
 		return columnsForCheck.some((columnId) => !!row.getValue(columnId));
 	};
 
-export const globalFilterFn: FilterFn<RunData | MergedRun> = (
+export const globalFilterFn: FilterFn<RunTableFeatures, RunData | MergedRun> = (
 	row,
 	_columnId,
 	filters: GlobalFilterValue[]

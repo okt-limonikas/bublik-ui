@@ -13,6 +13,7 @@ import {
 import { RowState } from '../../hooks';
 import { getRowValues } from './get-values';
 import { isTest } from './expanding';
+import { RunTableFeatures } from '../run-table.features';
 
 export const getUnexpectedGlobalFilter = (
 	rowValues: Record<string, number>,
@@ -36,7 +37,7 @@ export const globalFilterToSort = (
 });
 
 export const getExpandedUnexpectedState = (
-	table: Table<RunData | MergedRun>
+	table: Table<RunTableFeatures, RunData | MergedRun>
 ): [Record<string, RowState>, string[]] => {
 	const rowModel = table.getPreFilteredRowModel();
 	const unexpectedTestRows = rowModel.flatRows
@@ -83,6 +84,8 @@ export const hasUnexpected = (data: RunData | MergedRun): boolean => {
 	);
 };
 
-export function containsUnexpected(row: Row<RunData | MergedRun>): boolean {
+export function containsUnexpected(
+	row: Row<RunTableFeatures, RunData | MergedRun>
+): boolean {
 	return hasUnexpected(row.original);
 }

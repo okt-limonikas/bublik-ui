@@ -6,8 +6,9 @@ import { NodeEntity, MergedRun, RunData } from '@/shared/types';
 
 import { GlobalFilterValue, ColumnId } from '../types';
 import { containsUnexpected } from './unexpected';
+import { RunTableFeatures } from '../run-table.features';
 
-export function isPackage(row: Row<RunData | MergedRun>) {
+export function isPackage(row: Row<RunTableFeatures, RunData | MergedRun>) {
 	return (
 		row.original.type === NodeEntity.Package ||
 		row.original.type === NodeEntity.Session ||
@@ -15,17 +16,19 @@ export function isPackage(row: Row<RunData | MergedRun>) {
 	);
 }
 
-export function isTest(row: Row<RunData | MergedRun>) {
+export function isTest(row: Row<RunTableFeatures, RunData | MergedRun>) {
 	return row.original.type === NodeEntity.Test;
 }
 
-export const getRowCanExpand = (row: Row<RunData | MergedRun>) => {
+export const getRowCanExpand = (
+	row: Row<RunTableFeatures, RunData | MergedRun>
+) => {
 	return !!row.subRows.length || isTest(row);
 };
 
 export const isChild = (
-	parent: Row<RunData | MergedRun>,
-	row: Row<RunData | MergedRun>
+	parent: Row<RunTableFeatures, RunData | MergedRun>,
+	row: Row<RunTableFeatures, RunData | MergedRun>
 ) => {
 	return parent.subRows.some((child) => child.id === row.id);
 };
@@ -53,7 +56,9 @@ export const add =
 		return [...globalFilter, { rowId, columnId }];
 	};
 
-export function getPackageIdsWithUnexpected(table: Table<RunData | MergedRun>) {
+export function getPackageIdsWithUnexpected(
+	table: Table<RunTableFeatures, RunData | MergedRun>
+) {
 	const model = table.getPreFilteredRowModel().flatRows;
 
 	return model
@@ -62,13 +67,17 @@ export function getPackageIdsWithUnexpected(table: Table<RunData | MergedRun>) {
 		.map((row) => row.id);
 }
 
-export function getAllTestIds(table: Table<RunData | MergedRun>) {
+export function getAllTestIds(
+	table: Table<RunTableFeatures, RunData | MergedRun>
+) {
 	const model = table.getPreFilteredRowModel().flatRows;
 
 	return model.filter(isTest).map((row) => row.id);
 }
 
-export function getRootRowId(table: Table<RunData | MergedRun>) {
+export function getRootRowId(
+	table: Table<RunTableFeatures, RunData | MergedRun>
+) {
 	const model = table.getPreFilteredRowModel().flatRows;
 
 	return model[0]?.id;
@@ -95,9 +104,9 @@ export const toggleRowExpanded =
 	};
 
 export function getAllPackageIdsRecursively(
-	table: Table<RunData | MergedRun>,
+	table: Table<RunTableFeatures, RunData | MergedRun>,
 	startRowId: string,
-	filter: (row: Row<RunData | MergedRun>) => boolean
+	filter: (row: Row<RunTableFeatures, RunData | MergedRun>) => boolean
 ): string[] {
 	const row = table.getPreFilteredRowModel().rowsById[startRowId];
 	if (!row) return [];

@@ -32,14 +32,15 @@ import {
 } from '../../utils';
 import { OpenTooltip } from '../open-tooltip';
 import { RowState, useRunTableRowState } from '../../../hooks';
+import { RunTableFeatures } from '../../run-table.features';
 
 export interface TableBadgeModelProps {
 	variant: BadgeVariants;
 	columnId: ColumnId;
 	results: RESULT_TYPE[];
 	resultProperties?: RESULT_PROPERTIES[];
-	row: Row<RunData | MergedRun>;
-	table: Table<RunData | MergedRun>;
+	row: Row<RunTableFeatures, RunData | MergedRun>;
+	table: Table<RunTableFeatures, RunData | MergedRun>;
 	value: number | string;
 }
 
@@ -56,8 +57,8 @@ function TableBadgeModel({
 		useRunTableRowState();
 	const { id: rowId } = row;
 	const rootRowId = getRootRowId(table);
-	const { getState, setGlobalFilter, setExpanded } = table;
-	const globalFilter: GlobalFilterValue[] = getState().globalFilter;
+	const { setGlobalFilter, setExpanded } = table;
+	const globalFilter: GlobalFilterValue[] = table.atoms.globalFilter.get();
 	const isPackageInFilter = globalFilter.some(isInFilter(rowId, columnId));
 	const hasMoreThanOneFilter = doesRowHasMoreThanOneFilter(rowId)(globalFilter);
 

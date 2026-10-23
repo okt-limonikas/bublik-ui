@@ -17,8 +17,10 @@ import {
 } from './result-table.component';
 import { getRowValues } from '../run-table';
 import { RunHistoryLink } from './run-history-link';
+import { RunTableFeatures } from '../run-table/run-table.features';
+import { ResultTableFeatures } from './result-table.features';
 
-function getResultSelectors(row: Row<RunData | MergedRun>) {
+function getResultSelectors(row: Row<RunTableFeatures, RunData | MergedRun>) {
 	return 'parent_ids' in row.original
 		? row.original.result_selectors
 		: [
@@ -35,7 +37,7 @@ const DEFAULT_REQUEST = {
 
 export interface ResultTableContainerProps {
 	runId: string | string[];
-	row: Row<RunData | MergedRun>;
+	row: Row<RunTableFeatures, RunData | MergedRun>;
 	height: number;
 	targetIterationId?: number;
 }
@@ -69,7 +71,7 @@ export function ResultTableContainer(props: ResultTableContainerProps) {
 	}, [requests, values]);
 
 	const onRowClick = useCallback(
-		(row: Row<RunDataResults>) => {
+		(row: Row<ResultTableFeatures, RunDataResults>) => {
 			const referenceDiffRowId =
 				rowState?.referenceDiffRowId === row.id ? undefined : row.id;
 

@@ -2,15 +2,11 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { useMemo, useRef, useState, useEffect } from 'react';
 import {
-	getExpandedRowModel,
-	getCoreRowModel,
-	getSortedRowModel,
-	getFilteredRowModel,
-	useReactTable,
+	useTable,
 	SortingState,
 	ExpandedState,
 	OnChangeFn,
-	VisibilityState
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 import {
 	DndContext,
@@ -47,6 +43,7 @@ import { Toolbar } from './toolbar';
 import { getColumns } from './columns';
 import { buildColumnGroups } from './constants';
 import { ColumnId } from './types';
+import { runTableFeatures } from './run-table.features';
 import { useGlobalRequirements } from '../hooks';
 import {
 	getRowId,
@@ -83,13 +80,13 @@ export interface RunTableProps {
 	expanded: ExpandedState;
 	sorting: SortingState;
 	globalFilter: string[];
-	columnVisibility: VisibilityState;
-	defaultColumnVisibility: VisibilityState;
+	columnVisibility: ColumnVisibilityState;
+	defaultColumnVisibility: ColumnVisibilityState;
 	defaultColumns?: RunStatsColumn[];
 	columnOrder: ColumnId[];
 	defaultColumnOrder: ColumnId[];
 	onColumnOrderChange: (order: ColumnId[]) => void;
-	onColumnVisibilityChange: OnChangeFn<VisibilityState>;
+	onColumnVisibilityChange: OnChangeFn<ColumnVisibilityState>;
 	onExpandedChange: OnChangeFn<ExpandedState>;
 	onSortingChange: OnChangeFn<SortingState>;
 	onGlobalFilterChange: OnChangeFn<string[]>;
@@ -132,22 +129,19 @@ export const RunTable = (props: RunTableProps) => {
 		[columnOrder, defaultColumns, projectId]
 	);
 
-	const table = useReactTable<RunData | MergedRun>({
+	const table = useTable({
+		features: runTableFeatures,
 		data,
 		columns,
 		state: { expanded, globalFilter, sorting, columnVisibility },
-		getCoreRowModel: getCoreRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
 		getSubRows: (row) => row.children,
 		onExpandedChange: onExpandedChange,
 		autoResetExpanded: false,
 		getRowCanExpand: getRowCanExpand,
-		getFilteredRowModel: getFilteredRowModel(),
 		onGlobalFilterChange: onGlobalFilterChange,
 		onColumnVisibilityChange: onColumnVisibilityChange,
 		globalFilterFn: globalFilterFn,
 		filterFromLeafRows: true,
-		getSortedRowModel: getSortedRowModel(),
 		getRowId: shouldMigrateExpandedState(expanded) ? undefined : getRowId,
 		onSortingChange: onSortingChange,
 		autoResetAll: false

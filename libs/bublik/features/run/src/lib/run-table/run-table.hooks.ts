@@ -6,7 +6,7 @@ import {
 	Row,
 	SortingState,
 	Updater,
-	VisibilityState
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 import { skipToken } from '@reduxjs/toolkit/query';
 
@@ -25,6 +25,7 @@ import {
 	reconcileColumnOrder
 } from './constants';
 import { ColumnId } from './types';
+import { RunTableFeatures } from './run-table.features';
 
 const RUN_TABLE_PERSISTED_QUERY_KEYS = [
 	'expanded',
@@ -46,7 +47,7 @@ export function hasPersistedRunTableState(search: string): boolean {
 export function getRowId(
 	original: RunData | MergedRun,
 	_idx: number,
-	parent: Row<RunData | MergedRun> | undefined
+	parent: Row<RunTableFeatures, RunData | MergedRun> | undefined
 ) {
 	if ('result_ids' in original) {
 		return parent
@@ -67,14 +68,14 @@ function getColumnVisibilityStorageKey(projectId?: number): string {
 }
 
 function hasColumnVisibility(
-	value: VisibilityState | null | undefined
+	value: ColumnVisibilityState | null | undefined
 ): boolean {
 	return Object.keys(value ?? {}).length > 0;
 }
 
 function hasStoredColumnVisibility(
 	key: string,
-	value: VisibilityState
+	value: ColumnVisibilityState
 ): boolean {
 	try {
 		return localStorage.getItem(key) !== null && hasColumnVisibility(value);
@@ -93,7 +94,7 @@ function useColumnVisibility(
 		[defaultColumns]
 	);
 
-	function getLocalColumnVisibility(): VisibilityState {
+	function getLocalColumnVisibility(): ColumnVisibilityState {
 		try {
 			const columnVisibility = localStorage.getItem(columnVisibilityStorageKey);
 
@@ -106,7 +107,7 @@ function useColumnVisibility(
 	}
 
 	const [localColumnVisibility, setLocalColumnVisibility] =
-		useLocalStorage<VisibilityState>(
+		useLocalStorage<ColumnVisibilityState>(
 			columnVisibilityStorageKey,
 			getLocalColumnVisibility()
 		);
@@ -126,7 +127,7 @@ function useColumnVisibility(
 			: defaultColumnVisibility;
 
 	const setColumnVisibility = (
-		state: Updater<VisibilityState> | VisibilityState
+		state: Updater<ColumnVisibilityState> | ColumnVisibilityState
 	): void => {
 		const newState =
 			typeof state === 'function' ? state(columnVisibility) : state;
@@ -224,7 +225,7 @@ function useColumnOrder(defaultColumns?: RunStatsColumn[], projectId?: number) {
 
 export function migrateExpandedState(
 	expanded: Record<string, boolean> | true,
-	allRows: Record<string, Row<RunData | MergedRun>>
+	allRows: Record<string, Row<RunTableFeatures, RunData | MergedRun>>
 ): Record<string, boolean> | boolean {
 	const newExpanded: Record<string, boolean> = {};
 

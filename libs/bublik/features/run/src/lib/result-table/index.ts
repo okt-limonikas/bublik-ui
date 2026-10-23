@@ -15,3 +15,4 @@ export type {
 	ResultTableProps,
 	ResultTableToolbarProps
 } from './result-table.component';
+export type { ResultTableFeatures } from './result-table.features';

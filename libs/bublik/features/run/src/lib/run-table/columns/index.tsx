@@ -24,6 +24,7 @@ import {
 	COLUMN_GROUPS,
 	createDefaultColumnOrder
 } from '../constants';
+import { RunTableFeatures } from '../run-table.features';
 
 interface GetColumnsOptions {
 	projectId?: number;
@@ -32,8 +33,10 @@ interface GetColumnsOptions {
 }
 
 function groupColumnsByOrder(
-	columns: ColumnDef<RunData | MergedRun>[],
-	helper: ReturnType<typeof createColumnHelper<RunData | MergedRun>>
+	columns: ColumnDef<RunTableFeatures, RunData | MergedRun>[],
+	helper: ReturnType<
+		typeof createColumnHelper<RunTableFeatures, RunData | MergedRun>
+	>
 ) {
 	const columnsById = new Map(
 		columns.map((column) => [column.id as ColumnId, column])
@@ -64,9 +67,9 @@ function getColumns({
 	defaultColumns,
 	columnOrder
 }: GetColumnsOptions) {
-	const helper = createColumnHelper<RunData | MergedRun>();
+	const helper = createColumnHelper<RunTableFeatures, RunData | MergedRun>();
 
-	const treeColumn: ColumnDef<RunData> = {
+	const treeColumn: ColumnDef<RunTableFeatures, RunData> = {
 		id: ColumnId.Tree,
 		accessorFn: getTreeNode,
 		header: 'Tree',
@@ -167,7 +170,7 @@ function getColumns({
 			meta: { className: 'text-right w-px px-0' }
 		}),
 		...badgeColumns
-	] as ColumnDef<RunData | MergedRun>[];
+	] as ColumnDef<RunTableFeatures, RunData | MergedRun>[];
 	const columnsById = new Map(
 		columns.map((column) => [column.id as ColumnId, column])
 	);

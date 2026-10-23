@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { ReactNode } from 'react';
-import { VisibilityState } from '@tanstack/react-table';
+import { ColumnVisibilityState } from '@tanstack/react-table';
 
 import {
 	ResultTableFilter,
@@ -70,7 +70,7 @@ export const getUnexpectedResultForColumnId = (
 export const isUnexpectedColumn =
 	createUnexpectedColumnGetter(UnexpectedColumns);
 
-export const DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+export const DEFAULT_COLUMN_VISIBILITY: ColumnVisibilityState = {
 	[ColumnId.Total]: false,
 	[ColumnId.ExpectedTotal]: false,
 	[ColumnId.UnexpectedTotal]: false,
@@ -123,18 +123,21 @@ export const DEFAULT_COLUMN_ORDER = [
 
 export function createDefaultColumnVisibility(
 	defaultColumns?: RunStatsColumn[]
-): VisibilityState {
+): ColumnVisibilityState {
 	if (!defaultColumns) return DEFAULT_COLUMN_VISIBILITY;
 
 	const visibleColumns = new Set(
 		defaultColumns.map((column) => RUN_STATS_COLUMN_ID_MAP[column])
 	);
 
-	return CONFIGURABLE_COLUMN_IDS.reduce<VisibilityState>((acc, columnId) => {
-		acc[columnId] = visibleColumns.has(columnId);
+	return CONFIGURABLE_COLUMN_IDS.reduce<ColumnVisibilityState>(
+		(acc, columnId) => {
+			acc[columnId] = visibleColumns.has(columnId);
 
-		return acc;
-	}, {});
+			return acc;
+		},
+		{}
+	);
 }
 
 export function createDefaultColumnOrder(

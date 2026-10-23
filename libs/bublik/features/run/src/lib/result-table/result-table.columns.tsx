@@ -2,10 +2,11 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { CSSProperties, Fragment, useMemo } from 'react';
 import {
-	ColumnDef,
 	createColumnHelper,
 	Row,
-	RowData
+	type CellData,
+	type RowData,
+	type TableFeatures
 } from '@tanstack/react-table';
 import { createNextState } from '@reduxjs/toolkit';
 
@@ -40,18 +41,24 @@ import { KeyList } from './key-list';
 import { getCommonParameters } from './matcher';
 import { useGlobalRequirements, useRunTableRowState } from '../hooks';
 import { COLUMN_ID, ObtainedResultFilterSchema } from './constants';
+import { ResultTableFeatures } from './result-table.features';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		style?: CSSProperties;
 		width?: string;
 		className?: string;
 		headerCellClassName?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
-const helper = createColumnHelper<RunDataResults>();
+const helper = createColumnHelper<ResultTableFeatures, RunDataResults>();
 
 interface GetColumnsOptions {
 	rowId: string;
@@ -137,7 +144,7 @@ export const getColumns = ({
 		meta: { width: 'fit-content(14rem)', headerCellClassName: 'pl-[12px]' }
 	});
 
-	return [
+	return helper.columns([
 		helper.accessor((data) => data, {
 			header: 'Actions',
 			id: 'links',
@@ -503,11 +510,11 @@ export const getColumns = ({
 			filterFn: fitlerIncludesSome,
 			meta: { headerCellClassName: 'pl-[12px]' }
 		})
-	] as ColumnDef<RunDataResults>[];
+	]);
 };
 
 function fitlerIncludesSome<T extends Record<string, unknown>>(
-	row: Row<T>,
+	row: Row<ResultTableFeatures, T>,
 	column: string,
 	filterValue: string[]
 ) {

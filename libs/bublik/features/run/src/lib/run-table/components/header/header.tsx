@@ -15,9 +15,10 @@ import { MergedRun, RunData } from '@/shared/types';
 import { TableSort, cn } from '@/shared/tailwind-ui';
 
 import { ColumnId } from '../../types';
+import { RunTableFeatures } from '../../run-table.features';
 
 export interface RunHeaderProps {
-	instance: Table<RunData | MergedRun>;
+	instance: Table<RunTableFeatures, RunData | MergedRun>;
 	columnOrder: ColumnId[];
 	/** Columns of the group currently being dragged (slide together). */
 	draggingGroupColumns: ColumnId[] | null;
@@ -108,14 +109,16 @@ export const RunHeader = ({
 	);
 };
 
-function isTreeGroup(header: Header<RunData | MergedRun, unknown>): boolean {
+function isTreeGroup(
+	header: Header<RunTableFeatures, RunData | MergedRun, unknown>
+): boolean {
 	return header
 		.getLeafHeaders()
 		.some((leaf) => leaf.column.id === ColumnId.Tree);
 }
 
 interface HeaderCellProps {
-	header: Header<RunData | MergedRun, unknown>;
+	header: Header<RunTableFeatures, RunData | MergedRun, unknown>;
 	isLast: boolean;
 	style?: CSSProperties;
 	setNodeRef?: (node: HTMLElement | null) => void;

@@ -66,7 +66,7 @@ const RUN_URL_PARAMS = {
 	},
 	visibility: {
 		codec: 'lz-string compressed JSON',
-		values: 'a tanstack VisibilityState',
+		values: 'a tanstack ColumnVisibilityState',
 		whenAbsent:
 			'localStorage `run-column-visibility[:projectId]`, then the computed default — the URL wins over both',
 		writtenBy: 'the Columns menu'
