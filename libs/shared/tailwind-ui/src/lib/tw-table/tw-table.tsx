@@ -2,12 +2,7 @@
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import React, { DetailedHTMLProps, HTMLAttributes, useRef } from 'react';
 import {
-	useReactTable,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	getFilteredRowModel,
+	useTable,
 	flexRender,
 	ColumnDef,
 	TableOptions,
@@ -25,6 +20,7 @@ import { isFunction } from '@/shared/utils';
 import { cn } from '../utils';
 import { Pagination } from '../pagination';
 import { TableSort } from '../table-sort';
+import { TwTableFeatures, twTableFeatures } from './tw-table.features';
 
 const shadowStyle = { boxShadow: 'var(--shadow-sticky)' };
 
@@ -37,7 +33,7 @@ export interface TwHeaderProps<T extends Record<string, unknown>>
 		| 'getHeaderRowProps'
 		| 'getHeaderProps'
 	> {
-	table: Table<T>;
+	table: Table<TwTableFeatures, T>;
 }
 const TwHeader = <T extends Record<string, unknown>>(
 	props: TwHeaderProps<T>
@@ -112,41 +108,43 @@ export interface TableClassNames<T extends Record<string, unknown>> {
 	table?: string;
 	header?: string;
 	headerRow?: string;
-	headerCell?: string | ((header: Header<T, unknown>) => string);
+	headerCell?:
+		| string
+		| ((header: Header<TwTableFeatures, T, unknown>) => string);
 	body?: string;
-	bodyRow?: string | ((row: Row<T>) => string);
-	bodyCell?: string | ((cell: Cell<T, unknown>) => string);
+	bodyRow?: string | ((row: Row<TwTableFeatures, T>) => string);
+	bodyCell?: string | ((cell: Cell<TwTableFeatures, T, unknown>) => string);
 }
 
 export interface TwTableProps<T extends Record<string, unknown>>
-	extends Partial<TableOptions<T>> {
+	extends Partial<Omit<TableOptions<TwTableFeatures, T>, 'features'>> {
 	/** Table Rows */
 	data: T[];
 	/** Table columns for cell rendering */
-	columns: ColumnDef<T>[];
+	columns: ColumnDef<TwTableFeatures, T>[];
 	/** Table classnames */
 	classNames?: TableClassNames<T>;
 	/** Display shadow when reached */
 	stickyOffset?: number;
 	getHeaderProps?: (
-		table: Table<T>,
+		table: Table<TwTableFeatures, T>,
 		{ isSticky }: { isSticky: boolean }
 	) => DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 	getRowProps?: (
-		table: Table<T>,
-		row: Row<T>
+		table: Table<TwTableFeatures, T>,
+		row: Row<TwTableFeatures, T>
 	) => DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 	getHeaderCellProps?: (
-		table: Table<T>,
-		headerCell: Header<T, unknown>
+		table: Table<TwTableFeatures, T>,
+		headerCell: Header<TwTableFeatures, T, unknown>
 	) => DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 	getCellProps?: (
-		table: Table<T>,
-		headerCell: Cell<T, unknown>
+		table: Table<TwTableFeatures, T>,
+		headerCell: Cell<TwTableFeatures, T, unknown>
 	) => DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 	getHeaderRowProps?: (
-		table: Table<T>,
-		row: HeaderGroup<T>
+		table: Table<TwTableFeatures, T>,
+		row: HeaderGroup<TwTableFeatures, T>
 	) => DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 }
 
@@ -164,19 +162,14 @@ export const TwTable = <T extends Record<string, unknown>>(
 		...rest
 	} = props;
 
-	const table = useReactTable<T>({
+	const table = useTable({
+		features: twTableFeatures,
 		pageCount,
-		getCoreRowModel: getCoreRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 		debugTable: config.isDev,
 		...rest
 	});
 
-	const state = table.getState();
-	const { pageSize, pageIndex } = state.pagination;
+	const { pageSize, pageIndex } = table.state.pagination;
 
 	const pagination = pageCount ? (
 		<div className="flex justify-center mt-1">

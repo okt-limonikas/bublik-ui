@@ -1,34 +1,24 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { memo, useState } from 'react';
-import {
-	useReactTable,
-	getExpandedRowModel,
-	getCoreRowModel,
-	ExpandedState,
-	flexRender
-} from '@tanstack/react-table';
+import { memo } from 'react';
+import { useTable, flexRender } from '@tanstack/react-table';
 
 import { SingleMeasurementTable } from '@/services/bublik-api';
 import { cn } from '@/shared/tailwind-ui';
 
 import { MeasurementConfig } from '../constants';
 import { columns } from './measurements-table.columns';
+import { measurementsTableFeatures } from './measurements-table.features';
 
 export interface MeasurementsTableProps {
 	data: SingleMeasurementTable[];
 }
 
 export const MeasurementsTable = memo(({ data }: MeasurementsTableProps) => {
-	const [expanded, setExpanded] = useState<ExpandedState>({});
-
-	const instance = useReactTable<SingleMeasurementTable>({
+	const instance = useTable({
+		features: measurementsTableFeatures,
 		data,
-		columns,
-		state: { expanded },
-		getCoreRowModel: getCoreRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
-		onExpandedChange: setExpanded
+		columns
 	});
 
 	return (

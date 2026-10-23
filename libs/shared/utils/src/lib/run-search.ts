@@ -4,7 +4,7 @@ import type {
 	ColumnFiltersState,
 	ExpandedState,
 	SortingState,
-	VisibilityState
+	ColumnVisibilityState
 } from '@tanstack/react-table';
 
 import {
@@ -44,7 +44,7 @@ const RUN_TABLE_SHAPE = {
 	sorting: compressedJson<SortingState>(),
 	globalFilter: compressedJson<string[]>(),
 	rowState: compressedJson<Record<string, RunTableRowState>>(),
-	visibility: compressedJson<VisibilityState>(),
+	visibility: compressedJson<ColumnVisibilityState>(),
 	columnFilters: compressedJson<Record<string, ColumnFiltersState>>(),
 	columnOrder: json<string[]>(),
 	globalRequirements: repeated(),

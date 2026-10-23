@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2024-2026 OKTET LTD */
-import type { VisibilityState } from '@tanstack/react-table';
+import type { ColumnVisibilityState } from '@tanstack/react-table';
 
 import { defineSearch, json, str, type InferSearch } from '@/router';
 
@@ -15,7 +15,7 @@ const compareSearch = defineSearch(
 		left: str(),
 		right: str(),
 		expanded: json<Record<string, boolean>>(),
-		columnVisibility: json<VisibilityState>()
+		columnVisibility: json<ColumnVisibilityState>()
 	},
 	{
 		expanded: { '0': true },

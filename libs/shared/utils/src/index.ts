@@ -24,6 +24,7 @@ export * from './lib/compare-search';
 export * from './lib/runs-search';
 export * from './lib/form';
 export * from './lib/log-tree';
+export * from './lib/table-sort-fns';
 
 export const checkSchema = <SchemaType>(
 	schema: z.ZodSchema<SchemaType>,

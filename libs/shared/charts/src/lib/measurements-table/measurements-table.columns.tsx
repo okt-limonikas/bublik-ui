@@ -4,9 +4,14 @@ import { createColumnHelper } from '@tanstack/react-table';
 
 import { SingleMeasurementTable } from '@/services/bublik-api';
 
-const helper = createColumnHelper<SingleMeasurementTable>();
+import { measurementsTableFeatures } from './measurements-table.features';
 
-export const columns = [
+const helper = createColumnHelper<
+	typeof measurementsTableFeatures,
+	SingleMeasurementTable
+>();
+
+export const columns = helper.columns([
 	helper.accessor((d) => ({ tool: d.tool, type: d.type }), {
 		id: 'tool_type',
 		header: 'Tool & Type',
@@ -91,4 +96,4 @@ export const columns = [
 			);
 		}
 	})
-];
+]);
