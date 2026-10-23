@@ -33,22 +33,22 @@ export const getColumnWidth = (
 /**
  * Grid tracks for the data columns, keyed by column key.
  *
- * The table is a single grid, so the browser measures the content itself.
- * Long text columns share the leftover width as `fr` tracks and truncate.
- * Every other column is `fit-content(share)`: as wide as its widest value on
- * a wide row, and on a narrow row no wider than its proportional share of
- * the width left after the icon tracks, so the long columns keep theirs.
- * The shares use the same weights the old flex layout grew by. Text cells
- * may truncate below that share (see `shrinks`); numeric badges keep their
- * content width, so a number never truncates.
+ * Every column is an `fr` track weighted by the length of its longest value,
+ * so leftover width is shared in proportion to the content, as the flex
+ * layout did, and a sparse day does not hand it all to one column. The
+ * weights have no fixed base (unlike `getColumnWidth`): short columns are
+ * light, so on a narrow row they stay near their content and the long text
+ * columns keep as much as possible. The columns differ in how far they may
+ * shrink: long text columns go down to nothing and truncate (see `shrinks`),
+ * numbers and short labels stop at their content width, so a number never
+ * truncates.
  */
 export const getColumnTracks = (
 	rows: DashboardData[],
-	headers: DashboardAPIResponse['header'],
-	/** Width of the fixed icon tracks (status, expand). */
-	reservedPx: number
+	headers: DashboardAPIResponse['header']
 ) => {
 	const GROW_MIN_LENGTH = 12;
+	const MAX_WEIGHT = 30;
 
 	const columns = headers.map(({ key, name }) => {
 		const isNumeric = isNumericColumn(rows, key);
@@ -56,7 +56,10 @@ export const getColumnTracks = (
 		return {
 			key,
 			isNumeric,
-			weight: getColumnWidth(rows, key, name),
+			weight: Math.min(
+				MAX_WEIGHT,
+				Math.max(getMaxLengthInColumn(rows, key), name.length)
+			),
 			grows: !isNumeric && getMaxLengthInColumn(rows, key) >= GROW_MIN_LENGTH
 		};
 	});
@@ -68,14 +71,11 @@ export const getColumnTracks = (
 		});
 	}
 
-	const total = columns.reduce((sum, c) => sum + c.weight, 0);
-
 	return new Map(
 		columns.map(({ key, weight, grows, isNumeric }) => {
-			const share = (weight / total).toFixed(4);
 			const track = grows
 				? `minmax(0, ${weight}fr)`
-				: `fit-content(calc((100% - ${reservedPx}px) * ${share}))`;
+				: `minmax(max-content, ${weight}fr)`;
 
 			return [key, { track, shrinks: grows || !isNumeric }];
 		})

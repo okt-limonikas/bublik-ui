@@ -64,11 +64,7 @@ export const createColumns = (
 	{ showExpand = true }: CreateColumnsOptions = {}
 ): ColumnDef<DashboardData>[] => {
 	const map = createColorMap(rows, headers);
-	const tracks = getColumnTracks(
-		rows,
-		headers,
-		STATUS_COLUMN_WIDTH + (showExpand ? EXPAND_COLUMN_WIDTH : 0)
-	);
+	const tracks = getColumnTracks(rows, headers);
 
 	const mainColumns = headers.map(({ name, key }) => {
 		const align: DashboardColumnAlign = isNumericColumn(rows, key)
