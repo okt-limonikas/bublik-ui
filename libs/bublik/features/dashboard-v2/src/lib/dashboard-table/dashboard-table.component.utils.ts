@@ -11,8 +11,9 @@ import {
 } from '@/shared/types';
 
 import { getColorFromContext } from '../utils';
+import { DashboardTableFeatures } from './dashboard-table.features';
 
-export const isRowError = (row: Row<DashboardData>) => {
+export const isRowError = (row: Row<DashboardTableFeatures, DashboardData>) => {
 	return row.original.context.conclusion === RUN_STATUS.Error;
 };
 
@@ -134,7 +135,9 @@ export const columnHasBadges = (rows: DashboardData[], accessor: string) => {
 	});
 };
 
-export const getGridTemplateColumns = (columns: ColumnDef<DashboardData>[]) => {
+export const getGridTemplateColumns = (
+	columns: ColumnDef<DashboardTableFeatures, DashboardData>[]
+) => {
 	return columns
 		.map((column) => column.meta?.width ?? 'minmax(0, 1fr)')
 		.join(' ');

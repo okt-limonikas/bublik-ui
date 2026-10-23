@@ -6,6 +6,7 @@ import { Row } from '@tanstack/react-table';
 
 import { RUN_STATUS, DashboardData } from '@/shared/types';
 
+import { DashboardTableFeatures } from '../dashboard-table/dashboard-table.features';
 import { renderSubrow } from './subrow.container';
 
 vi.mock('../run-progress', () => {
@@ -25,7 +26,7 @@ describe('renderSubrow', () => {
 					conclusion: RUN_STATUS.Ok
 				}
 			}
-		} as Row<DashboardData>;
+		} as Row<DashboardTableFeatures, DashboardData>;
 
 		render(renderSubrow(row));
 

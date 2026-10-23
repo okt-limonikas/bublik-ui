@@ -16,6 +16,7 @@ import {
 	createColorMap,
 	getColumnWidth
 } from '../dashboard-table.component.utils';
+import { DashboardTableFeatures } from '../dashboard-table.features';
 
 import { ExpandButtonContainer } from '../../expand-button';
 import { CellNotesContainer } from '../../cell-notes';
@@ -29,7 +30,7 @@ export const createLegacyColumns = (
 	rows: DashboardAPIResponse['rows'],
 	date: Date,
 	payload: DashboardAPIResponse['payload']
-): ColumnDef<DashboardData>[] => {
+): ColumnDef<DashboardTableFeatures, DashboardData>[] => {
 	const map = createColorMap(rows, headers);
 
 	const mainColumns = headers.map(({ name, key }, idx) => {
@@ -42,7 +43,7 @@ export const createLegacyColumns = (
 			paddingRight: idx === 0 ? 4 : 1
 		} satisfies CSSProperties;
 
-		const column: ColumnDef<DashboardData> = {
+		const column: ColumnDef<DashboardTableFeatures, DashboardData> = {
 			id: key,
 			header: () => <span className="truncate">{name}</span>,
 			accessorFn: (data) => {
@@ -92,7 +93,7 @@ export const createLegacyColumns = (
 		return column;
 	});
 
-	const statusColumn: ColumnDef<DashboardData> = {
+	const statusColumn: ColumnDef<DashboardTableFeatures, DashboardData> = {
 		id: 'status-col',
 		header: () => null,
 		cell: ({ row }) => (
@@ -104,7 +105,7 @@ export const createLegacyColumns = (
 		meta: { style: { width: 24, position: 'relative' } }
 	};
 
-	const expandColumn: ColumnDef<DashboardData> = {
+	const expandColumn: ColumnDef<DashboardTableFeatures, DashboardData> = {
 		id: 'expand-col',
 		header: () => null,
 		cell: ({ row }) => {

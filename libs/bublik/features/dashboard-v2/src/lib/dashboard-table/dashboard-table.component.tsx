@@ -5,14 +5,10 @@ import {
 	Cell,
 	ExpandedState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getSortedRowModel,
 	Header,
 	Row,
 	Table,
-	useReactTable,
+	useTable,
 	ColumnMeta
 } from '@tanstack/react-table';
 import { fromDate, getLocalTimeZone } from '@internationalized/date';
@@ -38,6 +34,10 @@ import {
 	getGridTemplateColumns,
 	isRowError
 } from './dashboard-table.component.utils';
+import {
+	DashboardTableFeatures,
+	dashboardTableFeatures
+} from './dashboard-table.features';
 
 const DEFAULT_ROWS: DashboardAPIResponse['rows'] = [];
 
@@ -80,7 +80,7 @@ export interface DashboardTableProps {
 	rows?: DashboardAPIResponse['rows'];
 	context: Record<string, string>;
 	onDateChange?: (newDate: Date) => void;
-	renderSubrow?: (row: Row<DashboardData>) => ReactNode;
+	renderSubrow?: (row: Row<DashboardTableFeatures, DashboardData>) => ReactNode;
 	layout?: DashboardLayoutType;
 	isFetching?: boolean;
 	isLoading?: boolean;
@@ -116,14 +116,11 @@ export const DashboardTable = (props: DashboardTableProps) => {
 		[columns]
 	);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: dashboardTableFeatures,
 		state: { globalFilter, expanded },
 		data: useMemo(() => rows, [rows]),
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 		onExpandedChange: setExpanded
 	});
 
@@ -176,8 +173,8 @@ export const DashboardTable = (props: DashboardTableProps) => {
 };
 
 interface TableGridProps {
-	table: Table<DashboardData>;
-	rows: Row<DashboardData>[];
+	table: Table<DashboardTableFeatures, DashboardData>;
+	rows: Row<DashboardTableFeatures, DashboardData>[];
 	gridTemplateColumns: string;
 	isFetching: boolean;
 	renderSubrow: DashboardTableProps['renderSubrow'];
@@ -254,7 +251,7 @@ const TableGrid = (props: TableGridProps) => {
  * apart by colour.
  */
 const renderSortArrow = (
-	header: Header<DashboardData, unknown>,
+	header: Header<DashboardTableFeatures, DashboardData, unknown>,
 	side: 'leading' | 'trailing'
 ) => {
 	if (!header.column.getCanSort()) return null;
@@ -288,7 +285,9 @@ const headerCellStyle: CSSProperties = { top: DATE_PICKER_HEIGHT };
  * padding when the column has badges so the label sits over the badge text,
  * plus the gap after a right-aligned neighbour. Matches the body cells.
  */
-const headerInset = (meta: ColumnMeta<DashboardData, unknown> | undefined) => {
+const headerInset = (
+	meta: ColumnMeta<DashboardTableFeatures, DashboardData> | undefined
+) => {
 	const overBadges = meta?.hasBadges && meta.align !== 'right';
 
 	if (meta?.gapBefore) return overBadges ? 'pl-3.5' : 'pl-1.5';
@@ -296,7 +295,9 @@ const headerInset = (meta: ColumnMeta<DashboardData, unknown> | undefined) => {
 	return overBadges ? 'pl-2.5' : undefined;
 };
 
-const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
+const renderHeaderCell = (
+	header: Header<DashboardTableFeatures, DashboardData, unknown>
+) => {
 	const meta = header.column.columnDef.meta;
 	const isRightAligned = meta?.align === 'right';
 
@@ -330,7 +331,7 @@ interface RenderCellOptions {
 }
 
 const renderCell = (
-	cell: Cell<DashboardData, unknown>,
+	cell: Cell<DashboardTableFeatures, DashboardData, unknown>,
 	{ isRowError, isExpanded, isFetching, edge }: RenderCellOptions
 ) => {
 	const meta = cell.column.columnDef.meta;

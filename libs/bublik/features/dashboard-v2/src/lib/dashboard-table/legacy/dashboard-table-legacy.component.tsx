@@ -5,13 +5,9 @@ import {
 	Cell,
 	ExpandedState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getSortedRowModel,
 	Header,
 	Table,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
 import { fromDate, getLocalTimeZone } from '@internationalized/date';
 
@@ -28,6 +24,10 @@ import {
 } from '../dashboard-table.component';
 import { DashboardLayoutType } from '../dashboard-table.types';
 import { isRowError } from '../dashboard-table.component.utils';
+import {
+	DashboardTableFeatures,
+	dashboardTableFeatures
+} from '../dashboard-table.features';
 import { createLegacyColumns } from './dashboard-table-legacy.columns';
 import {
 	bodyCellStyles,
@@ -61,17 +61,14 @@ export const DashboardTableLegacy = (props: DashboardTableLegacyProps) => {
 	} = props;
 	const [expanded, setExpanded] = useState<ExpandedState>({});
 
-	const table = useReactTable({
+	const table = useTable({
+		features: dashboardTableFeatures,
 		state: { globalFilter, expanded },
 		data: useMemo(() => rows, [rows]),
 		columns: useMemo(
 			() => createLegacyColumns(headers, rows, date, context),
 			[context, date, headers, rows]
 		),
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 		onExpandedChange: setExpanded
 	});
 
@@ -116,7 +113,7 @@ export const DashboardTableLegacy = (props: DashboardTableLegacyProps) => {
 };
 
 interface TableHeaderProps {
-	table: Table<DashboardData>;
+	table: Table<DashboardTableFeatures, DashboardData>;
 	layout?: DashboardLayoutType;
 }
 
@@ -131,7 +128,8 @@ const TableHeader = (props: TableHeaderProps) => {
 	} as const;
 
 	const renderHeaderCells =
-		(id: string) => (header: Header<DashboardData, unknown>) => {
+		(id: string) =>
+		(header: Header<DashboardTableFeatures, DashboardData, unknown>) => {
 			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 			// @ts-ignore
 			const style = header.column.columnDef.meta?.style as
@@ -200,7 +198,7 @@ const TableHeader = (props: TableHeaderProps) => {
 };
 
 interface TableLayoutProps {
-	table: Table<DashboardData>;
+	table: Table<DashboardTableFeatures, DashboardData>;
 	layout?: DashboardLayoutType;
 	isFetching?: boolean;
 	renderSubrow: DashboardTableProps['renderSubrow'];
@@ -212,7 +210,9 @@ const TableBody = (props: TableLayoutProps) => {
 	const rows = table.getRowModel().rows;
 	const [first, second] = splitInHalf(rows);
 
-	const renderCells = (cell: Cell<DashboardData, unknown>) => {
+	const renderCells = (
+		cell: Cell<DashboardTableFeatures, DashboardData, unknown>
+	) => {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
 		const style = cell.column.columnDef.meta?.style as

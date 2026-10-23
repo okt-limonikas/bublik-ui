@@ -7,6 +7,7 @@ import { DashboardData } from '@/shared/types';
 import { cn, getRunStatusInfo } from '@/shared/tailwind-ui';
 
 import { RunProgressContainer } from '../run-progress';
+import { DashboardTableFeatures } from '../dashboard-table/dashboard-table.features';
 
 /**
  * Which table the subrow sits in. The grid table positions the subrow
@@ -24,7 +25,7 @@ const stripStyles: Record<SubrowVariant, string> = {
 };
 
 interface SubrowProps {
-	row: Row<DashboardData>;
+	row: Row<DashboardTableFeatures, DashboardData>;
 	variant?: SubrowVariant;
 }
 
@@ -56,13 +57,17 @@ export const Subrow = ({
 	);
 };
 
-export const renderSubrow = (row: Row<DashboardData>) => (
+export const renderSubrow = (
+	row: Row<DashboardTableFeatures, DashboardData>
+) => (
 	<Subrow row={row}>
 		<RunProgressContainer runId={row.original.context.run_id} />
 	</Subrow>
 );
 
-export const renderLegacySubrow = (row: Row<DashboardData>) => (
+export const renderLegacySubrow = (
+	row: Row<DashboardTableFeatures, DashboardData>
+) => (
 	<Subrow row={row} variant="legacy">
 		<RunProgressContainer runId={row.original.context.run_id} />
 	</Subrow>

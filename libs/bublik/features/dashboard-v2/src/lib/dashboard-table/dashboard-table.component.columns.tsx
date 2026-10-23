@@ -1,7 +1,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
 import { CSSProperties } from 'react';
-import { ColumnDef, RowData } from '@tanstack/react-table';
+import type {
+	CellData,
+	ColumnDef,
+	RowData,
+	TableFeatures
+} from '@tanstack/react-table';
 
 import { DashboardAPIResponse, DashboardData } from '@/shared/types';
 import { cn } from '@/shared/tailwind-ui';
@@ -19,6 +24,7 @@ import {
 	getColumnTracks,
 	isNumericColumn
 } from './dashboard-table.component.utils';
+import { DashboardTableFeatures } from './dashboard-table.features';
 
 import { ExpandButtonContainer } from '../expand-button';
 import { CellNotesContainer } from '../cell-notes';
@@ -30,8 +36,12 @@ const STATUS_COLUMN_WIDTH = 25;
 const EXPAND_COLUMN_WIDTH = 32;
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		/** Inline flex sizing, used by the legacy table only. */
 		style?: CSSProperties;
 		/** Track size for the table's `grid-template-columns`. */
@@ -54,6 +64,7 @@ declare module '@tanstack/react-table' {
 		/** Fixed icon track: no horizontal padding, cell is a positioning root. */
 		isIcon?: boolean;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 export interface CreateColumnsOptions {
@@ -67,7 +78,7 @@ export const createColumns = (
 	date: Date,
 	payload: DashboardAPIResponse['payload'],
 	{ showExpand = true }: CreateColumnsOptions = {}
-): ColumnDef<DashboardData>[] => {
+): ColumnDef<DashboardTableFeatures, DashboardData>[] => {
 	const map = createColorMap(rows, headers);
 	const tracks = getColumnTracks(rows, headers);
 
@@ -81,7 +92,7 @@ export const createColumns = (
 		const hasBadges = columnHasBadges(rows, key);
 		const gapBefore = align === 'left' && aligns[idx - 1] === 'right';
 
-		const column: ColumnDef<DashboardData> = {
+		const column: ColumnDef<DashboardTableFeatures, DashboardData> = {
 			id: key,
 			header: () => <span className="truncate">{name}</span>,
 			accessorFn: (data) => {
@@ -142,7 +153,7 @@ export const createColumns = (
 		return column;
 	});
 
-	const statusColumn: ColumnDef<DashboardData> = {
+	const statusColumn: ColumnDef<DashboardTableFeatures, DashboardData> = {
 		id: 'status-col',
 		header: () => null,
 		cell: ({ row }) => (
@@ -154,7 +165,7 @@ export const createColumns = (
 		meta: { width: `${STATUS_COLUMN_WIDTH}px`, isIcon: true }
 	};
 
-	const expandColumn: ColumnDef<DashboardData> = {
+	const expandColumn: ColumnDef<DashboardTableFeatures, DashboardData> = {
 		id: 'expand-col',
 		header: () => null,
 		cell: ({ row }) => {
