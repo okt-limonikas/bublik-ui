@@ -4,8 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import {
 	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
 
 import {
@@ -38,6 +37,7 @@ import { useIsSticky, usePhysicalHotkeys } from '@/shared/hooks';
 
 import { RunReportHeader } from './run-report-header';
 import { RunReportTestBlock } from './run-report-test';
+import { notProcessedPointsTableFeatures } from './not-processed-points-table.features';
 import { WarningsHoverCard } from './run-report-warnings';
 import { RunReportArgs } from './run-report-args';
 import {
@@ -434,7 +434,10 @@ function ReportConfigurationFrame(props: ReportConfigurationFrameProps) {
 	);
 }
 
-const helper = createColumnHelper<NotProcessedPoint>();
+const helper = createColumnHelper<
+	typeof notProcessedPointsTableFeatures,
+	NotProcessedPoint
+>();
 
 interface ArgListProps {
 	args: Record<string, string | number | null>;
@@ -468,7 +471,7 @@ function ArgList({ args }: ArgListProps) {
 	);
 }
 
-const columns = [
+const columns = helper.columns([
 	helper.accessor('test_name', {
 		header: 'Test Name',
 		meta: { className: 'text-xs' }
@@ -504,17 +507,17 @@ const columns = [
 			);
 		}
 	})
-];
+]);
 
 interface NotProcessedPointsTableProps {
 	points: NotProcessedPoint[];
 }
 
 function NotProcessedPointsTable({ points }: NotProcessedPointsTableProps) {
-	const table = useReactTable({
+	const table = useTable({
+		features: notProcessedPointsTableFeatures,
 		columns,
-		data: points,
-		getCoreRowModel: getCoreRowModel()
+		data: points
 	});
 
 	if (points.length === 0) return null;
