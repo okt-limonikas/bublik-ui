@@ -244,12 +244,33 @@ const TableGrid = (props: TableGridProps) => {
 	);
 };
 
-const sorting = {
-	asc: (
-		<SortArrow className="ml-1 size-3.5 shrink-0 translate-y-0.5 rotate-180" />
-	),
-	desc: <SortArrow className="ml-1 size-3.5 shrink-0 -translate-y-px" />
-} as const;
+/**
+ * The sort arrow of a sortable header. It is laid out even while the column
+ * is unsorted, only hidden, so neither the label nor the track (whose
+ * max-content floor the header can set) moves when sorting toggles. It
+ * leads the label in a right-aligned header, so the label stays on the edge
+ * the numbers align to, and trails it otherwise.
+ */
+const renderSortArrow = (
+	header: Header<DashboardData, unknown>,
+	side: 'leading' | 'trailing'
+) => {
+	if (!header.column.getCanSort()) return null;
+
+	const direction = header.column.getIsSorted();
+
+	return (
+		<SortArrow
+			className={cn(
+				'size-3.5 shrink-0',
+				side === 'leading' ? 'mr-1' : 'ml-1',
+				direction === 'asc' && 'translate-y-0.5 rotate-180',
+				direction === 'desc' && '-translate-y-px',
+				!direction && 'invisible'
+			)}
+		/>
+	);
+};
 
 const headerCellStyle: CSSProperties = { top: DATE_PICKER_HEIGHT };
 
@@ -268,6 +289,7 @@ const headerInset = (meta: ColumnMeta<DashboardData, unknown> | undefined) => {
 
 const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
 	const meta = header.column.columnDef.meta;
+	const isRightAligned = meta?.align === 'right';
 
 	return (
 		<div
@@ -281,10 +303,11 @@ const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
 			style={headerCellStyle}
 			onClick={header.column.getToggleSortingHandler()}
 		>
+			{isRightAligned ? renderSortArrow(header, 'leading') : null}
 			{header.isPlaceholder
 				? null
 				: flexRender(header.column.columnDef.header, header.getContext())}
-			{sorting[header.column.getIsSorted() as keyof typeof sorting] ?? null}
+			{isRightAligned ? null : renderSortArrow(header, 'trailing')}
 		</div>
 	);
 };
