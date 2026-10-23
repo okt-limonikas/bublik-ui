@@ -12,7 +12,8 @@ import {
 	Header,
 	Row,
 	Table,
-	useReactTable
+	useReactTable,
+	ColumnMeta
 } from '@tanstack/react-table';
 import { fromDate, getLocalTimeZone } from '@internationalized/date';
 
@@ -252,6 +253,19 @@ const sorting = {
 
 const headerCellStyle: CSSProperties = { top: DATE_PICKER_HEIGHT };
 
+/**
+ * Left padding of a header cell: the cell padding, plus the badge's own
+ * padding when the column has badges so the label sits over the badge text,
+ * plus the gap after a right-aligned neighbour. Matches the body cells.
+ */
+const headerInset = (meta: ColumnMeta<DashboardData, unknown> | undefined) => {
+	const overBadges = meta?.hasBadges && meta.align !== 'right';
+
+	if (meta?.gapBefore) return overBadges ? 'pl-3.5' : 'pl-1.5';
+
+	return overBadges ? 'pl-2.5' : undefined;
+};
+
 const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
 	const meta = header.column.columnDef.meta;
 
@@ -261,9 +275,7 @@ const renderHeaderCell = (header: Header<DashboardData, unknown>) => {
 			key={header.id}
 			className={cn(
 				headerCellStyles({ align: meta?.align, padded: !meta?.isIcon }),
-				// Cell padding plus the badge's own padding, so the label sits over
-				// the badge text.
-				meta?.hasBadges && meta.align !== 'right' && 'pl-2.5',
+				headerInset(meta),
 				header.column.getCanSort() && 'cursor-pointer select-none'
 			)}
 			style={headerCellStyle}
@@ -294,15 +306,20 @@ const renderCell = (
 		<div
 			key={cell.id}
 			role="cell"
-			className={bodyCellStyles({
-				isRowError,
-				isExpanded,
-				isFetching,
-				edge,
-				align: meta?.align,
-				padded: !meta?.isIcon,
-				shrinks: meta?.shrinks
-			})}
+			className={cn(
+				bodyCellStyles({
+					isRowError,
+					isExpanded,
+					isFetching,
+					edge,
+					align: meta?.align,
+					padded: !meta?.isIcon,
+					shrinks: meta?.shrinks
+				}),
+				// Room after a right-aligned neighbour; padding rather than margin
+				// so the cell keeps painting the row background across it.
+				meta?.gapBefore && 'pl-1.5'
+			)}
 		>
 			{flexRender(cell.column.columnDef.cell, cell.getContext())}
 		</div>

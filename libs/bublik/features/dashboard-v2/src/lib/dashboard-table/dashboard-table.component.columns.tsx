@@ -46,6 +46,11 @@ declare module '@tanstack/react-table' {
 		 * header's edge instead, which reads better for numbers.
 		 */
 		hasBadges?: boolean;
+		/**
+		 * The previous column is right-aligned, so without extra room its
+		 * content would end where this column's text starts.
+		 */
+		gapBefore?: boolean;
 		/** Fixed icon track: no horizontal padding, cell is a positioning root. */
 		isIcon?: boolean;
 	}
@@ -66,11 +71,15 @@ export const createColumns = (
 	const map = createColorMap(rows, headers);
 	const tracks = getColumnTracks(rows, headers);
 
-	const mainColumns = headers.map(({ name, key }) => {
-		const align: DashboardColumnAlign = isNumericColumn(rows, key)
-			? 'right'
-			: 'left';
+	const aligns = headers.map(
+		({ key }): DashboardColumnAlign =>
+			isNumericColumn(rows, key) ? 'right' : 'left'
+	);
+
+	const mainColumns = headers.map(({ name, key }, idx) => {
+		const align = aligns[idx];
 		const hasBadges = columnHasBadges(rows, key);
+		const gapBefore = align === 'left' && aligns[idx - 1] === 'right';
 
 		const column: ColumnDef<DashboardData> = {
 			id: key,
@@ -125,7 +134,8 @@ export const createColumns = (
 				width: tracks.get(key)?.track,
 				shrinks: tracks.get(key)?.shrinks,
 				align,
-				hasBadges
+				hasBadges,
+				gapBefore
 			}
 		};
 
