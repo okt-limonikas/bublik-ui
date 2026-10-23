@@ -11,16 +11,12 @@ import {
 import {
 	ExpandedState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
 	OnChangeFn,
 	PaginationState,
 	Row,
-	RowData,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
+import type { CellData, RowData, TableFeatures } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { RocketIcon } from '@radix-ui/react-icons';
 
@@ -44,12 +40,22 @@ import { columns } from './import-event-table.columns';
 import { FACILITY_MAP, SEVERITY_MAP } from '../utils';
 import { getSeverityBgColor } from './import-event-table-utils';
 import { useImportLog } from './import-log.component';
+import {
+	ImportEventTableFeatures,
+	importEventTableFeatures
+} from './import-event-table.features';
 
 declare module '@tanstack/react-table' {
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		width?: string;
 		className?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 interface ImportEventTableProps {
@@ -67,14 +73,11 @@ function ImportEventTable(props: ImportEventTableProps) {
 	const [isScrolled, setIsScrolled] = useState(false);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-	const table = useReactTable({
+	const table = useTable({
+		features: importEventTableFeatures,
 		state: { pagination, expanded },
 		data,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
 		onPaginationChange: setPagination,
 		onExpandedChange: setExpanded,
 		getRowId: (row) => row.celery_task ?? row.run_source_url,
@@ -113,8 +116,8 @@ function ImportEventTable(props: ImportEventTableProps) {
 		table.setPageSize(pageSize);
 	};
 
-	const pageSize = table.getState().pagination.pageSize;
-	const currentPage = table.getState().pagination.pageIndex + 1;
+	const pageSize = table.state.pagination.pageSize;
+	const currentPage = table.state.pagination.pageIndex + 1;
 	const shouldRenderPagination = rowCount > pageSize;
 
 	return (
@@ -179,7 +182,7 @@ function ImportEventTable(props: ImportEventTableProps) {
 }
 
 interface EventRowProps {
-	row: Row<ImportTaskRow>;
+	row: Row<ImportEventTableFeatures, ImportTaskRow>;
 }
 
 function EventRow({ row }: EventRowProps) {

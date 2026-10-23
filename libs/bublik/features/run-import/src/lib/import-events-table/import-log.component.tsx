@@ -37,11 +37,11 @@ import { LinkWithProject } from '@/bublik/features/projects';
 import {
 	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
 
 import { useImportTaskLogSearch } from './import-search.hooks';
+import { importLogTableFeatures } from './import-log.features';
 
 interface ImportLogContext {
 	toggle: (taskId: string, enablePolling?: boolean) => () => void;
@@ -356,14 +356,17 @@ function HeaderLinks({ runId }: HeaderLinksProps) {
 	);
 }
 
-const helper = createColumnHelper<ImportJsonLog>();
+const helper = createColumnHelper<
+	typeof importLogTableFeatures,
+	ImportJsonLog
+>();
 
 interface GetColumnsConfig {
 	textWrap: boolean;
 }
 
 function getColumns({ textWrap }: GetColumnsConfig) {
-	return [
+	return helper.columns([
 		helper.display({
 			id: 'line-number',
 			header: '#',
@@ -391,7 +394,7 @@ function getColumns({ textWrap }: GetColumnsConfig) {
 					: 'whitespace-nowrap'
 			}
 		})
-	];
+	]);
 }
 
 const getRowClassName = (level: string) => {
@@ -423,10 +426,10 @@ export interface ImportLogTableProps {
 export const ImportLogTable = (props: ImportLogTableProps) => {
 	const { textWrap = true, logs } = props;
 
-	const table = useReactTable<ImportJsonLog>({
+	const table = useTable({
+		features: importLogTableFeatures,
 		data: logs,
-		columns: getColumns({ textWrap }),
-		getCoreRowModel: getCoreRowModel()
+		columns: getColumns({ textWrap })
 	});
 
 	return (

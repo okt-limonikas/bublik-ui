@@ -14,6 +14,7 @@ import { ButtonTw, cn, Icon, toast, Tooltip } from '@/shared/tailwind-ui';
 import { parseDetailDate } from '@/shared/utils';
 import { useImportLog } from './import-log.component';
 import { StatusBadge } from './import-event-table.component';
+import { importEventTableFeatures } from './import-event-table.features';
 
 export function getBgByStatus(status: string): string {
 	const statusMap: Record<string, string> = {
@@ -40,7 +41,10 @@ export function getIconByStatus(status: string) {
 	return statusMap[status];
 }
 
-const columnHelper = createColumnHelper<ImportTaskRow>();
+const columnHelper = createColumnHelper<
+	typeof importEventTableFeatures,
+	ImportTaskRow
+>();
 
 const IMPORT_RETRY_ERROR_FALLBACK = 'Failed to trigger re-import';
 
@@ -172,7 +176,7 @@ function CopyableValue({ value, label }: CopyableValueProps) {
 	);
 }
 
-export const columns = [
+export const columns = columnHelper.columns([
 	columnHelper.accessor('status', {
 		id: 'EVENT_TYPE',
 		header: '',
@@ -343,4 +347,4 @@ export const columns = [
 		},
 		meta: { width: 'min-content' }
 	})
-];
+]);
