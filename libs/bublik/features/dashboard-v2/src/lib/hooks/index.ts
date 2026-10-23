@@ -22,6 +22,7 @@ import { useProjectSearch } from '@/bublik/features/projects';
 import { analyticsEventNames, trackEvent } from '@/bublik/features/analytics';
 import { DASHBOARD_MODE } from '@/shared/types';
 import { formatTimeToAPI } from '@/shared/utils';
+import { useLocalStorage } from '@/shared/hooks';
 
 export const useDashboardTvMode = () => {
 	const [isTvModeEnabled, setIsTvModeEnabled] = useQueryParam(
@@ -30,6 +31,22 @@ export const useDashboardTvMode = () => {
 	);
 
 	return { isTvModeEnabled, setIsTvModeEnabled } as const;
+};
+
+const LEGACY_TABLE_PREVIEW_KEY = 'dashboard-grid-compare';
+
+/**
+ * While the `dashboard-grid` flag is on, shows the flex table it replaces
+ * instead, so the two can be compared without turning the flag off. Kept in
+ * localStorage like the flags. Debug aid, goes with the flag.
+ */
+export const useLegacyTablePreview = () => {
+	const [showLegacy, setShowLegacy] = useLocalStorage(
+		LEGACY_TABLE_PREVIEW_KEY,
+		false
+	);
+
+	return { showLegacy: showLegacy === true, setShowLegacy } as const;
 };
 
 export const DASHBOARD_TABLE_ID = {

@@ -20,6 +20,7 @@ import {
 	useDashboardReload,
 	useDashboardSearchTerm,
 	useDashboardTvMode,
+	useLegacyTablePreview,
 	usePrefetchNextAndPreviousDay
 } from '../hooks';
 import { renderLegacySubrow, renderSubrow } from '../subrow';
@@ -90,6 +91,7 @@ export const DashboardTableContainer = ({
 	const { term } = useDashboardSearchTerm();
 	const { isTvModeEnabled } = useDashboardTvMode();
 	const [isGridEnabled] = useFeatureFlag('dashboard-grid');
+	const { showLegacy } = useLegacyTablePreview();
 	const requestedDate = date || initialDate;
 	const currentQueryKey = getDashboardQueryKey({ requestedDate, projectIds });
 	const query = useGetDashboardByDateQuery(
@@ -162,8 +164,9 @@ export const DashboardTableContainer = ({
 	};
 
 	// The grid table is behind the `dashboard-grid` flag (Settings → Beta)
-	// until it graduates; the flex table stays the default.
-	if (!isGridEnabled) {
+	// until it graduates; the flex table stays the default, and can be
+	// brought back for comparison while the flag is on.
+	if (!isGridEnabled || showLegacy) {
 		return (
 			<DashboardTableLegacy {...tableProps} renderSubrow={renderLegacySubrow} />
 		);

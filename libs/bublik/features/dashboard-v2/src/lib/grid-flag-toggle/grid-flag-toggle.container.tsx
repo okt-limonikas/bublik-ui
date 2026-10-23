@@ -7,14 +7,21 @@ import { FlaskConical } from 'lucide-react';
 import { useFeatureFlag } from '@/bublik/features/feature-flags';
 import { cn } from '@/shared/tailwind-ui';
 
+import { useLegacyTablePreview } from '../hooks';
+
 /**
- * Debug shortcut for the `dashboard-grid` flag, pinned to the page's bottom
- * right so the two layouts can be compared without opening Settings → Beta.
+ * Debug switch between the grid table and the flex table it replaces,
+ * pinned to the page's bottom right. Shown only while the `dashboard-grid`
+ * flag is on (Settings → Beta); it does not change the flag itself, so the
+ * two layouts can be compared and the switch stays available.
  * WIP: goes away when the grid layout graduates.
  */
 export const GridFlagToggleContainer = () => {
-	const [enabled, setEnabled] = useFeatureFlag('dashboard-grid');
+	const [isGridEnabled] = useFeatureFlag('dashboard-grid');
+	const { showLegacy, setShowLegacy } = useLegacyTablePreview();
 	const id = useId();
+
+	if (!isGridEnabled) return null;
 
 	return (
 		<label
@@ -29,8 +36,8 @@ export const GridFlagToggleContainer = () => {
 			<span>Grid layout</span>
 			<SwitchPrimitive.Root
 				id={id}
-				checked={enabled}
-				onCheckedChange={setEnabled}
+				checked={!showLegacy}
+				onCheckedChange={(checked) => setShowLegacy(!checked)}
 				className={cn(
 					'relative h-4 w-[26px] shrink-0 rounded-full transition-colors duration-200 ease-in-out',
 					'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
