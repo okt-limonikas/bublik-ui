@@ -5,6 +5,7 @@ import { FilterFn, Row } from '@tanstack/react-table';
 import { LogTableBlock, LogTableData } from '@/shared/types';
 import { flatten, getAllEntitiesMapWithUsers } from './log-table.hooks';
 import { LogTableFilterValue } from './log-table.types';
+import { LogTableFeatures } from './log-table.features';
 
 // Hover deepens the row's tint: darker on a light page, lighter on a dark one
 const ROW_HOVER = 'hover:brightness-95 dark:hover:brightness-125';
@@ -53,7 +54,7 @@ export const getRowColor = (row: LogTableBlock['data'][number]) => {
 	return getColorByLevel(row.level);
 };
 
-export const logFilterFn: FilterFn<LogTableData> = (
+export const logFilterFn: FilterFn<LogTableFeatures, LogTableData> = (
 	row,
 	_columnId,
 	filterValue: LogTableFilterValue,
@@ -175,7 +176,7 @@ export const getRowIdCreator =
 /**
  * Returns row id pars which consists of block id (array index) and line number
  */
-export const getRowIdParts = (row: Row<LogTableData>) => {
+export const getRowIdParts = (row: Row<LogTableFeatures, LogTableData>) => {
 	return {
 		rowTableId: Number(row.id.split('_')[0]),
 		rowNumber: Number(row.id.split('_')[1])

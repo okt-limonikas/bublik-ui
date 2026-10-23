@@ -5,6 +5,7 @@ import { describe, expect, test } from 'vitest';
 
 import { LogTableData } from '@/shared/types';
 
+import { LogTableFeatures } from '../log-table.features';
 import { getExpandedStateForErrorRows } from './log-table-toolbar.hooks';
 
 interface CreateMockRowConfig {
@@ -13,18 +14,20 @@ interface CreateMockRowConfig {
 	parentIds?: string[];
 }
 
-const createMockRow = (config: CreateMockRowConfig): Row<LogTableData> => {
+const createMockRow = (
+	config: CreateMockRowConfig
+): Row<LogTableFeatures, LogTableData> => {
 	const { id, level, parentIds = [] } = config;
 
 	const parentRows = parentIds.map(
-		(parentId) => ({ id: parentId } as Row<LogTableData>)
+		(parentId) => ({ id: parentId } as Row<LogTableFeatures, LogTableData>)
 	);
 
 	return {
 		id,
 		original: { level } as LogTableData,
 		getParentRows: () => parentRows
-	} as Row<LogTableData>;
+	} as Row<LogTableFeatures, LogTableData>;
 };
 
 describe('getExpandedStateForErrorRows', () => {

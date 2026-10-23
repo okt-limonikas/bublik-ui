@@ -9,11 +9,12 @@ import { LogTableData } from '@/shared/types';
 import { cn } from '@/shared/tailwind-ui';
 
 import { LogTableFilterValue } from '../log-table.types';
+import { LogTableFeatures } from '../log-table.features';
 
 export const ERROR_LEVEL_NAME = 'ERROR';
 
 export function getExpandedStateForErrorRows(
-	flatRows: Row<LogTableData>[],
+	flatRows: Row<LogTableFeatures, LogTableData>[],
 	currentExpanded: ExpandedState
 ): ExpandedState {
 	if (currentExpanded === true) return currentExpanded;
@@ -40,18 +41,20 @@ export function getExpandedStateForErrorRows(
 	return isUpdated ? nextExpanded : currentExpanded;
 }
 
-export function expandRowsToErrorDepth(table: Table<LogTableData>) {
+export function expandRowsToErrorDepth(
+	table: Table<LogTableFeatures, LogTableData>
+) {
 	const expandedState = getExpandedStateForErrorRows(
 		table.getCoreRowModel().flatRows,
-		table.getState().expanded
+		table.atoms.expanded.get()
 	);
 
-	if (expandedState !== table.getState().expanded) {
+	if (expandedState !== table.atoms.expanded.get()) {
 		table.setExpanded(expandedState);
 	}
 }
 
-export function useTableDepth(table: Table<LogTableData>) {
+export function useTableDepth(table: Table<LogTableFeatures, LogTableData>) {
 	const maximumDepth = useMemo(
 		() =>
 			table
@@ -162,7 +165,7 @@ export function useToolbarPosition(isIntersection?: boolean): ToolbarPosition {
 }
 
 export function useFilterHandlers(
-	table: Table<LogTableData>,
+	table: Table<LogTableFeatures, LogTableData>,
 	filters: string[],
 	levels: string[]
 ) {

@@ -16,8 +16,10 @@ import {
 	Separator
 } from '@/shared/tailwind-ui';
 
+import { LogTableFeatures } from '../../log-table.features';
+
 interface ColumnToggleProps {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	className?: string;
 }
 
@@ -52,7 +54,7 @@ function ColumnToggle({ table, className }: ColumnToggleProps) {
 					<DropdownMenuCheckboxItem
 						key={column.id}
 						checked={column.getIsVisible()}
-						onCheckedChange={column.toggleVisibility}
+						onCheckedChange={(checked) => column.toggleVisibility(checked)}
 						className="text-xs"
 					>
 						{column.id

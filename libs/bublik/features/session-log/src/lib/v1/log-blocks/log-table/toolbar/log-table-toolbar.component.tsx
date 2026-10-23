@@ -21,6 +21,7 @@ import {
 } from '@/shared/tailwind-ui';
 
 import { LogTableFilterValue } from '../log-table.types';
+import { LogTableFeatures } from '../log-table.features';
 import { TableDepthFilter } from './table-depth-filter';
 import { useSettingsContext } from '../settings.context';
 import {
@@ -35,7 +36,7 @@ import { ColumnToggle } from './column-toggle';
 import { FloatingExpandButton } from './expand-button';
 
 export interface LogTableToolbarProps {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	levels: string[];
 	scenario?: string[];
 	test?: string[];
@@ -163,7 +164,7 @@ export function LogTableToolbar(props: LogTableToolbarProps) {
 type FilterType = 'scenario' | 'test' | 'all' | 'error';
 
 interface ToggleGroupFilterProps {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	scenario?: string[];
 	test?: string[];
 	levels: string[];
@@ -174,7 +175,7 @@ function ToggleGroupFilter(props: ToggleGroupFilterProps) {
 	const { table, scenario = [], test = [], filters = [], levels = [] } = props;
 	const expandedStateBeforeErrorRef = useRef<ExpandedState | null>(null);
 
-	const state = table.getState().globalFilter as LogTableFilterValue;
+	const state = table.atoms.globalFilter.get() as LogTableFilterValue;
 
 	const scenarioActive =
 		scenario?.length > 0 &&
@@ -229,7 +230,7 @@ function ToggleGroupFilter(props: ToggleGroupFilterProps) {
 			const isErrorModeEnabled = !isErrorActive;
 
 			if (isErrorModeEnabled) {
-				expandedStateBeforeErrorRef.current = table.getState().expanded;
+				expandedStateBeforeErrorRef.current = table.atoms.expanded.get();
 			}
 
 			table.setGlobalFilter((prev: LogTableFilterValue) => ({
@@ -376,7 +377,7 @@ type FacetedFilterOptions = {
 };
 
 interface FacetedFiltersProps {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	options: FacetedFilterOptions;
 }
 
@@ -392,7 +393,7 @@ function FacetedFilters({ table, options }: FacetedFiltersProps) {
 						levels: values
 					}))
 				}
-				value={table.getState().globalFilter.levels}
+				value={table.atoms.globalFilter.get().levels}
 				className="w-full"
 			/>
 
@@ -405,7 +406,7 @@ function FacetedFilters({ table, options }: FacetedFiltersProps) {
 						filters: values
 					}))
 				}
-				value={table.getState().globalFilter.filters}
+				value={table.atoms.globalFilter.get().filters}
 				className="w-full"
 			/>
 		</>
@@ -417,7 +418,7 @@ interface ResetButtonProps {
 }
 
 interface ToolbarContentProps {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	maximumDepth: number;
 	handleDepthClick: (depth: number) => void;
 	scenario?: string[];

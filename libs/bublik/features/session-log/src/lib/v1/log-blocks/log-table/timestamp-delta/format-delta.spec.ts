@@ -10,6 +10,7 @@ import { formatUnixTimestampToTimezone } from '@/shared/utils';
 
 import { DeltaContextProvider } from '../log-table.context';
 import { LOG_COLUMNS } from '../log-table.columns';
+import type { LogTableFeatures } from '../log-table.features';
 import { formatDelta, TimestampDelta } from './timestamp-delta';
 
 function createRow(timestamp: LogJsonTimestamp) {
@@ -19,7 +20,7 @@ function createRow(timestamp: LogJsonTimestamp) {
 
 			return undefined;
 		}
-	} as unknown as Row<LogTableData>;
+	} as unknown as Row<LogTableFeatures, LogTableData>;
 }
 
 describe('format delta', () => {

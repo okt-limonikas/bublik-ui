@@ -23,6 +23,7 @@ import {
 	getScenarioOptions,
 	getTestFilters
 } from './log-table.utils';
+import { LogTableFeatures } from './log-table.features';
 
 export const flatten = <T extends { children?: T[] }>(arr: T[]): T[] => {
 	return arr.reduce<T[]>(
@@ -234,7 +235,7 @@ export const useLogTableTimestamp = () => {
 };
 
 interface UseLogTableColumnsConfig {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 }
 
 export const useLogTableDelta = ({ table }: UseLogTableColumnsConfig) => {
@@ -391,7 +392,7 @@ export const useLogTablePagination = ({
 
 interface UseLogTablePaginationPropsConfig {
 	id: string;
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	context?: LogTableContext | null;
 }
 
@@ -400,9 +401,9 @@ export const useLogTablePaginationProps = ({
 	table,
 	context
 }: UseLogTablePaginationPropsConfig) => {
-	const state = table.getState();
-	const pageIndex = state.pagination.pageIndex;
-	const pageSize = state.pagination.pageSize;
+	const pagination = table.atoms.pagination.get();
+	const pageIndex = pagination.pageIndex;
+	const pageSize = pagination.pageSize;
 
 	const paginationProps: PaginationProps = {
 		variant: 'log',

@@ -12,10 +12,11 @@ import {
 
 import { useDeltaContext } from '../log-table.context';
 import { LOG_COLUMNS } from '../log-table.columns';
+import { LogTableFeatures } from '../log-table.features';
 
 export type TimestampDeltaProps = {
 	data: LogTableData['timestamp'];
-	row: Row<LogTableData>;
+	row: Row<LogTableFeatures, LogTableData>;
 	showDelta?: boolean;
 };
 

@@ -11,10 +11,18 @@ import { PaginationState, Row, Table } from '@tanstack/react-table';
 
 import { LogTableData } from '@/shared/types';
 
+import { LogTableFeatures } from './log-table.features';
+
 export interface LogTableContext {
 	onLineNumberClick?: (id: string, lineNumber: number) => void;
-	onLogTableMount?: (id: string, table: Table<LogTableData>) => void;
-	onLogTableUnmount?: (id: string, table: Table<LogTableData>) => void;
+	onLogTableMount?: (
+		id: string,
+		table: Table<LogTableFeatures, LogTableData>
+	) => void;
+	onLogTableUnmount?: (
+		id: string,
+		table: Table<LogTableFeatures, LogTableData>
+	) => void;
 	onPageClick?: (id: string, page: number) => void;
 }
 
@@ -63,8 +71,8 @@ export const useLogTablePaginationContext = () => {
 };
 
 interface TimestampDeltaContext {
-	anchorRow: Row<LogTableData>;
-	setAnchorRow: (row: Row<LogTableData>) => void;
+	anchorRow: Row<LogTableFeatures, LogTableData>;
+	setAnchorRow: (row: Row<LogTableFeatures, LogTableData>) => void;
 	resetAnchorRow: () => void;
 }
 
@@ -94,7 +102,7 @@ export const useDeltaContext = () => {
 };
 
 export type UseDeltaContextParams = {
-	table: Table<LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 };
 
 export const useDelta = (
@@ -107,9 +115,11 @@ export const useDelta = (
 		[table]
 	);
 
-	const [anchorRow, setAnchorRowS] = useState<Row<LogTableData>>(firstRow);
+	const [anchorRow, setAnchorRowS] =
+		useState<Row<LogTableFeatures, LogTableData>>(firstRow);
 
-	const setAnchorRow = (row: Row<LogTableData>) => setAnchorRowS(row);
+	const setAnchorRow = (row: Row<LogTableFeatures, LogTableData>) =>
+		setAnchorRowS(row);
 
 	const resetAnchorRow = () => setAnchorRowS(firstRow);
 

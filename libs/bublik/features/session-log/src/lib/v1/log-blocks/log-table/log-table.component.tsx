@@ -10,15 +10,11 @@ import {
 import {
 	ColumnFiltersState,
 	flexRender,
-	getCoreRowModel,
-	getExpandedRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
 	Row,
-	RowData,
 	Table,
-	useReactTable
+	useTable
 } from '@tanstack/react-table';
+import type { CellData, RowData, TableFeatures } from '@tanstack/react-table';
 
 import { LogTableBlock, LogTableData } from '@/shared/types';
 import { ButtonTw, cn, Pagination } from '@/shared/tailwind-ui';
@@ -40,12 +36,18 @@ import { getRowColor, getRowIdCreator, logFilterFn } from './log-table.utils';
 import { LogTableToolbar } from './toolbar';
 import { SettingsContextProvider } from './settings.context';
 import { getColumns } from './log-table.columns';
+import { logTableFeatures, LogTableFeatures } from './log-table.features';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		className?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 export const BlockLogTable = (props: LogTableBlock & { id: string }) => {
@@ -74,15 +76,12 @@ export const BlockLogTable = (props: LogTableBlock & { id: string }) => {
 	});
 	const hasPagination = Boolean(paginationContext?.pagination);
 
-	const table = useReactTable<LogTableData>({
+	const table = useTable({
+		features: logTableFeatures,
 		pageCount: totalCount,
 		data: useMemo(() => data, [data]),
 		columns,
 		state: { globalFilter, expanded, pagination, columnFilters },
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getExpandedRowModel: getExpandedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		getSubRows: (row) => row.children,
 		getRowCanExpand: (row) => Boolean(row.subRows.length),
 		getRowId: getRowIdCreator(id),
@@ -216,8 +215,8 @@ export const BlockLogTable = (props: LogTableBlock & { id: string }) => {
 };
 
 export interface LogRowProps {
-	row: Row<LogTableData>;
-	table: Table<LogTableData>;
+	row: Row<LogTableFeatures, LogTableData>;
+	table: Table<LogTableFeatures, LogTableData>;
 	isLast: boolean;
 }
 

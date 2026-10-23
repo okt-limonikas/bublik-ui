@@ -6,10 +6,12 @@ import { ButtonTw, cn, Separator, twButtonStyles } from '@/shared/tailwind-ui';
 
 import { LogTableData } from '@/shared/types';
 
+import { LogTableFeatures } from '../../log-table.features';
+
 export interface TableDepthFilterProps {
 	maxDepth: number;
 	onDepthClick: (depth: number) => void;
-	flatRows: Row<LogTableData>[];
+	flatRows: Row<LogTableFeatures, LogTableData>[];
 	className?: string;
 }
 

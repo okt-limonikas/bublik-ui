@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* SPDX-FileCopyrightText: 2021-2023 OKTET Labs Ltd. */
-import { ColumnDef, Row, RowData } from '@tanstack/react-table';
+import { ColumnDef, Row } from '@tanstack/react-table';
+import type { CellData, RowData, TableFeatures } from '@tanstack/react-table';
 
 import { cn } from '@/shared/tailwind-ui';
 
@@ -19,17 +20,22 @@ import {
 } from './blocks';
 import { useLogTableContext } from './log-table.context';
 import { TimestampDelta } from './timestamp-delta';
+import { LogTableFeatures } from './log-table.features';
 
 declare module '@tanstack/react-table' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface ColumnMeta<TData extends RowData, TValue> {
+	/* eslint-disable @typescript-eslint/no-unused-vars */
+	interface ColumnMeta<
+		TFeatures extends TableFeatures,
+		TData extends RowData,
+		TValue extends CellData = CellData
+	> {
 		className?: string;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface TableMeta<TData extends RowData> {
+	interface TableMeta<TFeatures extends TableFeatures, TData extends RowData> {
 		id?: string;
 	}
+	/* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 const blocksMap: GetBlocksMap<
@@ -69,7 +75,10 @@ export const LOG_COLUMNS = {
 	logContent: 'LOG_CONTENT'
 } as const;
 
-function shouldShowVerticalLine<T>(row: Row<T>, lineDepth: number): boolean {
+function shouldShowVerticalLine<T extends RowData>(
+	row: Row<LogTableFeatures, T>,
+	lineDepth: number
+): boolean {
 	const parentRow = row.getParentRow();
 	const parentRowDepth = parentRow?.depth ?? 0;
 
@@ -100,7 +109,7 @@ export interface GetColumnsParams {
 
 export const getColumns = (
 	params: GetColumnsParams
-): ColumnDef<LogTableBlock['data'][number]>[] => {
+): ColumnDef<LogTableFeatures, LogTableBlock['data'][number]>[] => {
 	const { showTimestampDelta } = params;
 
 	return [
