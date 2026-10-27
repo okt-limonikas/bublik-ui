@@ -39,11 +39,9 @@ class ImportPage {
 	}
 
 	get urlInputs(): Locator {
-		return this.importModal.locator('input[placeholder*="ts-factory.io"]');
-	}
-
-	get addUrlButton(): Locator {
-		return this.importModal.getByRole('button', { name: /^Add$/ });
+		return this.importModal.getByRole('textbox', {
+			name: /^Log folder URL \d+$/
+		});
 	}
 
 	get forceImportCheckbox(): Locator {
@@ -91,10 +89,7 @@ class ImportPage {
 	}
 
 	async fillUrls(urls: string[]): Promise<void> {
-		while ((await this.urlInputs.count()) < urls.length) {
-			await this.addUrlButton.click();
-		}
-
+		// Filling the last row adds the next one.
 		for (const [index, url] of urls.entries()) {
 			await this.fillUrl(index, url);
 		}
@@ -105,7 +100,10 @@ class ImportPage {
 	}
 
 	async selectProject(projectName: string): Promise<void> {
-		await this.importModal.getByRole('combobox').click();
+		await this.importModal
+			.getByTestId('import-project')
+			.getByRole('combobox')
+			.click();
 		await this.page.getByRole('option', { name: projectName }).click();
 	}
 
@@ -422,9 +420,9 @@ class ImportPage {
 	}
 
 	async closeResultModal(): Promise<void> {
-		const closeButton = this.importModal.locator(
-			'button[class*="absolute top-4"]'
-		);
+		const closeButton = this.importModal.getByRole('button', {
+			name: 'Close Import Dialog'
+		});
 		await closeButton.click();
 		await this.importModal
 			.waitFor({ state: 'hidden', timeout: 5_000 })

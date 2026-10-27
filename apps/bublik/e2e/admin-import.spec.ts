@@ -121,8 +121,8 @@ test.describe('Import Page', () => {
 				await importPage.openImportForm();
 				rowsBefore = await importPage.urlInputs.count();
 			});
-			await when('I add another URL row', () =>
-				importPage.addUrlButton.click()
+			await when('I fill the last URL row', () =>
+				importPage.fillUrl(rowsBefore - 1, 'https://example.test/logs/run-1')
 			);
 			await then('the form offers one more URL input than before', () =>
 				expect(importPage.urlInputs).toHaveCount(rowsBefore + 1, {

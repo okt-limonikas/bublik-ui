@@ -4,12 +4,7 @@ import { format } from 'date-fns';
 import { RocketIcon } from '@radix-ui/react-icons';
 
 import { ImportRunsJobResponse } from '@/shared/types';
-import {
-	ButtonTw,
-	DialogDescription,
-	DialogTitle,
-	Icon
-} from '@/shared/tailwind-ui';
+import { ButtonTw, Icon } from '@/shared/tailwind-ui';
 
 import { useImportLog } from '../import-events-table';
 import { StatusBadge } from '../import-events-table/import-event-table.component';
@@ -34,17 +29,12 @@ function RunImportResult({
 
 	return (
 		<div>
-			<DialogTitle className="text-lg font-semibold leading-none tracking-tight">
-				Import Runs
-			</DialogTitle>
-
-			<DialogDescription className="mt-1.5 text-base text-gray-500">
-				Scheduled runs will be imported in the background
-			</DialogDescription>
-			<p className="mt-1.5 mb-6 text-sm text-gray-500">
-				You can check the logs and flower tasks
-			</p>
-			<h3 className="text-sm font-medium text-text-primary mb-2">Imports</h3>
+			<h3 className="text-[0.8125rem] font-semibold text-text-secondary mb-2.5">
+				Imports{' '}
+				<span className="font-normal text-text-menu">
+					· each one&apos;s log and Celery task
+				</span>
+			</h3>
 			<ul className="border rounded-md [&>*:not(:last-child)]:border-b [&>*]:border-border-primary">
 				{allTasks.map((task, i) => {
 					const url = task.run_source_url ? new URL(task.run_source_url) : null;
