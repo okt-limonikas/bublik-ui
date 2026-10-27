@@ -16,6 +16,7 @@ import { routes } from '@/router';
 
 import { useImportLog } from './import-log.component';
 import { StatusBadge } from './import-event-table.component';
+import { getSourceBrowserUrl } from './import-event-table-utils';
 
 export function getBgByStatus(status: string): string {
 	const statusMap: Record<string, string> = {
@@ -249,7 +250,7 @@ export const columns = [
 			if (!z.string().url().safeParse(url).success) return null;
 			return (
 				<a
-					href={url}
+					href={getSourceBrowserUrl(url)}
 					className="hover:underline whitespace-pre-wrap text-primary"
 					target="_blank"
 					rel="noreferrer"
