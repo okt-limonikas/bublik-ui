@@ -7,3 +7,4 @@ export * from './date-range-picker-field';
 export * from './date-range-picker';
 export * from './date-picker';
 export { DateRangePicker as AriaDateRangePicker };
+export { RangeCalendar } from './range-calendar';
