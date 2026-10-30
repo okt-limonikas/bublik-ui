@@ -13,8 +13,7 @@ import {
 import { RunDetailsContainer } from '@/bublik/features/run-details';
 import {
 	ApplyRulesButton,
-	ResultSelectionProvider,
-	RunIssuesButton
+	ResultSelectionProvider
 } from '@/bublik/features/result-classification';
 import { DiffFormContainer } from '@/bublik/features/run-diff';
 import { CopyShortUrlButtonContainer } from '@/bublik/features/copy-url';
@@ -80,7 +79,6 @@ const RunHeader = ({ runId }: RunHeaderProps) => {
 					<Separator orientation="vertical" className="h-5 self-center" />
 					<DefineCompromiseContainer runId={runId} />
 					<NewBugContainer runId={Number(runId)} resultId={Number(runId)} />
-					<RunIssuesButton runId={runId} />
 					<ApplyRulesButton runId={runId} />
 					<Separator orientation="vertical" className="h-5 self-center" />
 					<CopyShortUrlButtonContainer />

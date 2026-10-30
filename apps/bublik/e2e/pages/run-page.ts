@@ -496,13 +496,6 @@ class RunPage {
 		);
 	}
 
-	/** The run header's link to its issues page. */
-	get issuesHeaderLink(): Locator {
-		return this.page
-			.getByRole('banner')
-			.getByRole('link', { name: 'Issues', exact: true });
-	}
-
 	get applyRulesButton(): Locator {
 		return this.page.getByRole('banner').getByTestId('apply-rules-button');
 	}

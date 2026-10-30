@@ -356,12 +356,6 @@ Feature: Run details
     And the issues page counts one result under the issue
     And I delete the issue
 
-  @run @issues @needs-classification
-  Scenario: The run header links to the run's issues
-    Given I open the page of a run the seed classified
-    When I follow the Issues link in the header
-    Then the run's issues page is open
-
   # Runs without the shared signed-in storage state.
   @run @compromised @auth
   Scenario: Marking a run as compromised while signed out asks me to sign in

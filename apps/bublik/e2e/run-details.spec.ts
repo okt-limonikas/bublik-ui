@@ -22,7 +22,6 @@ import {
 import { and, given, then, when } from './support/gherkin';
 import { requireCapability } from './support/capabilities';
 import { requireManifest } from './support/manifest';
-import { seededClassification } from './support/seeded-classification';
 import {
 	artifactResultCase,
 	claimFailingResult,
@@ -55,28 +54,6 @@ function classifiable(): {
 	);
 
 	return { run, failing };
-}
-
-/**
- * A run the seed classified a result in. The write scenarios clean up their
- * issues, so only a seeded run is sure to have an Issues link in its header.
- */
-function seededRunWithIssues(): { runId: number; name: string } {
-	const bundle = requireCapability(
-		seededClassification(requireManifest()).rules[0]?.classifiedIn,
-		'the seeded classification has no rule that classified a result'
-	);
-
-	return {
-		runId: requireCapability(
-			bundle.runId,
-			`seeded bundle "${bundle.id}" has no run id`
-		),
-		name: requireCapability(
-			bundle.expectedRuns[0]?.name,
-			`seeded bundle "${bundle.id}" has no expected run`
-		)
-	};
 }
 
 /** The fixture run's page with the first failing test's result table open. */
@@ -1695,31 +1672,6 @@ test.describe('Run Details Page', () => {
 				await issuesPage.deleteIssue(title);
 				issueCleanup.forget(issueId);
 			});
-		}
-	);
-
-	test(
-		"The run header links to the run's issues",
-		{ tag: ['@run', '@issues', '@needs-classification'] },
-		async ({ page }) => {
-			const run = seededRunWithIssues();
-			const runPage = new RunPage(page);
-
-			await given('I open the page of a run the seed classified', async () => {
-				await runPage.goto(run.runId);
-				await runPage.expectLoaded(run.name);
-			});
-			await when('I follow the Issues link in the header', async () => {
-				await expect(runPage.issuesHeaderLink).toBeVisible({
-					timeout: 15_000
-				});
-				await runPage.issuesHeaderLink.click();
-			});
-			await then("the run's issues page is open", () =>
-				expect(page).toHaveURL(new RegExp(`/runs/${run.runId}/issues`), {
-					timeout: 15_000
-				})
-			);
 		}
 	);
 });
